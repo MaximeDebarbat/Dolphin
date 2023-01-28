@@ -1,16 +1,19 @@
 
 import numpy as np
 from functools import reduce
+from Data import Device
 
 class Data:
     
     def __init__(self, name:str, 
                        shape:tuple,
-                       dtype:np.dtype):
+                       dtype:np.dtype,
+                       device:Device):
         
         self._name = name
         self._shape = shape
         self._dtype = dtype
+        self._device = device
         self._size = reduce((lambda x, y: x.size * y.size), self._shape)*np.dtype(self._dtype)
         
     @property
