@@ -17,6 +17,6 @@ class Block(object):
         self._TrtEngine = TrtEngine
         self._cuda_bindings = cuda_bindings
     
-    def __call__(self, input:object):
+    def __call__(self, input:TransitData) -> TransitData:
         
         
