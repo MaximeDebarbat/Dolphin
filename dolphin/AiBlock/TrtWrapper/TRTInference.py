@@ -1,17 +1,8 @@
-import pycuda.autoinit
-import pycuda.driver as cuda
 import numpy as np
 import tensorrt as trt
 import os
 import sys
-from datetime import datetime
 
-TRT_LOGGER = None
-
-if(int(trt.__version__[2])==0):
-    TRT_LOGGER = trt.Logger
-else:
-    TRT_LOGGER = trt.ILogger
 
 class EngineCalibrator(trt.IInt8EntropyCalibrator2):
     """
@@ -95,119 +86,6 @@ class EngineCalibrator(trt.IInt8EntropyCalibrator2):
         """
         pass
 
-class HostDeviceMem(object):
-
-    def __init__(self, host_mem, device_mem):
-        self.host = host_mem
-        self.device = device_mem
-
-    def __repr__(self):
-        return "Host:\n" + str(self.host) + "\nDevice:\n" + str(self.device)
-
-class CUDA_Buffers(object):
-
-    def __init__(self):
-        
-        self._stream = cuda.Stream()
-
-        self._inputs = []
-        self._outputs = []
-        self._bindings = []
-
-        self._output_shapes = []
-        self._input_shapes = []
-
-    def allocate_input(self, shape, dtype):
-
-        self._input_shapes.append(shape)
-        host_mem = cuda.pagelocked_empty(trt.volume(shape), trt.nptype(dtype))
-        device_mem = cuda.mem_alloc(host_mem.nbytes)
-        self._bindings.append(int(device_mem))
-        self._inputs.append(HostDeviceMem(host_mem, device_mem))
-
-    def allocate_output(self, shape, dtype):
-
-        self._output_shapes.append(shape)
-        host_mem = cuda.pagelocked_empty(trt.volume(shape), trt.nptype(dtype))
-        device_mem = cuda.mem_alloc(host_mem.nbytes)
-        self._bindings.append(int(device_mem))
-        self._outputs.append(HostDeviceMem(host_mem, device_mem))
-
-    def H2D_async(self):
-        [cuda.memcpy_htod_async(inp.device, inp.host, self._stream) for inp in self._inputs]
-
-    def D2H_async(self):
-        [cuda.memcpy_dtoh_async(out.host, out.device, self._stream) for out in self._outputs]
-
-    def H2D(self):
-        [cuda.memcpy_htod(inp.device, inp.host) for inp in self._inputs]
-
-    def D2H(self):
-        [cuda.memcpy_dtoh(out.host, out.device) for out in self._outputs]
-
-    def synchronize(self):
-        self._stream.synchronize()
-
-    def write_input(self,batch):
-        self._inputs[0].host = np.array(batch, dtype=np.float32, order='C')
-        return np.asarray(batch).shape
-
-    def __del__(self):
-        del self._stream
-
-    @property
-    def input_shape(self):
-        return self._input_shapes
-
-    @property
-    def output_shape(self):
-        return self._output_shapes
-
-    @property
-    def output(self):
-        return [out.host.reshape(shape) for shape, out in zip(self._output_shapes,self._outputs)]
-
-    @property
-    def bindings(self):
-        return self._bindings
-
-    @property
-    def stream(self):
-        return self._stream
-
-class CustomLogger(TRT_LOGGER):
-    def __init__(self,
-                 verbose_mode:bool=False,
-                 stdout:object=sys.stdout,
-                 stderr:object=sys.stderr):
-
-        TRT_LOGGER.__init__(self)
-        if(verbose_mode):
-            self.min_severity = TRT_LOGGER.Severity.VERBOSE
-        else:
-            self.min_severity = TRT_LOGGER.Severity.INFO
-
-        self.stdout = stdout
-        self.stderr = stderr
-
-    def log(self, severity, msg):
-        
-        current_date = f'[{datetime.now().strftime("%d/%m/%Y-%H:%M:%S")}]'
-
-        if(severity==TRT_LOGGER.Severity.ERROR):
-            print(current_date+"[E] "+msg, file=self.stderr)
-
-        if(severity==TRT_LOGGER.Severity.INTERNAL_ERROR ):
-            print(current_date+"[INTERNAL ERROR] "+msg, file=self.stderr)
-
-        if(severity==TRT_LOGGER.Severity.WARNING):
-            print(current_date+"[W] "+msg, file=self.stdout)
-
-        if(self.min_severity == TRT_LOGGER.Severity.VERBOSE and severity==TRT_LOGGER.Severity.VERBOSE):
-            print(current_date+"[V] "+msg, file=self.stdout)
-
-        if(severity==TRT_LOGGER.Severity.INFO):
-            print(current_date+"[I] "+msg, file=self.stdout)
 
 class TrtInference:
     def __init__(self, onnx_file_path:str, 
