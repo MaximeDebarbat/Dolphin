@@ -14,12 +14,7 @@ class HostDeviceMem(object):
 
 class CUDA_Buffers(object):
 
-    def __init__(self, stream:cuda.Stream | None = None):
-        
-        if(stream is None):
-            self._stream = cuda.Stream()
-        else:
-            self._stream = stream
+    def __init__(self):
 
         self._inputs = {}
         self._outputs = {}
@@ -54,17 +49,17 @@ class CUDA_Buffers(object):
 
     ### Async copy
 
-    def input_H2D_async(self):
-        [cuda.memcpy_htod_async(inp.device, inp.host, self._stream) for inp in self._inputs]
+    def input_H2D_async(self, stream:cuda.Stream):
+        [cuda.memcpy_htod_async(inp.device, inp.host, stream) for inp in self._inputs]
 
-    def input_D2H_async(self):
-        [cuda.memcpy_dtoh_async(inp.host, inp.device, self._stream) for inp in self._inputs]
+    def input_D2H_async(self, stream:cuda.Stream):
+        [cuda.memcpy_dtoh_async(inp.host, inp.device, stream) for inp in self._inputs]
 
-    def output_H2D_async(self):
-        [cuda.memcpy_htod_async(out.device, out.host, self._stream) for out in self._outputs]
+    def output_H2D_async(self, stream:cuda.Stream):
+        [cuda.memcpy_htod_async(out.device, out.host, stream) for out in self._outputs]
 
-    def output_D2H_async(self):
-        [cuda.memcpy_dtoh_async(out.host, out.device, self._stream) for out in self._outputs]
+    def output_D2H_async(self, stream:cuda.Stream):
+        [cuda.memcpy_dtoh_async(out.host, out.device, stream) for out in self._outputs]
 
     ### Sync copy
 
@@ -80,17 +75,10 @@ class CUDA_Buffers(object):
     def output_D2H(self):
         [cuda.memcpy_dtoh(out.host, out.device) for out in self._outputs]
 
-    ### Stream sync
-
-    def synchronize(self):
-        self._stream.synchronize()
 
     def write_input_host(self,name:str, data:object):
         self._inputs[name].host = np.array(data, dtype=np.float32, order='C')
         return np.asarray(data).shape
-
-    def __del__(self):
-        del self._stream
 
     @property
     def input_shape(self):
@@ -115,7 +103,3 @@ class CUDA_Buffers(object):
     @property
     def bindings(self):
         return self.input_bindings + self.output_bindings
-
-    @property
-    def stream(self):
-        return self._stream
