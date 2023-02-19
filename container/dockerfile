@@ -1,0 +1,16 @@
+FROM nvcr.io/nvidia/tensorrt:23.01-py3
+
+WORKDIR /app
+
+# disable bytecode generation
+ENV PYTHONDONTWRITEBYTECODE 1
+
+# send the python output directly to the terminal without first buffering it
+ENV PYTHONUNBUFFERED 1
+
+COPY requirements.txt requirements.txt
+
+RUN python3 -m pip install --upgrade pip
+RUN pip3 install -r requirements.txt
+
+COPY . .
