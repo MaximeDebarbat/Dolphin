@@ -12,7 +12,63 @@ class HostDeviceMem(object):
     def __repr__(self):
         return "Host:\n" + str(self.host) + "\nDevice:\n" + str(self.device)
 
+class CUDA_Binding(object):
+    
+    def __init__(self):
+        
+        self._HDM = None
+        self._shape = None
+        self._dtype = None
+                
+    def allocate(self, shape:tuple, dtype:np.dtype):
+        
+        self._shape = shape
+        self._dtype = dtype
+        
+        _HM = cuda.pagelocked_empty(trt.volume(self._shape), self._dtype)
+        _DM = cuda.mem_alloc(_HM.nbytes)
+        
+        self._HDM = HostDeviceMem(host_mem = _HM,
+                                  device_mem= _DM)
+        
+    def write(self, data:object):
+        self._HDM.host = np.array(data, dtype=self._dtype, order="C")
+    
+    def H2D(self, stream:cuda.Stream=None):
+        if(stream is None):
+            cuda.memcpy_htod(self._HDM.device,self._HDM.host)
+        else:
+            cuda.memcpy_htod_async(self._HDM.device,self._HDM.host, stream=stream)
+            
+    def D2H(self, stream:cuda.Stream=None):
+        if(stream is None):
+            cuda.memcpy_dtoh(self._HDM.host,self._HDM.device)
+        else:
+            cuda.memcpy_dtoh_async(self._HDM.host,self._HDM.device, stream=stream)
+            
+    @property
+    def host(self):
+        return self._HDM.host
+
+    @property
+    def device(self):
+        return self._HDM.device
+    
+    @property
+    def shape(self):
+        return self._shape
+    
+    @property
+    def dtype(self):
+        return self._dtype
+    
+    @property
+    def value(self):
+        return self._HDM.host.reshape(self._shape).astype(self._dtype)
+
 class CUDA_Buffers(object):
+
+    # TO FIX, GENERALIZE THIS SHIT WITH CUDA_Binding
 
     def __init__(self):
 
@@ -74,7 +130,6 @@ class CUDA_Buffers(object):
 
     def output_D2H(self):
         [cuda.memcpy_dtoh(out.host, out.device) for out in self._outputs]
-
 
     def write_input_host(self,name:str, data:object):
         self._inputs[name].host = np.array(data, dtype=np.float32, order='C')
