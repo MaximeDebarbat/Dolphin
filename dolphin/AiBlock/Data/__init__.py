@@ -1,3 +1,4 @@
 from Data.data import Data
-from Data.TransitData import TransitData
-from Data.Device import Device
+from Data.transitData import TransitData
+from Data.device import Device
+from Data.metadata import ImageSize

@@ -1,7 +1,7 @@
 
 import numpy as np
 from functools import reduce
-from Data import Device
+from Data.device import Device
 
 class Data:
     
