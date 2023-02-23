@@ -43,7 +43,7 @@ class CuCropNResize(CUDA_BASE):
         
         self._binding_image_batch.allocate(shape=(self._n_max_bboxes,)+self._out_image_size.shape, dtype=self._out_image_size.dtype)
         self._binding_n_max_bboxes.allocate(shape=(), dtype=np.uint16)
-        self._binding_out_image_size.allocate(shape=(4,), dtype=self._out_image_size.dtype)
+        self._binding_out_image_size.allocate(shape=(3,), dtype=self._out_image_size.dtype)
         self._binding_max_width.allocate(shape=(), dtype=np.float32)
         self._binding_max_height.allocate(shape=(), dtype=np.float32)
                 
@@ -70,8 +70,7 @@ class CuCropNResize(CUDA_BASE):
         as well as its size
         '''
         
-        self._GMD_CUDA_F(binding_bounding_boxes.device, 
-                         self._binding_n_max_bboxes.device, 
+        self._GMD_CUDA_F(binding_bounding_boxes.device,
                          self._binding_max_width.device, 
                          self._binding_max_height.device,
                          block=(self._n_max_bboxes,1,1), 
@@ -86,6 +85,7 @@ class CuCropNResize(CUDA_BASE):
         _GRID = self._GET_GRID_SIZE(size=int(self._n_max_bboxes*3*self._binding_max_width.value*self._binding_max_height.value),
                                     block=self._BLOCK)
         
+        print(f"block : {self._BLOCK} {_GRID}")
         self._CNR_CUDA_F(binding_in_image.device,           #uint16_t *src_image
                          self._binding_image_batch.device,         #uint16_t* dst_images
                          binding_in_image_size.device,      #uint16_t* in_size
@@ -109,21 +109,23 @@ if __name__ == "__main__":
     stream = None # cuda.Stream()
 
     binding_in_image.allocate(shape=(3,1920,1080), dtype=np.uint8)
-    binding_in_image.write(np.zeros((3,1920,1080)))
+    binding_in_image.write(np.ones((3,1920,1080)))
     binding_in_image.H2D(stream=stream)
     
     binding_in_image_size.allocate(shape=(4,), dtype=np.uint16)
-    binding_in_image_size.write((3,1000,1000))
+    binding_in_image_size.write((3,1920,1080))
     binding_in_image_size.H2D(stream=stream)
     
-    binding_bounding_boxes.allocate(shape=(3,4), dtype=np.float32)
+    binding_bounding_boxes.allocate(shape=(3,4), dtype=np.uint16)
     binding_bounding_boxes.write([[0,0,0,0],[0,0,10,100],[0,0,100,10]])
     binding_bounding_boxes.H2D(stream=stream)
         
-    cropnrezie = CuCropNResize(out_image_size=ImageSize(width=1920, height=1080, channels=3, dtype=np.uint8), n_max_bboxes=3)
+    cropnrezise = CuCropNResize(out_image_size=ImageSize(width=10, height=10, channels=3, dtype=np.uint8), n_max_bboxes=3)
     
-    cropnrezie(binding_in_image=binding_in_image,
+    cropnrezise(binding_in_image=binding_in_image,
                binding_in_image_size=binding_in_image_size,
                binding_bounding_boxes=binding_bounding_boxes, 
                stream=stream)
+    
+    #print(cropnrezise.outImageBatch.shape)
 
