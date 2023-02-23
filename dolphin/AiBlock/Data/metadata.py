@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 import numpy as np
+import struct
+from typing import List
 
 @dataclass
 class ImageSize:
@@ -27,6 +29,20 @@ class ImageSize:
         
         return 48
     
+    @classmethod
+    def fromStruct(self, stru:struct) -> 'ImageSize':
+        '''
+        '''
+        unpacked = np.array(struct.unpack('III', stru), dtype=np.uint16, order='C')
+        return ImageSize(width=unpacked[0], height=unpacked[1], channels=unpacked[2], dtype=np.uint16)
+    
+    @property
+    def struct(self) -> bytes:
+        '''
+        '''
+        return struct.pack("III",
+                           *[self.width, self.height, self.channels])
+    
     @property
     def imagebytesize(self) -> int:
         '''
@@ -40,7 +56,7 @@ class ImageSize:
         Creates a native numpy array
         '''
         
-        return np.array([self.channels, self.width, self.height]).flatten(order='C').astype(self.dtype)
+        return np.array([self.width, self.height, self.channels]).flatten(order='C').astype(self.dtype)
         
         
     @property
@@ -94,7 +110,24 @@ class BoundingBox:
         '''
         
         return int(64)
-        
+
+    @classmethod
+    def fromStruct(self, stru:struct) -> 'BoundingBox':
+        '''
+        '''
+        unpacked = np.array(struct.unpack('IIII', stru), dtype=np.uint16, order='C')
+        return BoundingBox(x0=unpacked[0], y0=unpacked[1], x1=unpacked[2], y1=unpacked[3] ,relative=False)
+    
+    @property
+    def struct(self) -> bytes:
+        '''
+        '''
+        return struct.pack("IIII",
+                           self.itemsize(), 
+                           np.array([self.x0, self.y0, self.x1, self.y1], 
+                           dtype=np.uint16, 
+                           order="C"))
+
     @property
     def ndarray(self) -> np.ndarray:
         '''
@@ -105,7 +138,7 @@ class BoundingBox:
             dtype = np.dtype(np.float16)
         else:
             dtype = np.dtype(np.uint16)
-        return np.array([self.x0, self.y0, self.x1, self.y1]).astype(dtype)
+        return np.array([self.x0, self.y0, self.x1, self.y1], dtype=dtype, order="C")
     
     @property
     def host_ptr(self) -> int:
