@@ -25,11 +25,11 @@ class CUDA_BASE:
         """
         
         _s = int(np.sqrt(self.MAX_THREADS_PER_BLOCKS/int(Z)))
-        return (_s,_s)
+        return (_s,_s, Z)
     
     def _GET_GRID_SIZE(self, size, block) -> tuple:
         """
         """
         
-        size /= block[0]*block[1]*block[2]
-        return (int(np.sqrt(size)), int(np.sqrt(size)))
+        size /= block[0]*block[1]
+        return (max(int(np.sqrt(size)),1), max(int(np.sqrt(size)),1))
