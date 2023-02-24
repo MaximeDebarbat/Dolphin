@@ -3,6 +3,8 @@ import pycuda.driver as cuda
 import tensorrt as trt
 import numpy as np
 
+from functools import reduce
+
 class HostDeviceMem(object):
 
     def __init__(self, host_mem, device_mem):
@@ -19,6 +21,7 @@ class CUDA_Binding(object):
         self._HDM = None
         self._shape = None
         self._dtype = None
+        self._nbytes = 0
         self._size = 0
                 
     def allocate(self, shape:tuple, dtype:np.dtype):
@@ -29,9 +32,11 @@ class CUDA_Binding(object):
         _HM = cuda.pagelocked_empty(trt.volume(self._shape), self._dtype)
         _DM = cuda.mem_alloc(_HM.nbytes)
         
-        self._size=_HM.nbytes
+        self._nbytes=_HM.nbytes
         self._HDM = HostDeviceMem(host_mem = _HM,
                                   device_mem= _DM)
+        
+        self._size = reduce((lambda x, y: x * y), self._shape)
         
     def write(self, data:object):
         self._HDM.host = np.array(data, dtype=self._dtype, order="C")
@@ -57,27 +62,31 @@ class CUDA_Binding(object):
             print(f"Encountered Exception while destroying object {self.__class__} : {e}")
     
     @property
-    def nbytes(self):
+    def size(self)->int:
+        return self._size
+    
+    @property
+    def nbytes(self)->int:
         return self._size
       
     @property
-    def host(self):
+    def host(self)->np.ndarray:
         return self._HDM.host
 
     @property
-    def device(self):
+    def device(self)->cuda.DeviceAllocation:
         return self._HDM.device
     
     @property
-    def shape(self):
+    def shape(self)->tuple:
         return self._shape
     
     @property
-    def dtype(self):
+    def dtype(self)->np.dtype:
         return self._dtype
     
     @property
-    def value(self):
+    def value(self)->np.ndarray:
         return self._HDM.host.reshape(self._shape).astype(self._dtype)
 
 class CUDA_Buffers(object):
