@@ -19,6 +19,7 @@ class CUDA_Binding(object):
         self._HDM = None
         self._shape = None
         self._dtype = None
+        self._size = 0
                 
     def allocate(self, shape:tuple, dtype:np.dtype):
         
@@ -28,6 +29,7 @@ class CUDA_Binding(object):
         _HM = cuda.pagelocked_empty(trt.volume(self._shape), self._dtype)
         _DM = cuda.mem_alloc(_HM.nbytes)
         
+        self._size=_HM.nbytes
         self._HDM = HostDeviceMem(host_mem = _HM,
                                   device_mem= _DM)
         
@@ -45,7 +47,19 @@ class CUDA_Binding(object):
             cuda.memcpy_dtoh(self._HDM.host,self._HDM.device)
         else:
             cuda.memcpy_dtoh_async(self._HDM.host,self._HDM.device, stream=stream)
-            
+    
+    def __del__(self):
+        try:
+            self._HDM.device.free()
+            del self._HDM.device
+            del self._HDM.host
+        except Exception as e:
+            print(f"Encountered Exception while destroying object {self.__class__} : {e}")
+    
+    @property
+    def nbytes(self):
+        return self._size
+      
     @property
     def host(self):
         return self._HDM.host
