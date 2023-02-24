@@ -16,7 +16,8 @@ class CUDA_BASE:
             self.MAX_BLOCK_X = round(np.sqrt(self.MAX_THREADS_PER_BLOCKS))
             self.MAX_BLOCK_Y = int(self.MAX_THREADS_PER_BLOCKS/self.MAX_BLOCK_X)
         else:
-            self.MAX_BLOCK_X = self.MAX_BLOCK_Y = int(np.sqrt(self.MAX_THREADS_PER_BLOCKS))
+            self.MAX_BLOCK_X =  int(np.sqrt(self.MAX_THREADS_PER_BLOCKS))
+            self.MAX_BLOCK_Y = int(np.sqrt(self.MAX_THREADS_PER_BLOCKS))
         
         self.TOTAL_THREADS = self.MAX_BLOCK_X*self.MAX_BLOCK_Y
         
