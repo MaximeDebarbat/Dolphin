@@ -72,16 +72,15 @@ class CuRescaleBbox(CUDA_BASE):
         
         
 if __name__ == "__main__":
-    #
-    # TO FIX OUTPUT IS AN ARGUMENT NOW
-    #
     
+    import time
     
     in_image_size = ImageSize(width=1920, height=1080, channels=3, dtype=np.uint16)
     rescale_image_size = ImageSize(width=640, height=640, channels=3, dtype=np.uint16)
     
-    stream = None #
+    stream = cuda.Stream() #
     n_bboxes = 3
+    N_ITER = int(1e5)
     
     bboxes = [BoundingBox(x0=100,y0=100, x1=600, y1=600, relative=False), BoundingBox(x0=0,y0=0, x1=640, y1=640, relative=False)]
     
@@ -92,13 +91,31 @@ if __name__ == "__main__":
     bboxes_binding.write(data=np.array([e.ndarray for e in bboxes]))
     bboxes_binding.H2D(stream=stream)
 
+    bboxes_out_binding = CUDA_Binding()
+    bboxes_out_binding.allocate(shape=(n_bboxes,4), dtype=np.uint16)
+
     rescaler = CuRescaleBbox(in_image_size=ImageSize(1920,1080, 3, np.uint16), 
                              rescaled_image_size=ImageSize(640,640,3,np.uint16),
                              n_max_bboxes= n_bboxes)
+        
+    t1 = time.time()
+    for _ in range(N_ITER):
+        rescaler(binding_bounding_boxes=bboxes_binding, binding_out_bboxes=bboxes_out_binding, stream=stream)
     
-    rescaler(binding_bounding_boxes=bboxes_binding, stream=stream)
     
-    out = rescaler.outBoundingBoxes
-    out.D2H(stream=stream)
+    print(f"CUDA AVG time : {1000/N_ITER*(time.time()-t1)}ms/iter")
+    bboxes_out_binding.D2H(stream=stream)
+    print(f"res :\n {bboxes_out_binding.value}")
     
-    print(out.value)
+    bbox_array = np.array([e.ndarray for e in bboxes])
+    res = np.zeros_like(bbox_array)
+    t1 = time.time()
+    for _ in range(N_ITER):
+        res[:,0] = in_image_size.width*(bbox_array[:,0]/rescale_image_size.width)
+        res[:,1] = in_image_size.height*(bbox_array[:,1]/rescale_image_size.height)
+        res[:,2] = in_image_size.width*(bbox_array[:,2]/rescale_image_size.width)
+        res[:,3] = in_image_size.height*(bbox_array[:,3]/rescale_image_size.height)
+    
+    print(f"CPU AVG time : {1000/N_ITER*(time.time()-t1)}ms/iter")
+    print(f"res :\n {res}")
+    
