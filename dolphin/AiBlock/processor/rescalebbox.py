@@ -25,6 +25,9 @@ class CuRescaleBbox(CUDA_BASE):
         
         super().__init__()
         
+        if(n_max_bboxes<=1):
+            raise AssertionError(f"n_max_bboxes argument should be >=1. Here n_max_bboxes={n_max_bboxes}.")
+                
         self._in_image_size = in_image_size
         self._rescaled_image_size = rescaled_image_size
         self._n_max_bboxes = n_max_bboxes
@@ -36,11 +39,9 @@ class CuRescaleBbox(CUDA_BASE):
         
         self._binding_in_image_size = CUDA_Binding()
         self._binding_rescaled_image_size = CUDA_Binding()
-        self._binding_out_bboxes = CUDA_Binding()
 
         self._binding_in_image_size.allocate(shape=(3,), dtype=self._in_image_size.dtype)
         self._binding_rescaled_image_size.allocate(shape=(3,), dtype=self._in_image_size.dtype)
-        self._binding_out_bboxes.allocate(shape=(self._n_max_bboxes, 4), dtype=np.uint16)
 
         ######## 
         # COPY #
@@ -53,6 +54,7 @@ class CuRescaleBbox(CUDA_BASE):
         self._binding_rescaled_image_size.H2D()
                                     
     def __call__(self, binding_bounding_boxes:CUDA_Binding,
+                       binding_out_bboxes:CUDA_Binding,
                        stream:cuda.Stream=None
                        ) -> None:
         '''
@@ -62,17 +64,18 @@ class CuRescaleBbox(CUDA_BASE):
         '''
         
         self._RB_CUDA_F(binding_bounding_boxes.device,
-                        self._binding_out_bboxes.device,
+                        binding_out_bboxes.device,
                         self._binding_in_image_size.device,
                         self._binding_rescaled_image_size.device,
                         block=(self._n_max_bboxes,1,1), 
                         grid=(1,1), stream=stream)
         
-    @property
-    def outBoundingBoxes(self) -> CUDA_Binding:
-        return self._binding_out_bboxes
         
 if __name__ == "__main__":
+    #
+    # TO FIX OUTPUT IS AN ARGUMENT NOW
+    #
+    
     
     in_image_size = ImageSize(width=1920, height=1080, channels=3, dtype=np.uint16)
     rescale_image_size = ImageSize(width=640, height=640, channels=3, dtype=np.uint16)

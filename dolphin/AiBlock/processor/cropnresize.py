@@ -84,7 +84,7 @@ class CuCropNResize(CUDA_BASE):
         
         _GRID = self._GET_GRID_SIZE(size=int(self._n_max_bboxes*3*self._binding_max_width.value*self._binding_max_height.value),
                                     block=self._BLOCK)
-        
+               
         print(f"block : {self._BLOCK} {_GRID}")
         self._CNR_CUDA_F(binding_in_image.device,           #uint16_t *src_image
                          self._binding_image_batch.device,         #uint16_t* dst_images
