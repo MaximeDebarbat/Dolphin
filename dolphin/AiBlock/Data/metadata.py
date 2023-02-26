@@ -56,7 +56,7 @@ class ImageSize:
         Creates a native numpy array
         '''
         
-        return np.array([self.width, self.height, self.channels]).flatten(order='C').astype(self.dtype)
+        return np.array([self.height, self.width, self.channels]).flatten(order='C').astype(self.dtype)
         
         
     @property
