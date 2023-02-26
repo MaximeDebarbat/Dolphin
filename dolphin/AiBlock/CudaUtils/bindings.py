@@ -2,21 +2,37 @@ import pycuda.autoinit
 import pycuda.driver as cuda
 import tensorrt as trt
 import numpy as np
-
 from functools import reduce
 
-class HostDeviceMem(object):
 
-    def __init__(self, host_mem, device_mem):
+class HostDeviceMem(object):
+    """
+    This class is used to allocate memory on the host and the device.
+    
+    :param host_mem: Allocated memory on the host
+    :type host_mem: np.ndarray
+    :param device_mem: Allocated memory on the device
+    :type device_mem: cuda.DeviceAllocation
+    """
+
+    def __init__(self, host_mem:np.ndarray, device_mem:cuda.DeviceAllocation):
         self.host = host_mem
         self.device = device_mem
 
     def __repr__(self):
         return "Host:\n" + str(self.host) + "\nDevice:\n" + str(self.device)
 
+
 class CUDA_Binding(object):
+    """
+    This class is used to allocate memory on the host and the device.
+    It is also used to copy data from the host to the device and vice versa.
+    """
     
     def __init__(self):
+        """
+        Constructor of the class
+        """
         
         self._HDM = None
         self._shape = None
@@ -25,11 +41,19 @@ class CUDA_Binding(object):
         self._size = 0
                 
     def allocate(self, shape:tuple, dtype:np.dtype):
+        """
+        This function allocates the memory on the host and the device.
+        
+        :param shape: Shape of the memory to be allocated
+        :type shape: tuple
+        :param dtype: Data type of the memory to be allocated
+        :type dtype: np.dtype
+        """
         
         self._shape = shape
         self._dtype = dtype
         
-        _HM = cuda.pagelocked_empty(trt.volume(self._shape), self._dtype)
+        _HM = np.empty(trt.volume(self._shape), self._dtype)
         _DM = cuda.mem_alloc(_HM.nbytes)
         
         self._nbytes=_HM.nbytes
@@ -39,21 +63,48 @@ class CUDA_Binding(object):
         self._size = reduce((lambda x, y: x * y), self._shape)
         
     def write(self, data:object):
+        """
+        This function copies the data from the host to the device.
+        
+        :param data: Data to be copied
+        :type data: object
+        """
         self._HDM.host = np.array(data, dtype=self._dtype, order="C")
     
     def H2D(self, stream:cuda.Stream=None):
+        """
+        This function copies the data from the host to the device.
+        If a stream is provided, the copy will be done asynchronously.
+        
+        :param stream: Cuda Stream in order to perform asynchronous copy , defaults to None
+        :type stream: cuda.Stream, optional
+        """
         if(stream is None):
             cuda.memcpy_htod(self._HDM.device,self._HDM.host)
         else:
             cuda.memcpy_htod_async(self._HDM.device,self._HDM.host, stream=stream)
+
             
     def D2H(self, stream:cuda.Stream=None):
+        """
+        This function copies the data from the device to the host.
+        If a stream is provided, the copy will be done asynchronously.
+        
+        :param stream: Cuda Stream in order to perform asynchronous copy , defaults to None
+        :type stream: cuda.Stream, optional
+        """
+        
         if(stream is None):
             cuda.memcpy_dtoh(self._HDM.host,self._HDM.device)
         else:
             cuda.memcpy_dtoh_async(self._HDM.host,self._HDM.device, stream=stream)
     
     def __del__(self):
+        """
+        This function is called when the object is destroyed.
+        It is used to free the device memory.
+        """
+        
         try:
             self._HDM.device.free()
             del self._HDM.device
@@ -63,32 +114,77 @@ class CUDA_Binding(object):
     
     @property
     def size(self)->int:
+        """
+        Returns the number of elements in the buffer
+        
+        :return: number of elements in the buffer
+        :rtype: int
+        """
         return self._size
     
     @property
     def nbytes(self)->int:
+        """
+        Returns the number of bytes in the buffer
+        
+        :return: number of bytes in the buffer
+        :rtype: int
+        """
         return self._size
       
     @property
     def host(self)->np.ndarray:
+        """
+        This is a property that returns the host memory of the buffer as a np.ndarray object.
+        The host memory is the value of the buffer on the host memory.
+        
+        :return: Pointer to host memory
+        :rtype: np.ndarray
+        """
         return self._HDM.host
 
     @property
     def device(self)->cuda.DeviceAllocation:
+        """
+        This is a property that returns the device memory of the buffer as a cuda.DeviceAllocation object.
+        The device memory is the value of the buffer on the device memory.
+
+        Returns:
+            cuda.DeviceAllocation: Pointer to device memory
+        """
         return self._HDM.device
     
     @property
     def shape(self)->tuple:
+        """
+        Returns the shape of the buffer
+
+        Returns:
+            tuple: The shape of the buffer
+        """
         return self._shape
     
     @property
     def dtype(self)->np.dtype:
+        """
+        Returns the dtype of the buffer
+
+        Returns:
+            np.dtype: The dtype of the buffer
+        """
         return self._dtype
     
     @property
     def value(self)->np.ndarray:
-        return self._HDM.host.reshape(self._shape).astype(self._dtype)
+        """
+        This is a property that returns the value of the buffer as a numpy array.
+        The value is the value of the buffer on the host memory.
 
+        Returns:
+            np.ndarray: The value of the buffer on the host memory
+        """
+        return self._HDM.host.reshape(self._shape).astype(self._dtype)
+    
 class CUDA_Buffers(object):
 
     # TO FIX, GENERALIZE THIS SHIT WITH CUDA_Binding
