@@ -39,19 +39,14 @@ class CuResize(CUDA_BASE):
         
         self._BLOCK = (min(self._out_image_size.width,self.MAX_BLOCK_X),min(self._out_image_size.height,self.MAX_BLOCK_Y),1)        
         self._GRID = (max(1,math.ceil(self._out_image_size.width/self._BLOCK[0])),max(1,math.ceil(self._out_image_size.height/self._BLOCK[1])))
-        
+
     def __call__(self,
                  in_image_binding:CUDA_Binding,
                  in_image_size_binding:CUDA_Binding,
                  out_image_binding:CUDA_Binding,
                  stream:cuda.Stream=None
                 )->None:
-        
-        
-        
-        #print(f"block : {self._BLOCK} {self._GRID}")
-        #sys.exit(0)
-        
+                
         self._RESIZE_CUDA_F(in_image_binding.device,
                             out_image_binding.device,
                             in_image_size_binding.device,
@@ -68,13 +63,13 @@ if __name__ == "__main__":
     
     stream = cuda.Stream()
     
-    out_image_size = ImageSize(width=100, height=100, channels=3, dtype=np.uint8)
+    out_image_size = ImageSize(width=350, height=300, channels=3, dtype=np.uint16)
     resizer = CuResize(out_image_size=out_image_size)
     
     image = cv2.imread("dog.jpg")
-        
+    
     in_image_binding = CUDA_Binding()
-    in_image_binding.allocate(shape=(image.shape[0],image.shape[1],3), dtype=np.uint8)
+    in_image_binding.allocate(shape=image.shape, dtype=np.uint8)
     in_image_binding.write(data=image.flatten(order="C")) 
     in_image_binding.H2D(stream=stream)
     
@@ -86,7 +81,7 @@ if __name__ == "__main__":
     out_image_binding = CUDA_Binding()
     out_image_binding.allocate(shape=(out_image_size.height,out_image_size.width,out_image_size.channels), dtype=np.uint8)
     
-    N_ITER = int(1e5)
+    N_ITER = int(5)
     t1 = time.time()    
     for _ in range(N_ITER):
         resizer(in_image_binding=in_image_binding,
@@ -94,11 +89,8 @@ if __name__ == "__main__":
                 out_image_binding=out_image_binding,
                 stream=stream)
     
-    print(f"AVG CUDA Time : {1000/N_ITER*(time.time()-t1)}")
+    print(f"AVG CUDA Time : {1000/N_ITER*(time.time()-t1)}ms")
     
     out_image_binding.D2H(stream=stream)    
-        
-    print(f"Original image :\n{in_image_binding.value}")
-    print(f"Reshaped image :\n{out_image_binding.value}")
     
     cv2.imwrite("resized.jpg", out_image_binding.value)
