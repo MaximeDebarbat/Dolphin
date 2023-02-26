@@ -7,13 +7,14 @@ from typing import List
 class ImageSize:
     '''
     ImageSize defines a generic dataclass in order to
-    formally manipulate image sizes  
+    formally manipulate image sizes. The standard format 
+    is (height, width, channels) uint16.
     '''
     
     width:int
     height:int
     channels:int
-    dtype:np.dtype
+    dtype:np.uint16
     
     @property
     def shape(self):
