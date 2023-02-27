@@ -2,6 +2,7 @@ import pycuda
 import pycuda.autoinit
 
 import numpy as np
+import math
 
 class CUDA_BASE:
 
@@ -33,4 +34,4 @@ class CUDA_BASE:
         """
         
         size /= block[0]*block[1]
-        return (max(int(np.sqrt(size)),1), max(int(np.sqrt(size)),1))
+        return (max(math.ceil(np.sqrt(size)),1), max(math.ceil(np.sqrt(size)),1))
