@@ -60,7 +60,10 @@ class CUDA_Binding(object):
         self._HDM = HostDeviceMem(host_mem = _HM,
                                   device_mem= _DM)
         
-        self._size = reduce((lambda x, y: x * y), self._shape)
+        if(self._shape == ()):
+            self._size = 1
+        else:
+            self._size = reduce((lambda x, y: x * y), self._shape)
         
     def write(self, data:object):
         """
@@ -183,7 +186,7 @@ class CUDA_Binding(object):
         Returns:
             np.ndarray: The value of the buffer on the host memory
         """
-        return self._HDM.host.reshape(self._shape).astype(self._dtype)
+        return self._HDM.host.reshape(self._shape, order="C").astype(self._dtype)
     
 class CUDA_Buffers(object):
 
