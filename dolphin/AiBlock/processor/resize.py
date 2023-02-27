@@ -60,13 +60,14 @@ if __name__ == "__main__":
     
     import time
     import cv2
+    from tqdm import tqdm
     
     stream = cuda.Stream()
     
-    out_image_size = ImageSize(width=350, height=300, channels=3, dtype=np.uint16)
+    out_image_size = ImageSize(width=500, height=500, channels=3, dtype=np.uint16)
     resizer = CuResize(out_image_size=out_image_size)
     
-    image = cv2.imread("dog.jpg")
+    image = np.random.randint(0,255,(1080,224,3),dtype=np.uint8)
     
     in_image_binding = CUDA_Binding()
     in_image_binding.allocate(shape=image.shape, dtype=np.uint8)
@@ -81,16 +82,22 @@ if __name__ == "__main__":
     out_image_binding = CUDA_Binding()
     out_image_binding.allocate(shape=(out_image_size.height,out_image_size.width,out_image_size.channels), dtype=np.uint8)
     
-    N_ITER = int(5)
+    N_ITER = int(1e5)
     t1 = time.time()    
     for _ in range(N_ITER):
         resizer(in_image_binding=in_image_binding,
                 in_image_size_binding=in_image_size_binding,
                 out_image_binding=out_image_binding,
                 stream=stream)
+    cuda_time = 1000/N_ITER*(time.time()-t1)
+    print(f"AVG CUDA Time : {cuda_time}ms/iter over {N_ITER} iterations")
+    t1 = time.time()  
+    for _ in range(N_ITER):
+        cv2.resize(image, (out_image_size.width,out_image_size.height))
     
-    print(f"AVG CUDA Time : {1000/N_ITER*(time.time()-t1)}ms")
+    opencv_time = 1000/N_ITER*(time.time()-t1)
+    print(f"OpenCV Time : {opencv_time}ms/iter over {N_ITER} iterations")
     
-    out_image_binding.D2H(stream=stream)    
+    print(f"Speedup : {opencv_time/cuda_time}")
     
-    cv2.imwrite("resized.jpg", out_image_binding.value)
+    out_image_binding.D2H(stream=stream)
