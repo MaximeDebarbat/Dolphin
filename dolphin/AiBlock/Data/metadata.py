@@ -18,7 +18,7 @@ class ImageSize:
     
     @property
     def shape(self):
-        return (self.width, self.height, self.channels)
+        return (self.height, self.width, self.channels)
         
     @classmethod
     def itemsize(self) -> int:
