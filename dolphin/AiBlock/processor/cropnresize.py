@@ -19,7 +19,6 @@ class CuCropNResize(CUDA_BASE):
     
     __CUDA_CROPNRESIZE_FILE_NAME = "cropnresize.cu"
     __CUDA_CROPNRESIZE_FCT_NAME = "cropnresize"
-    __CUDA_GETMAXDIM_FCT_NAME = "getmaxdim"
     
     def __init__(self, out_image_size:ImageSize, 
                        n_max_bboxes:int):
@@ -33,7 +32,6 @@ class CuCropNResize(CUDA_BASE):
         self.__CNR_cuda_SM = open(os.path.join(os.path.split(os.path.abspath(__file__))[0],"cuda",self.__CUDA_CROPNRESIZE_FILE_NAME),"rt")
         self.__CNR_cuda_SM = SourceModule(self.__CNR_cuda_SM.read())
         self._CNR_CUDA_F = self.__CNR_cuda_SM.get_function(self.__CUDA_CROPNRESIZE_FCT_NAME)
-        self._GMD_CUDA_F = self.__CNR_cuda_SM.get_function(self.__CUDA_GETMAXDIM_FCT_NAME)
         
         self._binding_n_max_bboxes = CUDA_Binding()
         self._binding_out_image_size = CUDA_Binding()
@@ -63,7 +61,33 @@ class CuCropNResize(CUDA_BASE):
                        binding_bounding_boxes:CUDA_Binding,
                        binding_out_image_batch:CUDA_Binding,
                        stream:cuda.Stream=None
-                       ) -> None:       
+                       ) -> None:
+        """Callable method to call the CUDA function that performs the crop and resize operation.
+        For a given image and a list of bounding boxes, this function will crop the image 
+        and resize it to the desired output size.
+        
+        All CUDA_Binding objects must be allocated and written before calling this function.
+        
+        F.e.:
+            binding_in_image = CUDA_Binding()
+            binding_in_image.allocate(shape=image.shape, dtype=np.uint8)
+            binding_in_image.write(data=image)
+            binding_in_image.H2D(stream=stream
+            )
+        
+        :param binding_in_image: The CUDA_Binding object containing the input image. Must be allocated and written before calling this function.
+        :type binding_in_image: CUDA_Binding
+        :param binding_in_image_size: The CUDA_Binding object containing the input image size. Must be allocated and written before calling this function.
+        :type binding_in_image_size: CUDA_Binding
+        :param binding_bounding_boxes: The CUDA_Binding object containing the bounding boxes. Must be allocated and written before calling this function.
+        :type binding_bounding_boxes: CUDA_Binding
+        :param binding_out_image_batch: The CUDA_Binding object containing the output image batch. Must be allocated before calling this function.
+        :type binding_out_image_batch: CUDA_Binding
+        :param stream: The CUDA stream to perform the operation, defaults to None
+        :type stream: cuda.Stream, optional
+        :return: None
+        :rtype: None
+        """    
         
         self._CNR_CUDA_F(binding_in_image.device,
                          binding_out_image_batch.device,
@@ -107,7 +131,7 @@ if __name__ == "__main__":
     binding_bounding_boxes.write(bboxes_list)
     binding_bounding_boxes.H2D(stream=stream)
     
-    out_image_size = ImageSize(width=224, height=224, channels=3, dtype=np.uint16)
+    out_image_size = ImageSize(width=500, height=500, channels=3, dtype=np.uint16)
     
     out_image_binding = CUDA_Binding()
     out_image_binding.allocate(shape=(N_MAX_BBOXES, out_image_size.height, out_image_size.width, out_image_size.channels), dtype=np.uint8)

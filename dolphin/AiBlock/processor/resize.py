@@ -46,6 +46,29 @@ class CuResize(CUDA_BASE):
                  out_image_binding:CUDA_Binding,
                  stream:cuda.Stream=None
                 )->None:
+        """Callable method to call the CUDA function that performs the INTER_NEAREST resize operation.
+        For an given input image, the function will resize it to the size specified in the constructor.
+        
+        All CUDA_Binding objects must be allocated and written before calling this function.
+        
+        F.e.:
+            binding_in_image = CUDA_Binding()
+            binding_in_image.allocate(shape=image.shape, dtype=np.uint8)
+            binding_in_image.write(data=image)
+            binding_in_image.H2D(stream=stream
+            )
+
+        :param in_image_binding: CUDA_Binding object containing the input image. Must be allocated and written before calling this function.
+        :type in_image_binding: CUDA_Binding
+        :param in_image_size_binding: CUDA_Binding object containing the input image size. Must be allocated and written before calling this function.
+        :type in_image_size_binding: CUDA_Binding
+        :param out_image_binding: CUDA_Binding object containing the output image. Must be allocated before calling this function.
+        :type out_image_binding: CUDA_Binding
+        :param stream: CUDA stream to be used for the operation, defaults to None
+        :type stream: cuda.Stream, optional
+        :return: None
+        :rtype: None
+        """
                 
         self._RESIZE_CUDA_F(in_image_binding.device,
                             out_image_binding.device,
@@ -67,7 +90,7 @@ if __name__ == "__main__":
     out_image_size = ImageSize(width=500, height=500, channels=3, dtype=np.uint16)
     resizer = CuResize(out_image_size=out_image_size)
     
-    image = np.random.randint(0,255,(1080,224,3),dtype=np.uint8)
+    image = np.random.randint(0,255,(1080,1920,3),dtype=np.uint8)
     
     in_image_binding = CUDA_Binding()
     in_image_binding.allocate(shape=image.shape, dtype=np.uint8)
