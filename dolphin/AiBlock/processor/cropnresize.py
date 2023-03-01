@@ -24,8 +24,6 @@ class CuCropNResize(CUDA_BASE):
     :type out_image_size: ImageSize
     :param n_max_bboxes: Maximum number of bounding boxes
     :type n_max_bboxes: int
-    :return: _description_
-    :rtype: _type_
     """
 
     __CUDA_CROPNRESIZE_FILE_NAME = "cropnresize.cu"
