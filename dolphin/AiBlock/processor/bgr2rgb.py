@@ -11,7 +11,7 @@ sys.path.append("..")
 sys.path.append("../..")
 
 from CudaUtils import CUDA_BASE, CUDA_Binding # pylint: disable=import-error
-from Data import ImageSize, BoundingBox # pylint: disable=import-error
+from Data import ImageSize # pylint: disable=import-error
 
 class CuBGR2RGB(CUDA_BASE):
     """Class that wraps the CUDA implementation of channel swapping
