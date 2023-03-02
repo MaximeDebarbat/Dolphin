@@ -73,8 +73,7 @@ class CuResize(CUDA_BASE):
             binding_in_image = CUDA_Binding()
             binding_in_image.allocate(shape=image.shape, dtype=np.uint8)
             binding_in_image.write(data=image)
-            binding_in_image.H2D(stream=stream
-            )
+            binding_in_image.H2D(stream=stream)
 
         :param in_image_binding: CUDA_Binding object containing the input
         image. Must be allocated and written before calling this function.

@@ -87,8 +87,7 @@ class CuRescaleBbox(CUDA_BASE):
             binding_in_image = CUDA_Binding()
             binding_in_image.allocate(shape=image.shape, dtype=np.uint8)
             binding_in_image.write(data=image)
-            binding_in_image.H2D(stream=stream
-            )
+            binding_in_image.H2D(stream=stream)
 
         :param binding_bounding_boxes: Bounding boxes to rescale
         :type binding_bounding_boxes: CUDA_Binding
