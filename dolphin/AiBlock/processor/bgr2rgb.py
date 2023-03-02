@@ -13,6 +13,7 @@ sys.path.append("../..")
 from CudaUtils import CUDA_BASE, CUDA_Binding # pylint: disable=import-error
 from Data import ImageSize # pylint: disable=import-error
 
+
 class CuBGR2RGB(CUDA_BASE):
     """Class that wraps the CUDA implementation of channel swapping
     from BGR to RGB. It is used to convert an BGR/RGB image to BGR/RGB
@@ -87,8 +88,7 @@ if __name__ == "__main__":
     channel_swapper = CuBGR2RGB()
 
     image = np.zeros((1080, 1920, 3), dtype=np.uint8)
-    image[0, :, :] = 255
-    cv2.imwrite("bgrrgb_test.jpg", image)
+    image[:, :, 0] = 255
 
     in_image_binding = CUDA_Binding()
     in_image_binding.allocate(shape=image.shape, dtype=np.uint8)
@@ -106,7 +106,8 @@ if __name__ == "__main__":
                                       out_image_size.channels),
                                dtype=np.uint8)
 
-    N_ITER = int(1e5)
+    N_ITER = int(np.ceil(1e5) // 2 * 2 + 1)
+
     t1 = time.time()
     for _ in range(N_ITER):
         channel_swapper(image_size_binding=in_image_size_binding,
@@ -114,15 +115,10 @@ if __name__ == "__main__":
     cuda_time = 1000/N_ITER*(time.time()-t1)
     print(f"AVG CUDA Time : {cuda_time}ms/iter over {N_ITER} iterations")
 
-    in_image_binding.D2H(stream=stream)
-    cv2.imwrite("bgrrgb_test_cuda.jpg", in_image_binding.value)
-
     t1 = time.time()
     for _ in range(N_ITER):
         new = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     opencv_time = 1000/N_ITER*(time.time()-t1)
     print(f"OpenCV Time : {opencv_time}ms/iter over {N_ITER} iterations")
-
-    cv2.imwrite("bgrrgb_test_opencv.jpg", new)
 
     print(f"Speedup : {opencv_time/cuda_time}")
