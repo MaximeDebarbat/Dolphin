@@ -2,16 +2,16 @@ import os
 import sys
 import math
 
-import pycuda.driver as cuda
-from pycuda.compiler import SourceModule
+import pycuda.driver as cuda  # pylint: disable=import-error
+from pycuda.compiler import SourceModule  # pylint: disable=import-error
 
 import numpy as np
 
 sys.path.append("..")
 sys.path.append("../..")
 
-from CudaUtils import CUDA_BASE, CUDA_Binding # pylint: disable=import-error
-from Data import ImageSize # pylint: disable=import-error
+from CudaUtils import CUDA_BASE, CUDA_Binding  # pylint: disable=import-error
+from Data import ImageSize  # pylint: disable=import-error
 
 
 class CuHWC2CHW(CUDA_BASE):
@@ -116,9 +116,9 @@ if __name__ == "__main__":
 
     t1 = time.time()
     for _ in range(N_ITER):
-        np.transpose(image_in, (2, 0, 1))
-    opencv_time = 1000/N_ITER*(time.time()-t1)
-    print(f"OpenCV Time : {opencv_time}ms/iter over {N_ITER} iterations")
+        out = np.transpose(image_in, (2, 0, 1))
+    numpy_time = 1000/N_ITER*(time.time()-t1)
+    print(f"OpenCV Time : {numpy_time}ms/iter over {N_ITER} iterations")
 
     t1 = time.time()
     for _ in range(N_ITER):
@@ -126,4 +126,4 @@ if __name__ == "__main__":
     cuda_time = 1000/N_ITER*(time.time()-t1)
     print(f"CUDA Time : {cuda_time}ms/iter over {N_ITER} iterations")
 
-    print(f"Speedup : {opencv_time/cuda_time}x")
+    print(f"Speedup : {numpy_time/cuda_time}x")
