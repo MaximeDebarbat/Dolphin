@@ -15,7 +15,7 @@ class HostDeviceMem(object):
     :type device_mem: cuda.DeviceAllocation
     """
 
-    def __init__(self, host_mem:np.ndarray, device_mem:cuda.DeviceAllocation):
+    def __init__(self, host_mem: np.ndarray, device_mem: cuda.DeviceAllocation):
         self.host = host_mem
         self.device = device_mem
 
