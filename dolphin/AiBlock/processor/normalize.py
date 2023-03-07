@@ -3,6 +3,7 @@ import sys
 import math
 import time
 from enum import Enum
+from typing import overload
 
 import pycuda.driver as cuda
 from pycuda.compiler import SourceModule
@@ -76,6 +77,9 @@ class CuNormalize(CUDA_BASE):
             self._mean_binding.write(data=mean)
             self._std_binding.write(data=std)
 
+            self._mean_binding.H2D()
+            self._std_binding.H2D()
+
         self._normalize_cuda_sm = open(os.path.join(os.path.split(
             os.path.abspath(__file__))[0], "cuda",
             self.__CUDA_NORMALIZE_FILE_NAME), "rt", encoding="utf-8")
@@ -103,15 +107,20 @@ class CuNormalize(CUDA_BASE):
                 max(1, math.ceil(image_size_binding.value[1] /
                                  self._block[1])))
 
-        self._fct_binder[self._type](image_binding.device,
-                                     out_image_binding.device,
-                                     image_size_binding.device,
-                                     self._mean_binding.device,  # ??? wtf
-                                     self._std_binding.device,   # ??? wtf
-                                     block=self._block,
-                                     grid=grid)
-
-        # TODO : maybe partial ?
+        if (self._type == NormalizeMode.MEAN_STD):
+            self._fct_binder[self._type](image_binding.device,
+                                         out_image_binding.device,
+                                         image_size_binding.device,
+                                         self._mean_binding.device,
+                                         self._std_binding.device,
+                                         block=self._block,
+                                         grid=grid)
+        else:
+            self._fct_binder[self._type](image_binding.device,
+                                         out_image_binding.device,
+                                         image_size_binding.device,
+                                         block=self._block,
+                                         grid=grid)
 
 
 def test_255():
@@ -128,7 +137,7 @@ def test_255():
     image_in_shape = ImageSize(width=1920,
                                height=1080,
                                channels=3,
-                               dtype=np.uint_16)
+                               dtype=np.uint16)
 
     image_in = np.random.randint(0, 255, size=(image_in_shape.channels,
                                                image_in_shape.height,
@@ -150,7 +159,7 @@ def test_255():
                                dtype=np.float32)
 
     image_size_binding.allocate(shape=(3,),
-                                dtype=np.uint_16)
+                                dtype=np.uint16)
     image_size_binding.write(data=image_in_shape.ndarray)
     image_size_binding.H2D(stream=stream)
 
@@ -182,7 +191,7 @@ def test_mean_std():
     imagenet_mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
     imagenet_std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
-    normalizer = CuNormalize(norm_type=NormalizeMode._128,
+    normalizer = CuNormalize(norm_type=NormalizeMode.MEAN_STD,
                              mean=imagenet_mean,
                              std=imagenet_std)
     n_iter = int(1e3)
@@ -192,7 +201,7 @@ def test_mean_std():
     image_in_shape = ImageSize(width=1920,
                                height=1080,
                                channels=3,
-                               dtype=np.uint_16)
+                               dtype=np.uint16)
 
     image_in = np.random.randint(0, 255, size=(image_in_shape.channels,
                                                image_in_shape.height,
@@ -214,7 +223,7 @@ def test_mean_std():
                                dtype=np.float32)
 
     image_size_binding.allocate(shape=(3,),
-                                dtype=np.uint_16)
+                                dtype=np.uint16)
     image_size_binding.write(data=image_in_shape.ndarray)
     image_size_binding.H2D(stream=stream)
 
@@ -252,6 +261,7 @@ def test_128():
     """
 
     normalizer = CuNormalize(norm_type=NormalizeMode._128)
+
     n_iter = int(1e3)
 
     stream = cuda.Stream()
@@ -259,7 +269,7 @@ def test_128():
     image_in_shape = ImageSize(width=1920,
                                height=1080,
                                channels=3,
-                               dtype=np.uint_16)
+                               dtype=np.uint16)
 
     image_in = np.random.randint(0, 255, size=(image_in_shape.channels,
                                                image_in_shape.height,
@@ -281,13 +291,13 @@ def test_128():
                                dtype=np.float32)
 
     image_size_binding.allocate(shape=(3,),
-                                dtype=np.uint_16)
+                                dtype=np.uint16)
     image_size_binding.write(data=image_in_shape.ndarray)
     image_size_binding.H2D(stream=stream)
 
     t_1 = time.time()
     for _ in range(n_iter):
-        out = image_in.astype(np.float32) / 255
+        out = (image_in.astype(np.float32) - 128) / 128
     numpy_time = 1000/n_iter*(time.time()-t_1)
     print(f"Numpy Time : {numpy_time}ms/iter over {n_iter} iterations")
 
