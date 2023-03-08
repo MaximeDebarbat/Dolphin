@@ -8,7 +8,7 @@ from functools import reduce
 class HostDeviceMem(object):
     """
     This class is used to allocate memory on the host and the device.
-    
+
     :param host_mem: Allocated memory on the host
     :type host_mem: np.ndarray
     :param device_mem: Allocated memory on the device
@@ -28,137 +28,146 @@ class CUDA_Binding(object):
     This class is used to allocate memory on the host and the device.
     It is also used to copy data from the host to the device and vice versa.
     """
-    
+
     def __init__(self):
         """
         Constructor of the class
         """
-        
-        self._HDM = None
+
+        self._hdm = None
         self._shape = None
         self._dtype = None
         self._nbytes = 0
         self._size = 0
-                
-    def allocate(self, shape:tuple, dtype:np.dtype):
+
+    def allocate(self, shape: tuple, dtype: np.dtype) -> None:
         """
         This function allocates the memory on the host and the device.
-        
+
         :param shape: Shape of the memory to be allocated
         :type shape: tuple
         :param dtype: Data type of the memory to be allocated
         :type dtype: np.dtype
         """
-        
+
         self._shape = shape
         self._dtype = dtype
-        
-        _HM = np.empty(trt.volume(self._shape), self._dtype)
-        _DM = cuda.mem_alloc(_HM.nbytes)
-        
-        self._nbytes=_HM.nbytes
-        self._HDM = HostDeviceMem(host_mem = _HM,
-                                  device_mem= _DM)
-        
-        if(self._shape == ()):
+
+        _hm = np.empty(trt.volume(self._shape), self._dtype)
+        _dm = cuda.mem_alloc(_hm.nbytes)
+
+        self._nbytes = _hm.nbytes
+        self._hdm = HostDeviceMem(host_mem=_hm,
+                                  device_mem=_dm)
+
+        if self._shape == ():
             self._size = 1
         else:
             self._size = reduce((lambda x, y: x * y), self._shape)
-        
-    def write(self, data:object):
+
+    def write(self, data: object) -> None:
         """
         This function copies the data from the host to the device.
-        
+
         :param data: Data to be copied
         :type data: object
         """
-        self._HDM.host = np.array(data, dtype=self._dtype, order="C")
-    
-    def H2D(self, stream:cuda.Stream=None):
+        self._hdm.host = np.array(data, dtype=self._dtype, order="C")
+
+    def h2d(self, stream: cuda.Stream = None) -> None:
         """
         This function copies the data from the host to the device.
         If a stream is provided, the copy will be done asynchronously.
-        
-        :param stream: Cuda Stream in order to perform asynchronous copy , defaults to None
+
+        :param stream: Cuda Stream in order to perform asynchronous copy,
+        defaults to None
         :type stream: cuda.Stream, optional
         """
-        if(stream is None):
-            cuda.memcpy_htod(self._HDM.device,self._HDM.host)
+        if stream is None:
+            cuda.memcpy_htod(self._hdm.device, self._hdm.host)
         else:
-            cuda.memcpy_htod_async(self._HDM.device,self._HDM.host, stream=stream)
+            cuda.memcpy_htod_async(self._hdm.device,
+                                   self._hdm.host,
+                                   stream=stream)
 
-            
-    def D2H(self, stream:cuda.Stream=None):
+    def d2h(self, stream: cuda.Stream = None) -> None:
         """
         This function copies the data from the device to the host.
         If a stream is provided, the copy will be done asynchronously.
-        
-        :param stream: Cuda Stream in order to perform asynchronous copy , defaults to None
+
+        :param stream: Cuda Stream in order to perform asynchronous copy,
+        defaults to None
         :type stream: cuda.Stream, optional
         """
-        
-        if(stream is None):
-            cuda.memcpy_dtoh(self._HDM.host,self._HDM.device)
+
+        if stream is None:
+            cuda.memcpy_dtoh(self._hdm.host, self._hdm.device)
         else:
-            cuda.memcpy_dtoh_async(self._HDM.host,self._HDM.device, stream=stream)
-    
+            cuda.memcpy_dtoh_async(self._hdm.host,
+                                   self._hdm.device,
+                                   stream=stream)
+
     def __del__(self):
         """
         This function is called when the object is destroyed.
         It is used to free the device memory.
         """
-        
+
         try:
-            self._HDM.device.free()
-            del self._HDM.device
-            del self._HDM.host
-        except Exception as e:
-            print(f"Encountered Exception while destroying object {self.__class__} : {e}")
-    
+            self._hdm.device.free()
+            del self._hdm.device
+            del self._hdm.host
+        except Exception as exception:
+            # pylint: disable=broad-exception-caught
+            print(f"Encountered Exception while destroying object \
+                  {self.__class__} : {exception}")
+
     @property
-    def size(self)->int:
+    def size(self) -> int:
         """
         Returns the number of elements in the buffer
-        
+
         :return: number of elements in the buffer
         :rtype: int
         """
         return self._size
-    
+
     @property
-    def nbytes(self)->int:
+    def nbytes(self) -> int:
         """
         Returns the number of bytes in the buffer
-        
+
         :return: number of bytes in the buffer
         :rtype: int
         """
         return self._size
-      
+
     @property
-    def host(self)->np.ndarray:
+    def host(self) -> np.ndarray:
         """
-        This is a property that returns the host memory of the buffer as a np.ndarray object.
+        This is a property that returns the host memory of
+        the buffer as a np.ndarray object.
         The host memory is the value of the buffer on the host memory.
-        
+
         :return: Pointer to host memory
         :rtype: np.ndarray
         """
-        return self._HDM.host
+        return self._hdm.host
 
     @property
-    def device(self)->cuda.DeviceAllocation:
+    def device(self) -> cuda.DeviceAllocation:
         """
-        This is a property that returns the device memory of the buffer as a cuda.DeviceAllocation object.
+        This is a property that returns the device memory of the buffer
+        as a cuda.DeviceAllocation object.
         The device memory is the value of the buffer on the device memory.
 
         Returns:
             cuda.DeviceAllocation: Pointer to device memory
         """
-        return self._HDM.device
-    
+        return self._hdm.device
+
     @property
-    def shape(self)->tuple:
+    def shape(self) -> tuple:
         """
         Returns the shape of the buffer
 
@@ -166,9 +175,9 @@ class CUDA_Binding(object):
             tuple: The shape of the buffer
         """
         return self._shape
-    
+
     @property
-    def dtype(self)->np.dtype:
+    def dtype(self) -> np.dtype:
         """
         Returns the dtype of the buffer
 
@@ -176,107 +185,158 @@ class CUDA_Binding(object):
             np.dtype: The dtype of the buffer
         """
         return self._dtype
-    
+
     @property
-    def value(self)->np.ndarray:
+    def value(self) -> np.ndarray:
         """
-        This is a property that returns the value of the buffer as a numpy array.
+        This is a property that returns the value of the buffer
+        as a numpy array.
         The value is the value of the buffer on the host memory.
 
         Returns:
             np.ndarray: The value of the buffer on the host memory
         """
-        return self._HDM.host.reshape(self._shape, order="C").astype(self._dtype)
-    
-class CUDA_Buffers(object):
+        return self._hdm.host.reshape(self._shape, order="C").astype(
+            self._dtype)
 
-    # TO FIX, GENERALIZE THIS SHIT WITH CUDA_Binding
+
+class CUDA_Buffers(object):
 
     def __init__(self):
 
         self._inputs = {}
         self._outputs = {}
 
-        self._output_shapes = {}
-        self._input_shapes = {}
-        
         self._input_order = []
         self._output_order = []
 
-    def allocate_input(self, name:str, shape:tuple, dtype:object):
+    def allocate_input(self, name: str,
+                       shape: tuple,
+                       dtype: object):
+        """_summary_
 
-        self._input_shapes[name] = shape
-        
-        host_mem = cuda.pagelocked_empty(trt.volume(shape), trt.nptype(dtype))
-        device_mem = cuda.mem_alloc(host_mem.nbytes)
-        
-        self._inputs[name] = HostDeviceMem(host_mem, device_mem)
-        
+        :param name: _description_
+        :type name: str
+        :param shape: _description_
+        :type shape: tuple
+        :param dtype: _description_
+        :type dtype: object
+        """
+
+        self._inputs[name] = CUDA_Binding()
+        self._inputs[name].allocate(shape, dtype)
+
         self._input_order.append(name)
 
-    def allocate_output(self, name:str, shape:tuple, dtype:object):
+    def allocate_output(self, name: str,
+                        shape: tuple,
+                        dtype: object):
+        """_summary_
 
-        self._output_shapes[name] = shape
-        
-        host_mem = cuda.pagelocked_empty(trt.volume(shape), trt.nptype(dtype))
-        device_mem = cuda.mem_alloc(host_mem.nbytes)
-        
-        self._outputs[name] = HostDeviceMem(host_mem, device_mem)
-        
+        :param name: _description_
+        :type name: str
+        :param shape: _description_
+        :type shape: tuple
+        :param dtype: _description_
+        :type dtype: object
+        """
+
+        self._outputs[name] = CUDA_Binding()
+        self._outputs[name].allocate(shape, dtype)
+
         self._output_order.append(name)
 
-    ### Async copy
+    def input_h2d_async(self, stream: cuda.Stream = None) -> None:
+        """_summary_
 
-    def input_H2D_async(self, stream:cuda.Stream):
-        [cuda.memcpy_htod_async(inp.device, inp.host, stream) for inp in self._inputs]
+        :param stream: _description_, defaults to None
+        :type stream: cuda.Stream, optional
+        """
 
-    def input_D2H_async(self, stream:cuda.Stream):
-        [cuda.memcpy_dtoh_async(inp.host, inp.device, stream) for inp in self._inputs]
+        for inp in self._inputs.values():
+            inp.h2d(stream)
 
-    def output_H2D_async(self, stream:cuda.Stream):
-        [cuda.memcpy_htod_async(out.device, out.host, stream) for out in self._outputs]
+    def input_d2h_async(self, stream: cuda.Stream = None) -> None:
+        """_summary_
 
-    def output_D2H_async(self, stream:cuda.Stream):
-        [cuda.memcpy_dtoh_async(out.host, out.device, stream) for out in self._outputs]
+        :param stream: _description_, defaults to None
+        :type stream: cuda.Stream, optional
+        """
 
-    ### Sync copy
+        for inp in self._inputs.values():
+            inp.d2h(stream)
 
-    def input_H2D(self):
-        [cuda.memcpy_htod(inp.device, inp.host) for inp in self._inputs]
+    def output_h2d_async(self, stream: cuda.Stream = None) -> None:
+        """_summary_
 
-    def input_D2H(self):
-        [cuda.memcpy_dtoh(inp.host, inp.device) for inp in self._inputs]
+        :param stream: _description_, defaults to None
+        :type stream: cuda.Stream, optional
+        """
 
-    def output_H2D(self):
-        [cuda.memcpy_htod(out.device, out.host) for out in self._outputs]
+        for inp in self._outputs.values():
+            inp.h2d(stream)
 
-    def output_D2H(self):
-        [cuda.memcpy_dtoh(out.host, out.device) for out in self._outputs]
+    def output_d2h_async(self, stream: cuda.Stream = None) -> None:
+        """_summary_
 
-    def write_input_host(self,name:str, data:object):
-        self._inputs[name].host = np.array(data, dtype=np.float32, order='C')
-        return np.asarray(data).shape
+        :param stream: _description_, defaults to None
+        :type stream: cuda.Stream, optional
+        """
 
-    @property
-    def input_shape(self):
-        return self._input_shapes
+        for inp in self._outputs.values():
+            inp.d2h(stream)
 
-    @property
-    def output_shape(self):
-        return self._output_shapes
+    def write_input_host(self,
+                         name: str,
+                         data: object):
+        """_summary_
+
+        :param name: _description_
+        :type name: str
+        :param data: _description_
+        :type data: object
+        :return: _description_
+        :rtype: _type_
+        """
+
+        self._inputs[name].write(data)
+        return self._inputs[name].shape
 
     @property
     def output(self):
-        return [out.host.reshape(shape) for shape, out in zip(self._output_shapes,self._outputs)]
+        """_summary_
+
+        :return: _description_
+        :rtype: _type_
+        """
+
+        return [out.value for out in self._outputs]
 
     @property
     def input_bindings(self):
+        """_summary_
+
+        :return: _description_
+        :rtype: _type_
+        """
+
         return [self._inputs[name].device for name in self._input_order]
 
     @property
     def output_bindings(self):
+        """_summary_
+
+        :return: _description_
+        :rtype: _type_
+        """
+
         return [self._outputs[name].device for name in self._output_order]
 
     @property
     def bindings(self):
+        """_summary_
+
+        :return: _description_
+        :rtype: _type_
+        """
         return self.input_bindings + self.output_bindings

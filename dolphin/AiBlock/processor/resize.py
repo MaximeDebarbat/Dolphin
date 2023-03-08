@@ -46,7 +46,7 @@ class CuResize(CUDA_BASE):
 
         self._out_image_size_binding.allocate(shape=(3,), dtype=np.uint16)
         self._out_image_size_binding.write(data=out_image_size.ndarray)
-        self._out_image_size_binding.H2D()
+        self._out_image_size_binding.h2d()
 
         self._block = (min(self._out_image_size.width, self.MAX_BLOCK_X),
                        min(self._out_image_size.height, self.MAX_BLOCK_Y), 1)
@@ -73,7 +73,7 @@ class CuResize(CUDA_BASE):
             binding_in_image = CUDA_Binding()
             binding_in_image.allocate(shape=image.shape, dtype=np.uint8)
             binding_in_image.write(data=image)
-            binding_in_image.H2D(stream=stream)
+            binding_in_image.h2d(stream=stream)
 
         :param in_image_binding: CUDA_Binding object containing the input
         image. Must be allocated and written before calling this function.
@@ -117,12 +117,12 @@ if __name__ == "__main__":
     in_image_binding = CUDA_Binding()
     in_image_binding.allocate(shape=image.shape, dtype=np.uint8)
     in_image_binding.write(data=image.flatten(order="C"))
-    in_image_binding.H2D(stream=stream)
+    in_image_binding.h2d(stream=stream)
 
     in_image_size_binding = CUDA_Binding()
     in_image_size_binding.allocate(shape=(3,), dtype=np.uint16)
     in_image_size_binding.write(np.array(image.shape))
-    in_image_size_binding.H2D(stream=stream)
+    in_image_size_binding.h2d(stream=stream)
 
     out_image_binding = CUDA_Binding()
     out_image_binding.allocate(shape=(out_image_size.height,

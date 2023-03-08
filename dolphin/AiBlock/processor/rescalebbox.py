@@ -67,11 +67,11 @@ class CuRescaleBbox(CUDA_BASE):
         ########
 
         self._binding_in_image_size.write(data=self._in_image_size.ndarray)
-        self._binding_in_image_size.H2D()
+        self._binding_in_image_size.h2d()
 
         self._binding_rescaled_image_size.write(
             data=self._rescaled_image_size.ndarray)
-        self._binding_rescaled_image_size.H2D()
+        self._binding_rescaled_image_size.h2d()
 
     def __call__(self, binding_bounding_boxes: CUDA_Binding,
                  binding_out_bboxes: CUDA_Binding,
@@ -87,7 +87,7 @@ class CuRescaleBbox(CUDA_BASE):
             binding_in_image = CUDA_Binding()
             binding_in_image.allocate(shape=image.shape, dtype=np.uint8)
             binding_in_image.write(data=image)
-            binding_in_image.H2D(stream=stream)
+            binding_in_image.h2d(stream=stream)
 
         :param binding_bounding_boxes: Bounding boxes to rescale
         :type binding_bounding_boxes: CUDA_Binding
@@ -114,18 +114,23 @@ if __name__ == "__main__":
     rescale_image_size = ImageSize(width=640, height=640, channels=3,
                                    dtype=np.uint16)
 
-    N_BBOXES = 3
-    N_ITER = int(1e5)
-
     bboxes = [BoundingBox(x0=100, y0=100, x1=600, y1=600, relative=False),
+              BoundingBox(x0=0, y0=0, x1=640, y1=640, relative=False),
+              BoundingBox(x0=0, y0=0, x1=640, y1=640, relative=False),
+              BoundingBox(x0=0, y0=0, x1=640, y1=640, relative=False),
+              BoundingBox(x0=0, y0=0, x1=640, y1=640, relative=False),
+              BoundingBox(x0=0, y0=0, x1=640, y1=640, relative=False),
+              BoundingBox(x0=0, y0=0, x1=640, y1=640, relative=False),
+              BoundingBox(x0=0, y0=0, x1=640, y1=640, relative=False),
               BoundingBox(x0=0, y0=0, x1=640, y1=640, relative=False)]
 
-    print(bboxes)
+    N_BBOXES = len(bboxes)
+    N_ITER = int(1e5)
 
     bboxes_binding = CUDA_Binding()
     bboxes_binding.allocate(shape=(N_BBOXES, 4), dtype=np.uint16)
     bboxes_binding.write(data=np.array([e.ndarray for e in bboxes]))
-    bboxes_binding.H2D()
+    bboxes_binding.h2d()
 
     bboxes_out_binding = CUDA_Binding()
     bboxes_out_binding.allocate(shape=(N_BBOXES, 4), dtype=np.uint16)
@@ -140,10 +145,9 @@ if __name__ == "__main__":
     for _ in range(N_ITER):
         rescaler(binding_bounding_boxes=bboxes_binding,
                  binding_out_bboxes=bboxes_out_binding)
-
-    print(f"CUDA AVG time : {1000/N_ITER*(time.time()-t1)}ms/iter")
-    bboxes_out_binding.D2H()
-    print(f"res :\n {bboxes_out_binding.value}")
+    cuda_time = 1000/N_ITER*(time.time()-t1)
+    print(f"CUDA AVG time : {cuda_time}ms/iter")
+    bboxes_out_binding.d2h()
 
     bbox_array = np.array([e.ndarray for e in bboxes])
     res = np.zeros_like(bbox_array)
@@ -157,6 +161,7 @@ if __name__ == "__main__":
                                          rescale_image_size.width)
         res[:, 3] = in_image_size.height*(bbox_array[:, 3] /
                                           rescale_image_size.height)
+    numpy_time = 1000/N_ITER*(time.time()-t1)
+    print(f"CPU AVG time : {numpy_time}ms/iter")
 
-    print(f"CPU AVG time : {1000/N_ITER*(time.time()-t1)}ms/iter")
-    print(f"res :\n {res}")
+    print(f"Speedup : {numpy_time/cuda_time}")

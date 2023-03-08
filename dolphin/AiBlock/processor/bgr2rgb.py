@@ -52,7 +52,7 @@ class CuBGR2RGB(CUDA_BASE):
             binding_in_image = CUDA_Binding()
             binding_in_image.allocate(shape=image.shape, dtype=np.uint8)
             binding_in_image.write(data=image)
-            binding_in_image.H2D(stream=stream)
+            binding_in_image.h2d(stream=stream)
 
         :param image_size_binding: Binding containing the image size
         :type image_size_binding: CUDA_Binding
@@ -93,12 +93,12 @@ if __name__ == "__main__":
     in_image_binding = CUDA_Binding()
     in_image_binding.allocate(shape=image.shape, dtype=np.uint8)
     in_image_binding.write(data=image.flatten(order="C"))
-    in_image_binding.H2D(stream=stream)
+    in_image_binding.h2d(stream=stream)
 
     in_image_size_binding = CUDA_Binding()
     in_image_size_binding.allocate(shape=(3,), dtype=np.uint16)
     in_image_size_binding.write(np.array(image.shape))
-    in_image_size_binding.H2D(stream=stream)
+    in_image_size_binding.h2d(stream=stream)
 
     out_image_binding = CUDA_Binding()
     out_image_binding.allocate(shape=(out_image_size.height,

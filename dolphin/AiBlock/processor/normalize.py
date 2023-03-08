@@ -1,12 +1,12 @@
+
 import os
 import sys
 import math
 import time
 from enum import Enum
-from typing import overload
 
-import pycuda.driver as cuda
-from pycuda.compiler import SourceModule
+import pycuda.driver as cuda  # pylint: disable=import-error
+from pycuda.compiler import SourceModule  # pylint: disable=import-error
 
 import numpy as np
 
@@ -77,8 +77,8 @@ class CuNormalize(CUDA_BASE):
             self._mean_binding.write(data=mean)
             self._std_binding.write(data=std)
 
-            self._mean_binding.H2D()
-            self._std_binding.H2D()
+            self._mean_binding.h2d()
+            self._std_binding.h2d()
 
         self._normalize_cuda_sm = open(os.path.join(os.path.split(
             os.path.abspath(__file__))[0], "cuda",
@@ -130,6 +130,8 @@ def test_255():
     """
 
     normalizer = CuNormalize(norm_type=NormalizeMode._255)
+    # pylint: disable=W0212
+
     n_iter = int(1e3)
 
     stream = cuda.Stream()
@@ -151,7 +153,7 @@ def test_255():
     image_in_binding.allocate(shape=image_in_shape.shape,
                               dtype=np.uint8)
     image_in_binding.write(data=image_in)
-    image_in_binding.H2D(stream=stream)
+    image_in_binding.h2d(stream=stream)
 
     image_out_binding.allocate(shape=(image_in_shape.channels,
                                       image_in_shape.height,
@@ -161,7 +163,7 @@ def test_255():
     image_size_binding.allocate(shape=(3,),
                                 dtype=np.uint16)
     image_size_binding.write(data=image_in_shape.ndarray)
-    image_size_binding.H2D(stream=stream)
+    image_size_binding.h2d(stream=stream)
 
     t_1 = time.time()
     for _ in range(n_iter):
@@ -177,7 +179,7 @@ def test_255():
 
     print(f"Speedup : {numpy_time/cuda_time}x")
 
-    image_out_binding.D2H(stream=stream)
+    image_out_binding.d2h(stream=stream)
 
     print(f"norm : {np.linalg.norm(out-image_out_binding.value)}")
 
@@ -215,7 +217,7 @@ def test_mean_std():
     image_in_binding.allocate(shape=image_in_shape.shape,
                               dtype=np.uint8)
     image_in_binding.write(data=image_in)
-    image_in_binding.H2D(stream=stream)
+    image_in_binding.h2d(stream=stream)
 
     image_out_binding.allocate(shape=(image_in_shape.channels,
                                       image_in_shape.height,
@@ -225,7 +227,7 @@ def test_mean_std():
     image_size_binding.allocate(shape=(3,),
                                 dtype=np.uint16)
     image_size_binding.write(data=image_in_shape.ndarray)
-    image_size_binding.H2D(stream=stream)
+    image_size_binding.h2d(stream=stream)
 
     t_1 = time.time()
     for _ in range(n_iter):
@@ -249,7 +251,7 @@ def test_mean_std():
 
     print(f"Speedup : {numpy_time/cuda_time}x")
 
-    image_out_binding.D2H(stream=stream)
+    image_out_binding.d2h(stream=stream)
 
     print(f"norm : {np.linalg.norm(intermediate-image_out_binding.value)}")
 
@@ -261,6 +263,7 @@ def test_128():
     """
 
     normalizer = CuNormalize(norm_type=NormalizeMode._128)
+    # pylint: disable=W0212
 
     n_iter = int(1e3)
 
@@ -283,7 +286,7 @@ def test_128():
     image_in_binding.allocate(shape=image_in_shape.shape,
                               dtype=np.uint8)
     image_in_binding.write(data=image_in)
-    image_in_binding.H2D(stream=stream)
+    image_in_binding.h2d(stream=stream)
 
     image_out_binding.allocate(shape=(image_in_shape.channels,
                                       image_in_shape.height,
@@ -293,7 +296,7 @@ def test_128():
     image_size_binding.allocate(shape=(3,),
                                 dtype=np.uint16)
     image_size_binding.write(data=image_in_shape.ndarray)
-    image_size_binding.H2D(stream=stream)
+    image_size_binding.h2d(stream=stream)
 
     t_1 = time.time()
     for _ in range(n_iter):
@@ -309,7 +312,7 @@ def test_128():
 
     print(f"Speedup : {numpy_time/cuda_time}x")
 
-    image_out_binding.D2H(stream=stream)
+    image_out_binding.d2h(stream=stream)
 
     print(f"norm : {np.linalg.norm(out-image_out_binding.value)}")
 

@@ -52,14 +52,14 @@ class CuLetterBox(CUDA_BASE):
 
         self._out_image_size_binding.allocate(shape=(3,), dtype=np.uint16)
         self._out_image_size_binding.write(data=self._out_image_size.ndarray)
-        self._out_image_size_binding.H2D()
+        self._out_image_size_binding.h2d()
 
         self._padding_value_binding = CUDA_Binding()
 
         self._padding_value_binding.allocate(shape=(1,), dtype=np.uint8)
         self._padding_value_binding.write(data=np.array([self._padding_value],
                                                         dtype=np.uint8))
-        self._padding_value_binding.H2D()
+        self._padding_value_binding.h2d()
 
         self._block = (self.MAX_BLOCK_X, self.MAX_BLOCK_Y, 1)
         self._grid = (max(1, math.ceil(self._out_image_size.width /
@@ -107,12 +107,12 @@ if __name__ == "__main__":
     in_image_binding = CUDA_Binding()
     in_image_binding.allocate(shape=in_image_size.shape, dtype=np.uint8)
     in_image_binding.write(data=in_image)
-    in_image_binding.H2D()
+    in_image_binding.h2d()
 
     in_image_size_binding = CUDA_Binding()
     in_image_size_binding.allocate(shape=(3,), dtype=np.uint16)
     in_image_size_binding.write(data=in_image_size.ndarray)
-    in_image_size_binding.H2D()
+    in_image_size_binding.h2d()
 
     out_image_size = ImageSize(width=640, height=640, channels=3,
                                dtype=np.uint16)
@@ -126,10 +126,9 @@ if __name__ == "__main__":
     for _ in range(N_ITER):
         letterbox(in_image_binding, in_image_size_binding, out_image_binding)
     end = time.time()
+    cuda_time = 1000/N_ITER*(end-start)
+    print(f"Time to process: {cuda_time}ms/iter over {N_ITER} iteration.")
 
-    print(f"Time to process: {1000/N_ITER*(end-start)}ms/iter \
-          over {N_ITER} iteration.")
-
-    out_image_binding.D2H()
+    out_image_binding.d2h()
 
     cv2.imwrite("out.jpg", out_image_binding.value)

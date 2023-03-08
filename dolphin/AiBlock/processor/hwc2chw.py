@@ -56,7 +56,7 @@ class CuHWC2CHW(CUDA_BASE):
         binding_in_image = CUDA_Binding()
         binding_in_image.allocate(shape=image.shape, dtype=np.uint8)
         binding_in_image.write(data=image)
-        binding_in_image.H2D(stream=stream)
+        binding_in_image.h2d(stream=stream)
 
         :param image_size_binding: Binding containing the image size
         :type image_size_binding: CUDA_Binding
@@ -102,7 +102,7 @@ if __name__ == "__main__":
     image_in_binding.allocate(shape=image_in_shape.shape,
                               dtype=np.uint8)
     image_in_binding.write(data=image_in)
-    image_in_binding.H2D(stream=stream)
+    image_in_binding.h2d(stream=stream)
 
     image_out_binding.allocate(shape=(image_in_shape.channels,
                                       image_in_shape.height,
@@ -112,7 +112,7 @@ if __name__ == "__main__":
     image_size_binding.allocate(shape=(3,),
                                 dtype=np.uint16)
     image_size_binding.write(data=image_in_shape.ndarray)
-    image_size_binding.H2D(stream=stream)
+    image_size_binding.h2d(stream=stream)
 
     t1 = time.time()
     for _ in range(N_ITER):

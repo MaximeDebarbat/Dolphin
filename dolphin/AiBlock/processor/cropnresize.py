@@ -59,10 +59,10 @@ class CuCropNResize(CUDA_BASE):
         self._binding_max_height.allocate(shape=(), dtype=np.float32)
 
         self._binding_out_image_size.write(data=self._out_image_size.ndarray)
-        self._binding_out_image_size.H2D()
+        self._binding_out_image_size.h2d()
 
         self._binding_n_max_bboxes.write(data=self._n_max_bboxes)
-        self._binding_n_max_bboxes.H2D()
+        self._binding_n_max_bboxes.d2h()
 
         self._block = self._GET_BLOCK_X_Y(Z=self._n_max_bboxes)
         self._grid = (math.ceil(self._out_image_size.width/self._block[0]),
@@ -86,7 +86,7 @@ class CuCropNResize(CUDA_BASE):
             binding_in_image = CUDA_Binding()
             binding_in_image.allocate(shape=image.shape, dtype=np.uint8)
             binding_in_image.write(data=image)
-            binding_in_image.H2D(stream=stream
+            binding_in_image.h2d(stream=stream
             )
 
         :param binding_in_image: The CUDA_Binding object containing
@@ -116,8 +116,8 @@ class CuCropNResize(CUDA_BASE):
                          binding_in_image_size.device,
                          self._binding_out_image_size.device,
                          binding_bounding_boxes.device,
-                         block=self._BLOCK,
-                         grid=self._GRID,
+                         block=self._block,
+                         grid=self._grid,
                          stream=stream)
 
 
@@ -149,15 +149,15 @@ if __name__ == "__main__":
 
     in_image_binding.allocate(shape=image.shape, dtype=np.uint8)
     in_image_binding.write(data=image)
-    in_image_binding.H2D()
+    in_image_binding.h2d()
 
     in_image_size_binding.allocate(shape=(3,), dtype=np.uint16)
     in_image_size_binding.write(np.array(image.shape, dtype=np.uint16))
-    in_image_size_binding.H2D()
+    in_image_size_binding.h2d()
 
     bounding_boxes_binding.allocate(shape=(N_MAX_BBOXES, 4), dtype=np.uint16)
     bounding_boxes_binding.write(bboxes_list)
-    bounding_boxes_binding.H2D()
+    bounding_boxes_binding.h2d()
 
     out_image_size = ImageSize(width=500, height=500,
                                channels=3, dtype=np.uint16)
