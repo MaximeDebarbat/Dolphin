@@ -13,7 +13,7 @@ import numpy as np
 sys.path.append("..")
 sys.path.append("../..")
 
-from CudaUtils import CUDA_BASE, CUDA_Binding  # pylint: disable=import-error
+from CudaUtils import CUDA_BASE, CudaBinding  # pylint: disable=import-error
 from Data import ImageSize  # pylint: disable=import-error
 
 
@@ -66,8 +66,8 @@ class CuNormalize(CUDA_BASE):
                 raise ValueError(f"mean and std must be float32. Found \
                                     {mean.dtype} and {std.dtype}")
 
-            self._mean_binding = CUDA_Binding()
-            self._std_binding = CUDA_Binding()
+            self._mean_binding = CudaBinding()
+            self._std_binding = CudaBinding()
 
             self._mean_binding.allocate(shape=mean.shape,
                                         dtype=np.float32)
@@ -96,9 +96,9 @@ class CuNormalize(CUDA_BASE):
 
         self._block = (self.MAX_BLOCK_X, self.MAX_BLOCK_Y, 1)
 
-    def __call__(self, image_binding: CUDA_Binding,
-                 out_image_binding: CUDA_Binding,
-                 image_size_binding: CUDA_Binding) -> None:
+    def __call__(self, image_binding: CudaBinding,
+                 out_image_binding: CudaBinding,
+                 image_size_binding: CudaBinding) -> None:
         # pylint: disable=redefined-outer-name
         """_summary_
         """
@@ -146,9 +146,9 @@ def test_255():
                                                image_in_shape.width),
                                  dtype=np.uint8)
 
-    image_in_binding = CUDA_Binding()
-    image_out_binding = CUDA_Binding()
-    image_size_binding = CUDA_Binding()
+    image_in_binding = CudaBinding()
+    image_out_binding = CudaBinding()
+    image_size_binding = CudaBinding()
 
     image_in_binding.allocate(shape=image_in_shape.shape,
                               dtype=np.uint8)
@@ -210,9 +210,9 @@ def test_mean_std():
                                                image_in_shape.width),
                                  dtype=np.uint8)
 
-    image_in_binding = CUDA_Binding()
-    image_out_binding = CUDA_Binding()
-    image_size_binding = CUDA_Binding()
+    image_in_binding = CudaBinding()
+    image_out_binding = CudaBinding()
+    image_size_binding = CudaBinding()
 
     image_in_binding.allocate(shape=image_in_shape.shape,
                               dtype=np.uint8)
@@ -279,9 +279,9 @@ def test_128():
                                                image_in_shape.width),
                                  dtype=np.uint8)
 
-    image_in_binding = CUDA_Binding()
-    image_out_binding = CUDA_Binding()
-    image_size_binding = CUDA_Binding()
+    image_in_binding = CudaBinding()
+    image_out_binding = CudaBinding()
+    image_size_binding = CudaBinding()
 
     image_in_binding.allocate(shape=image_in_shape.shape,
                               dtype=np.uint8)

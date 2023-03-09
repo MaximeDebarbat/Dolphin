@@ -12,8 +12,8 @@ from pycuda.compiler import SourceModule  # pylint: disable=import-error
 sys.path.append("..")
 sys.path.append("../..")
 
-from CudaUtils import CUDA_BASE, CUDA_Binding
-from Data import ImageSize
+from CudaUtils import CUDA_BASE, CudaBinding  # pylint: disable=import-error
+from Data import ImageSize  # pylint: disable=import-error
 
 
 class CuLetterBox(CUDA_BASE):
@@ -48,13 +48,13 @@ class CuLetterBox(CUDA_BASE):
         self._letterbox_fct = self._letterbox_cuda_sm.get_function(
             self.__CUDA_LETTERBOX_FCT_NAME)
 
-        self._out_image_size_binding = CUDA_Binding()
+        self._out_image_size_binding = CudaBinding()
 
         self._out_image_size_binding.allocate(shape=(3,), dtype=np.uint16)
         self._out_image_size_binding.write(data=self._out_image_size.ndarray)
         self._out_image_size_binding.h2d()
 
-        self._padding_value_binding = CUDA_Binding()
+        self._padding_value_binding = CudaBinding()
 
         self._padding_value_binding.allocate(shape=(1,), dtype=np.uint8)
         self._padding_value_binding.write(data=np.array([self._padding_value],
@@ -67,18 +67,18 @@ class CuLetterBox(CUDA_BASE):
                       max(1, math.ceil(self._out_image_size.height /
                                        self._block[1])))
 
-    def __call__(self, binding_in_image: CUDA_Binding,
-                 binding_in_image_size: CUDA_Binding,
-                 binding_out_image: CUDA_Binding,
+    def __call__(self, binding_in_image: CudaBinding,
+                 binding_in_image_size: CudaBinding,
+                 binding_out_image: CudaBinding,
                  stream: cuda.Stream() = None) -> None:
         """_summary_
 
         :param binding_in_image: _description_
-        :type binding_in_image: CUDA_Binding
+        :type binding_in_image: CudaBinding
         :param binding_in_image_size: _description_
-        :type binding_in_image_size: CUDA_Binding
+        :type binding_in_image_size: CudaBinding
         :param binding_out_image: _description_
-        :type binding_out_image: CUDA_Binding
+        :type binding_out_image: CudaBinding
         :param stream: _description_, defaults to None
         :type stream: cuda.Stream, optional
         """
@@ -104,12 +104,12 @@ if __name__ == "__main__":
                               channels=in_image.shape[2],
                               dtype=np.uint16)
 
-    in_image_binding = CUDA_Binding()
+    in_image_binding = CudaBinding()
     in_image_binding.allocate(shape=in_image_size.shape, dtype=np.uint8)
     in_image_binding.write(data=in_image)
     in_image_binding.h2d()
 
-    in_image_size_binding = CUDA_Binding()
+    in_image_size_binding = CudaBinding()
     in_image_size_binding.allocate(shape=(3,), dtype=np.uint16)
     in_image_size_binding.write(data=in_image_size.ndarray)
     in_image_size_binding.h2d()
@@ -117,7 +117,7 @@ if __name__ == "__main__":
     out_image_size = ImageSize(width=640, height=640, channels=3,
                                dtype=np.uint16)
 
-    out_image_binding = CUDA_Binding()
+    out_image_binding = CudaBinding()
     out_image_binding.allocate(shape=out_image_size.shape, dtype=np.uint8)
 
     letterbox = CuLetterBox(out_image_size)

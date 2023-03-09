@@ -10,7 +10,7 @@ import numpy as np
 sys.path.append("..")
 sys.path.append("../..")
 
-from CudaUtils import CUDA_BASE, CUDA_Binding  # pylint: disable=import-error
+from CudaUtils import CUDA_BASE, CudaBinding  # pylint: disable=import-error
 from Data import ImageSize  # pylint: disable=import-error
 
 
@@ -42,9 +42,9 @@ class CuHWC2CHW(CUDA_BASE):
         self._block = (self.MAX_BLOCK_X, self.MAX_BLOCK_Y, 1)
 
     def __call__(self,
-                 in_image_binding: CUDA_Binding,
-                 in_image_size_binding: CUDA_Binding,
-                 out_image_binding: CUDA_Binding,
+                 in_image_binding: CudaBinding,
+                 in_image_size_binding: CudaBinding,
+                 out_image_binding: CudaBinding,
                  stream: cuda.Stream = None
                  ) -> None:
         # pylint: disable=redefined-outer-name
@@ -53,15 +53,15 @@ class CuHWC2CHW(CUDA_BASE):
         dimension swapping.
 
         F.e.:
-        binding_in_image = CUDA_Binding()
+        binding_in_image = CudaBinding()
         binding_in_image.allocate(shape=image.shape, dtype=np.uint8)
         binding_in_image.write(data=image)
         binding_in_image.h2d(stream=stream)
 
         :param image_size_binding: Binding containing the image size
-        :type image_size_binding: CUDA_Binding
+        :type image_size_binding: CudaBinding
         :param in_out_image_binding: Image whose channels will be swapped
-        :type in_out_image_binding: CUDA_Binding
+        :type in_out_image_binding: CudaBinding
         :param stream: Cuda stream to perform async operation, defaults to None
         :type stream: cuda.Stream, optional
         """
@@ -95,9 +95,9 @@ if __name__ == "__main__":
                                                image_in_shape.channels),
                                  dtype=np.uint8)
 
-    image_in_binding = CUDA_Binding()
-    image_out_binding = CUDA_Binding()
-    image_size_binding = CUDA_Binding()
+    image_in_binding = CudaBinding()
+    image_out_binding = CudaBinding()
+    image_size_binding = CudaBinding()
 
     image_in_binding.allocate(shape=image_in_shape.shape,
                               dtype=np.uint8)

@@ -10,7 +10,7 @@ import numpy as np
 sys.path.append("..")
 sys.path.append("../..")
 
-from CudaUtils import CUDA_BASE, CUDA_Binding # pylint: disable=import-error
+from CudaUtils import CUDA_BASE, CudaBinding # pylint: disable=import-error
 from Data import ImageSize # pylint: disable=import-error
 
 
@@ -35,8 +35,8 @@ class CuBGR2RGB(CUDA_BASE):
         self.__bgr2rgb_cuda_f = self.__bgr2rgb_cuda_sm.get_function(
             self.__CUDA_BGR2RGB_FCT_NAME)
 
-    def __call__(self, image_size_binding: CUDA_Binding,
-                 in_out_image_binding: CUDA_Binding,
+    def __call__(self, image_size_binding: CudaBinding,
+                 in_out_image_binding: CudaBinding,
                  stream: cuda.Stream = None):
         # pylint: disable=redefined-outer-name
         """Callable method to call the CUDA function that performs
@@ -45,19 +45,19 @@ class CuBGR2RGB(CUDA_BASE):
         Note that you can use it in the two directions. Such as
         BGR -> RGB and RGB -> BGR.
 
-        All CUDA_Binding objects must be allocated and written
+        All CudaBinding objects must be allocated and written
         before calling this function.
 
         F.e.:
-            binding_in_image = CUDA_Binding()
+            binding_in_image = CudaBinding()
             binding_in_image.allocate(shape=image.shape, dtype=np.uint8)
             binding_in_image.write(data=image)
             binding_in_image.h2d(stream=stream)
 
         :param image_size_binding: Binding containing the image size
-        :type image_size_binding: CUDA_Binding
+        :type image_size_binding: CudaBinding
         :param in_out_image_binding: Image whose channels will be swapped
-        :type in_out_image_binding: CUDA_Binding
+        :type in_out_image_binding: CudaBinding
         :param stream: Cuda stream to perform async operation, defaults to None
         :type stream: cuda.Stream, optional
         """
@@ -90,17 +90,17 @@ if __name__ == "__main__":
     image = np.zeros((1080, 1920, 3), dtype=np.uint8)
     image[:, :, 0] = 255
 
-    in_image_binding = CUDA_Binding()
+    in_image_binding = CudaBinding()
     in_image_binding.allocate(shape=image.shape, dtype=np.uint8)
     in_image_binding.write(data=image.flatten(order="C"))
     in_image_binding.h2d(stream=stream)
 
-    in_image_size_binding = CUDA_Binding()
+    in_image_size_binding = CudaBinding()
     in_image_size_binding.allocate(shape=(3,), dtype=np.uint16)
     in_image_size_binding.write(np.array(image.shape))
     in_image_size_binding.h2d(stream=stream)
 
-    out_image_binding = CUDA_Binding()
+    out_image_binding = CudaBinding()
     out_image_binding.allocate(shape=(out_image_size.height,
                                       out_image_size.width,
                                       out_image_size.channels),

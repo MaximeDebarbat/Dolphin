@@ -12,8 +12,9 @@ import numpy as np
 sys.path.append("..")
 sys.path.append("../..")
 
-from CudaUtils import CUDA_BASE, CUDA_Binding
-from Data import ImageSize
+from CudaUtils import CUDA_BASE, CudaBinding # pylint: disable=import-error
+from Data import ImageSize # pylint: disable=import-error
+
 
 class CuCropNResize(CUDA_BASE):
     """CuCropNResize is a class wrapping the CUDA implementation of
@@ -47,10 +48,10 @@ class CuCropNResize(CUDA_BASE):
         self._cnr_cuda_f = self._cnr_cuda_sm.get_function(
             self.__CUDA_CROPNRESIZE_FCT_NAME)
 
-        self._binding_n_max_bboxes = CUDA_Binding()
-        self._binding_out_image_size = CUDA_Binding()
-        self._binding_max_width = CUDA_Binding()
-        self._binding_max_height = CUDA_Binding()
+        self._binding_n_max_bboxes = CudaBinding()
+        self._binding_out_image_size = CudaBinding()
+        self._binding_max_width = CudaBinding()
+        self._binding_max_height = CudaBinding()
 
         self._binding_n_max_bboxes.allocate(shape=(), dtype=np.uint16)
         self._binding_out_image_size.allocate(shape=(3,),
@@ -68,10 +69,10 @@ class CuCropNResize(CUDA_BASE):
         self._grid = (math.ceil(self._out_image_size.width/self._block[0]),
                       math.ceil(self._out_image_size.height/self._block[1]))
 
-    def __call__(self, binding_in_image: CUDA_Binding,
-                 binding_in_image_size: CUDA_Binding,
-                 binding_bounding_boxes: CUDA_Binding,
-                 binding_out_image_batch: CUDA_Binding,
+    def __call__(self, binding_in_image: CudaBinding,
+                 binding_in_image_size: CudaBinding,
+                 binding_bounding_boxes: CudaBinding,
+                 binding_out_image_batch: CudaBinding,
                  stream: cuda.Stream = None
                  ) -> None:
         """Callable method to call the CUDA function that performs the crop
@@ -79,31 +80,31 @@ class CuCropNResize(CUDA_BASE):
         For a given image and a list of bounding boxes, this function will
         crop the image and resize it to the desired output size.
 
-        All CUDA_Binding objects must be allocated and written
+        All CudaBinding objects must be allocated and written
         before calling this function.
 
         F.e.:
-            binding_in_image = CUDA_Binding()
+            binding_in_image = CudaBinding()
             binding_in_image.allocate(shape=image.shape, dtype=np.uint8)
             binding_in_image.write(data=image)
             binding_in_image.h2d(stream=stream
             )
 
-        :param binding_in_image: The CUDA_Binding object containing
+        :param binding_in_image: The CudaBinding object containing
         the input image.
         Must be allocated and written before calling this function.
-        :type binding_in_image: CUDA_Binding
-        :param binding_in_image_size: The CUDA_Binding object containing
+        :type binding_in_image: CudaBinding
+        :param binding_in_image_size: The CudaBinding object containing
         the input image size.
         Must be allocated and written before calling this function.
-        :type binding_in_image_size: CUDA_Binding
-        :param binding_bounding_boxes: The CUDA_Binding object containing
+        :type binding_in_image_size: CudaBinding
+        :param binding_bounding_boxes: The CudaBinding object containing
         the bounding boxes.
         Must be allocated and written before calling this function.
-        :type binding_bounding_boxes: CUDA_Binding
-        :param binding_out_image_batch: The CUDA_Binding object containing
+        :type binding_bounding_boxes: CudaBinding
+        :param binding_out_image_batch: The CudaBinding object containing
         the output image batch. Must be allocated before calling this function.
-        :type binding_out_image_batch: CUDA_Binding
+        :type binding_out_image_batch: CudaBinding
         :param stream: The CUDA stream to perform the operation,
         defaults to None
         :type stream: cuda.Stream, optional
@@ -126,9 +127,9 @@ if __name__ == "__main__":
     import cv2
     import time
 
-    in_image_binding = CUDA_Binding()
-    in_image_size_binding = CUDA_Binding()
-    bounding_boxes_binding = CUDA_Binding()
+    in_image_binding = CudaBinding()
+    in_image_size_binding = CudaBinding()
+    bounding_boxes_binding = CudaBinding()
 
     image = np.random.randint(0, 255,
                               size=(1080, 1920, 3),
@@ -162,7 +163,7 @@ if __name__ == "__main__":
     out_image_size = ImageSize(width=500, height=500,
                                channels=3, dtype=np.uint16)
 
-    out_image_binding = CUDA_Binding()
+    out_image_binding = CudaBinding()
     out_image_binding.allocate(shape=(N_MAX_BBOXES, out_image_size.height,
                                       out_image_size.width,
                                       out_image_size.channels),

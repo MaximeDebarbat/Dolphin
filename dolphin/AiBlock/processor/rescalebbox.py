@@ -9,7 +9,7 @@ import numpy as np
 sys.path.append("..")
 sys.path.append("../..")
 
-from CudaUtils import CUDA_BASE, CUDA_Binding # pylint: disable=import-error
+from CudaUtils import CUDA_BASE, CudaBinding # pylint: disable=import-error
 from Data import ImageSize, BoundingBox # pylint: disable=import-error
 
 
@@ -53,8 +53,8 @@ class CuRescaleBbox(CUDA_BASE):
         self.__rb_cuda_f = self.__rb_cuda_sm.get_function(
             self.__CUDA_RESCALEBBOX_FCT_NAME)
 
-        self._binding_in_image_size = CUDA_Binding()
-        self._binding_rescaled_image_size = CUDA_Binding()
+        self._binding_in_image_size = CudaBinding()
+        self._binding_rescaled_image_size = CudaBinding()
 
         self._binding_in_image_size.allocate(shape=(3,),
                                              dtype=self._in_image_size.dtype)
@@ -73,26 +73,26 @@ class CuRescaleBbox(CUDA_BASE):
             data=self._rescaled_image_size.ndarray)
         self._binding_rescaled_image_size.h2d()
 
-    def __call__(self, binding_bounding_boxes: CUDA_Binding,
-                 binding_out_bboxes: CUDA_Binding,
+    def __call__(self, binding_bounding_boxes: CudaBinding,
+                 binding_out_bboxes: CudaBinding,
                  stream: cuda.Stream = None) -> None:
         # pylint : disable=redefined-outer-name
         """__call__ is the function called when the instance is called as a
         function. It calls the CUDA kernel for rescaling bounding boxes.
 
-        All CUDA_Binding objects must be allocated and written
+        All CudaBinding objects must be allocated and written
         before calling this function.
 
         F.e.:
-            binding_in_image = CUDA_Binding()
+            binding_in_image = CudaBinding()
             binding_in_image.allocate(shape=image.shape, dtype=np.uint8)
             binding_in_image.write(data=image)
             binding_in_image.h2d(stream=stream)
 
         :param binding_bounding_boxes: Bounding boxes to rescale
-        :type binding_bounding_boxes: CUDA_Binding
+        :type binding_bounding_boxes: CudaBinding
         :param binding_out_bboxes: Rescaled bounding boxes
-        :type binding_out_bboxes: CUDA_Binding
+        :type binding_out_bboxes: CudaBinding
         :param stream: CUDA stream, defaults to None
         :type stream: cuda.Stream, optional
         """
@@ -127,12 +127,12 @@ if __name__ == "__main__":
     N_BBOXES = len(bboxes)
     N_ITER = int(1e5)
 
-    bboxes_binding = CUDA_Binding()
+    bboxes_binding = CudaBinding()
     bboxes_binding.allocate(shape=(N_BBOXES, 4), dtype=np.uint16)
     bboxes_binding.write(data=np.array([e.ndarray for e in bboxes]))
     bboxes_binding.h2d()
 
-    bboxes_out_binding = CUDA_Binding()
+    bboxes_out_binding = CudaBinding()
     bboxes_out_binding.allocate(shape=(N_BBOXES, 4), dtype=np.uint16)
 
     rescaler = CuRescaleBbox(in_image_size=ImageSize(1920, 1080, 3,

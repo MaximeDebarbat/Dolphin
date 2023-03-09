@@ -12,7 +12,7 @@ import numpy as np
 sys.path.append("..")
 sys.path.append("../..")
 
-from CudaUtils import CUDA_BASE, CUDA_Binding
+from CudaUtils import CUDA_BASE, CudaBinding
 from Data import ImageSize
 
 
@@ -42,7 +42,7 @@ class CuResize(CUDA_BASE):
         self._resize_cuda_f = self._resize_cuda_sm.get_function(
             self.__CUDA_RESIZE_FCT_NAME)
 
-        self._out_image_size_binding = CUDA_Binding()
+        self._out_image_size_binding = CudaBinding()
 
         self._out_image_size_binding.allocate(shape=(3,), dtype=np.uint16)
         self._out_image_size_binding.write(data=out_image_size.ndarray)
@@ -56,9 +56,9 @@ class CuResize(CUDA_BASE):
                                        self._block[1])))
 
     def __call__(self,
-                 in_image_binding: CUDA_Binding,
-                 in_image_size_binding: CUDA_Binding,
-                 out_image_binding: CUDA_Binding,
+                 in_image_binding: CudaBinding,
+                 in_image_size_binding: CudaBinding,
+                 out_image_binding: CudaBinding,
                  stream: cuda.Stream = None) -> None:
         # pylint: disable=redefined-outer-name
         """Callable method to call the CUDA function that performs
@@ -66,24 +66,24 @@ class CuResize(CUDA_BASE):
         For an given input image, the function will resize it
         to the size specified in the constructor.
 
-        All CUDA_Binding objects must be allocated and written before calling
+        All CudaBinding objects must be allocated and written before calling
         this function.
 
         F.e.:
-            binding_in_image = CUDA_Binding()
+            binding_in_image = CudaBinding()
             binding_in_image.allocate(shape=image.shape, dtype=np.uint8)
             binding_in_image.write(data=image)
             binding_in_image.h2d(stream=stream)
 
-        :param in_image_binding: CUDA_Binding object containing the input
+        :param in_image_binding: CudaBinding object containing the input
         image. Must be allocated and written before calling this function.
-        :type in_image_binding: CUDA_Binding
-        :param in_image_size_binding: CUDA_Binding object containing the input
+        :type in_image_binding: CudaBinding
+        :param in_image_size_binding: CudaBinding object containing the input
         image size. Must be allocated and written before calling this function.
-        :type in_image_size_binding: CUDA_Binding
-        :param out_image_binding: CUDA_Binding object containing the output
+        :type in_image_size_binding: CudaBinding
+        :param out_image_binding: CudaBinding object containing the output
         image. Must be allocated before calling this function.
-        :type out_image_binding: CUDA_Binding
+        :type out_image_binding: CudaBinding
         :param stream: CUDA stream to be used for the operation,
         defaults to None
         :type stream: cuda.Stream, optional
@@ -114,17 +114,17 @@ if __name__ == "__main__":
     image = np.random.randint(0, 255, (1080, 1920, 3),
                               dtype=np.uint8)
 
-    in_image_binding = CUDA_Binding()
+    in_image_binding = CudaBinding()
     in_image_binding.allocate(shape=image.shape, dtype=np.uint8)
     in_image_binding.write(data=image.flatten(order="C"))
     in_image_binding.h2d(stream=stream)
 
-    in_image_size_binding = CUDA_Binding()
+    in_image_size_binding = CudaBinding()
     in_image_size_binding.allocate(shape=(3,), dtype=np.uint16)
     in_image_size_binding.write(np.array(image.shape))
     in_image_size_binding.h2d(stream=stream)
 
-    out_image_binding = CUDA_Binding()
+    out_image_binding = CudaBinding()
     out_image_binding.allocate(shape=(out_image_size.height,
                                       out_image_size.width,
                                       out_image_size.channels),
