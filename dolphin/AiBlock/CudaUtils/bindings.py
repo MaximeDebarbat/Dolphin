@@ -1,8 +1,11 @@
+
+from functools import reduce
+
 import pycuda.autoinit
 import pycuda.driver as cuda
 import tensorrt as trt
+
 import numpy as np
-from functools import reduce
 
 
 class HostDeviceMem(object):
@@ -15,7 +18,8 @@ class HostDeviceMem(object):
     :type device_mem: cuda.DeviceAllocation
     """
 
-    def __init__(self, host_mem: np.ndarray, device_mem: cuda.DeviceAllocation):
+    def __init__(self, host_mem: np.ndarray,
+                 device_mem: cuda.DeviceAllocation):
         self.host = host_mem
         self.device = device_mem
 
@@ -23,7 +27,7 @@ class HostDeviceMem(object):
         return "Host:\n" + str(self.host) + "\nDevice:\n" + str(self.device)
 
 
-class CUDA_Binding(object):
+class CudaBinding:
     """
     This class is used to allocate memory on the host and the device.
     It is also used to copy data from the host to the device and vice versa.
@@ -53,7 +57,7 @@ class CUDA_Binding(object):
         self._shape = shape
         self._dtype = dtype
 
-        _hm = np.empty(trt.volume(self._shape), self._dtype)
+        _hm = cuda.pagelocked_zeros(trt.volume(self._shape), self._dtype)
         _dm = cuda.mem_alloc(_hm.nbytes)
 
         self._nbytes = _hm.nbytes
@@ -72,6 +76,7 @@ class CUDA_Binding(object):
         :param data: Data to be copied
         :type data: object
         """
+
         self._hdm.host = np.array(data, dtype=self._dtype, order="C")
 
     def h2d(self, stream: cuda.Stream = None) -> None:
@@ -83,6 +88,7 @@ class CUDA_Binding(object):
         defaults to None
         :type stream: cuda.Stream, optional
         """
+
         if stream is None:
             cuda.memcpy_htod(self._hdm.device, self._hdm.host)
         else:
@@ -99,7 +105,6 @@ class CUDA_Binding(object):
         defaults to None
         :type stream: cuda.Stream, optional
         """
-
         if stream is None:
             cuda.memcpy_dtoh(self._hdm.host, self._hdm.device)
         else:
@@ -223,7 +228,7 @@ class CUDA_Buffers(object):
         :type dtype: object
         """
 
-        self._inputs[name] = CUDA_Binding()
+        self._inputs[name] = CudaBinding()
         self._inputs[name].allocate(shape, dtype)
 
         self._input_order.append(name)
@@ -241,7 +246,7 @@ class CUDA_Buffers(object):
         :type dtype: object
         """
 
-        self._outputs[name] = CUDA_Binding()
+        self._outputs[name] = CudaBinding()
         self._outputs[name].allocate(shape, dtype)
 
         self._output_order.append(name)
