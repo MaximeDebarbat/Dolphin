@@ -57,17 +57,14 @@ class CudaBinding:
         self._shape = shape
         self._dtype = dtype
 
-        _hm = cuda.pagelocked_zeros(trt.volume(self._shape), self._dtype)
+        _hm = np.zeros(trt.volume(self._shape), self._dtype)
         _dm = cuda.mem_alloc(_hm.nbytes)
 
         self._nbytes = _hm.nbytes
         self._hdm = HostDeviceMem(host_mem=_hm,
                                   device_mem=_dm)
 
-        if self._shape == ():
-            self._size = 1
-        else:
-            self._size = reduce((lambda x, y: x * y), self._shape)
+        self._size = trt.volume(self._shape)
 
     def write(self, data: object) -> None:
         """
