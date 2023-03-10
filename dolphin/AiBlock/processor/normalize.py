@@ -58,7 +58,7 @@ class CuNormalize(CUDA_BASE):
             #                      NormalizeMode.MEAN_STD. Found \
             #                      {self._type}")
 
-            if (mean.shape != std.shape):
+            if mean.shape != std.shape:
                 raise ValueError(f"mean and std must have the same shape. \
                                  Found {mean.shape} and {std.shape}")
 
@@ -107,7 +107,7 @@ class CuNormalize(CUDA_BASE):
                 max(1, math.ceil(image_size_binding.value[1] /
                                  self._block[1])))
 
-        if (self._type == NormalizeMode.MEAN_STD):
+        if self._type == NormalizeMode.MEAN_STD:
             self._fct_binder[self._type](image_binding.device,
                                          out_image_binding.device,
                                          image_size_binding.device,
@@ -262,8 +262,7 @@ def test_128():
     with the _128 normalization mode.
     """
 
-    normalizer = CuNormalize(norm_type=NormalizeMode._128)
-    # pylint: disable=W0212
+    normalizer = CuNormalize(norm_type=NormalizeMode._128)  # pylint: disable=W0212
 
     n_iter = int(1e3)
 
