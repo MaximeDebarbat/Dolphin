@@ -13,7 +13,7 @@ import numpy as np
 from bindings import CudaBinding, HostDeviceMem  # pylint: disable=import-error
 
 
-class Bufferizer:
+class Bufferizer(CudaBinding):
     """_summary_
     """
 
@@ -23,14 +23,17 @@ class Bufferizer:
                  flush_hook: callable = None,
                  allocate_hook: callable = None,
                  append_one_hook: callable = None,
-                 append_multiple_hook: callable = None
+                 append_multiple_hook: callable = None,
+                 buffer_full_hook: callable = None
                  ):
+
+        super().__init__()
 
         self._shape = shape
         self._dtype = dtype
         self._size = buffer_size
         self._itemsize = trt.volume(self._shape)
-        self._buffer = None
+        self._hdm = None
         self._nbytes = 0
         self._n_elements = 0
 
@@ -38,6 +41,7 @@ class Bufferizer:
         self._allocate_hook = None
         self._append_one_hook = None
         self._append_multiple_hook = None
+        self._buffer_full_hook = None
 
         self.allocate()
 
@@ -45,20 +49,21 @@ class Bufferizer:
         self._allocate_hook = allocate_hook
         self._append_one_hook = append_one_hook
         self._append_multiple_hook = append_multiple_hook
+        self._buffer_full_hook = buffer_full_hook
 
     def allocate(self) -> None:
         """_summary_
         """
 
-        host = np.empty(
-            trt.volume((self._size,)+self._shape), self._dtype)
+        host = np.zeros(
+            trt.volume((self._size,) + self._shape), self._dtype)
         device = cuda.mem_alloc(host.nbytes)  # pylint: disable=no-member
         self._nbytes = host.nbytes
-        self._buffer = HostDeviceMem(host, device)
+        self._hdm = HostDeviceMem(host, device)
         self._n_elements = 0
 
         if self._allocate_hook is not None:
-            self._allocate_hook()
+            self._allocate_hook(self)
 
         self.flush(0)
 
@@ -77,13 +82,13 @@ class Bufferizer:
             raise BufferError(f"Bufferizer is full ({self._size} elements).")
 
         if stream is None:
-            cuda.memcpy_dtod(int(self._buffer.device) + self._n_elements
+            cuda.memcpy_dtod(int(self._hdm.device) + self._n_elements
                              * self._itemsize,
                              binding.device,
                              self._itemsize * np.dtype(self._dtype).itemsize)
             # pylint: disable=no-member
         else:
-            cuda.memcpy_dtod_async(self._buffer.device + self._n_elements
+            cuda.memcpy_dtod_async(self._hdm.device + self._n_elements
                                    * self._itemsize,
                                    binding.device,
                                    self._itemsize *
@@ -93,7 +98,11 @@ class Bufferizer:
         self._n_elements += 1
 
         if self._append_one_hook is not None:
-            self._append_one_hook()
+            self._append_one_hook(self)
+
+        if self._n_elements == self._size:
+            if self._buffer_full_hook is not None:
+                self._buffer_full_hook(self)
 
     def append_multiple(self, binding: CudaBinding,
                         stream: cuda.Stream = None) -> None:
@@ -116,14 +125,14 @@ class Bufferizer:
                               Tried to push {batch_size} elements.")
 
         if stream is None:
-            cuda.memcpy_dtod(self._buffer.device + self._n_elements
+            cuda.memcpy_dtod(self._hdm.device + self._n_elements
                              * self._itemsize,
                              binding.device,
                              batch_size * self._itemsize *
                              np.dtype(self._dtype).itemsize)
             # pylint: disable=no-member
         else:
-            cuda.memcpy_dtod_async(self._buffer.device + self._n_elements
+            cuda.memcpy_dtod_async(self._hdm.device + self._n_elements
                                    * self._itemsize,
                                    binding.device,
                                    batch_size * self._itemsize *
@@ -133,7 +142,11 @@ class Bufferizer:
         self._n_elements += batch_size
 
         if self._append_multiple_hook is not None:
-            self._append_multiple_hook()
+            self._append_multiple_hook(self)
+
+        if self._n_elements == self._size:
+            if self._buffer_full_hook is not None:
+                self._buffer_full_hook(self)
 
     def flush(self, value: int = 0,
               stream: cuda.Stream = None) -> None:
@@ -146,16 +159,13 @@ class Bufferizer:
 
         size = self._nbytes
 
-        print(f"Flushing buffer {self._buffer.device} with {size} \
-            bytes of value {value}")
-
         if stream is None:
-            cuda.memset_d8(self._buffer.device,
+            cuda.memset_d8(self._hdm.device,
                            value,
                            size)
             # pylint: disable=no-member
         else:
-            cuda.memset_d8_async(self._buffer.device,
+            cuda.memset_d8_async(self._hdm.device,
                                  value,
                                  size, stream)
             # pylint: disable=no-member
@@ -163,39 +173,7 @@ class Bufferizer:
         self._n_elements = 0
 
         if self._flush_hook is not None:
-            self._flush_hook()
-
-    def d2h(self, stream: cuda.Stream = None) -> None:
-        # pylint: disable=no-member
-        """_summary_
-
-        :param stream: _description_, defaults to None
-        :type stream: cuda.Stream, optional
-        """
-
-        if stream is None:
-            cuda.memcpy_dtoh(self._buffer.host,
-                             self._buffer.device)  # pylint: disable=no-member
-        else:
-            cuda.memcpy_dtoh_async(self._buffer.host,
-                                   self._buffer.device,
-                                   stream=stream)  # pylint: disable=no-member
-
-    def h2d(self, stream: cuda.Stream = None) -> None:
-        # pylint: disable=no-member
-        """_summary_
-
-        :param stream: _description_, defaults to None
-        :type stream: cuda.Stream, optional
-        """
-
-        if stream is None:
-            cuda.memcpy_htod(self._buffer.device,
-                             self._buffer.host)  # pylint: disable=no-member
-        else:
-            cuda.memcpy_htod_async(self._buffer.device,
-                                   self._buffer.host,
-                                   stream=stream)  # pylint: disable=no-member
+            self._flush_hook(self)
 
     def flush_hook(self, hook: callable):
         """_summary_
@@ -229,6 +207,14 @@ class Bufferizer:
         """
         self._append_multiple_hook = hook
 
+    def buffer_full_hook(self, hook: callable):
+        """_summary_
+
+        :param hook: _description_
+        :type hook: callable
+        """
+        self._buffer_full_hook = hook
+
     @property
     def value(self) -> np.ndarray:
         """_summary_
@@ -236,7 +222,7 @@ class Bufferizer:
         :return: _description_
         :rtype: np.ndarray
         """
-        return self._buffer.host.reshape((self._size,) + self._shape)
+        return self._hdm.host.reshape((self._size,) + self._shape)
 
     @property
     def element_nbytes(self) -> int:
@@ -262,8 +248,19 @@ class Bufferizer:
 
 if __name__ == "__main__":
 
-    buffer = Bufferizer((2,), buffer_size=5, dtype=np.uint8)
-    buffer.flush()
+    def append_one_handler(binding: CudaBinding):
+        # pylint: disable=C0116
+        print(f"append_one_handler : {len(binding)}")
+
+    def buffer_full_handler(binding: CudaBinding):
+        # pylint: disable=C0116
+        print(f"buffer_full_handler : {len(binding)}")
+
+    buffer = Bufferizer((2,),
+                        buffer_size=5,
+                        dtype=np.uint8,
+                        buffer_full_hook=buffer_full_handler,
+                        append_one_hook=append_one_handler)
 
     data = CudaBinding()
     data.allocate((2,), np.uint8)
@@ -273,13 +270,15 @@ if __name__ == "__main__":
     buffer.append_one(data)
     buffer.append_one(data)
     buffer.append_one(data)
+    buffer.append_one(data)
+    buffer.append_one(data)
 
     buffer.d2h()
 
     print(buffer.value)
     print(len(buffer))
 
-    buffer.flush()
+    buffer.flush(value=8)
     buffer.d2h()
 
     print(buffer.value)
