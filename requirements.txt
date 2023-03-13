@@ -2,4 +2,14 @@ pycuda
 numpy
 opencv-python==4.5.5.64
 tqdm
-onnx
+onnxautopep8==2.0.2
+graphsurgeon==0.4.6
+onnx==1.13.1
+opencv-python==4.5.5.64
+pillow==9.4.0
+pip-chill==1.0.1
+polygraphy==0.45.3
+pycuda==2022.2.2
+tensorrt==8.5.2.2
+tqdm==4.65.0
+uff==0.6.9
