@@ -31,6 +31,20 @@ class CudaBinding:
     """
     This class is used to allocate memory on the host and the device.
     It is also used to copy data from the host to the device and vice versa.
+
+    It contains these properties :
+      >>> shape
+      >>> dtype
+      >>> nbytes (nbtyes = number of bytes)
+      >>> size (size = total number of elements)
+      >>> value (value = reshaped data on the host)
+
+    It contains these functions :
+      >>> allocate(shape: tuple, dtype: np.dtype) -> None
+      >>> write(data: object) -> None
+      >>> h2d(stream: cuda.Stream = None) -> None
+      >>> d2h(stream: cuda.Stream = None) -> None
+
     """
 
     def __init__(self):
@@ -303,6 +317,22 @@ class CUDA_Buffers(object):
 
         self._inputs[name].write(data)
         return self._inputs[name].shape
+
+    def __del__(self):
+        """_summary_
+
+        :return: _description_
+        :rtype: _type_
+        """
+        try:
+            for element in self._inputs.values():
+                del element
+            for element in self._outputs.values():
+                del element
+        except Exception as exception:
+            # pylint: disable=broad-exception-caught
+            print(f"Encountered Exception while destroying object \
+                  {self.__class__} : {exception}")
 
     @property
     def output(self):
