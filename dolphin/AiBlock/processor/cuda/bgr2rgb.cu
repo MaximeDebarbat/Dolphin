@@ -1,13 +1,13 @@
 
 #include <stdint.h>
 
-struct ImageSize {
+struct ImageDimension {
     uint16_t height;
     uint16_t width;
     uint16_t channels;
 };
 
-__global__ void bgr2rgb(ImageSize *im_size,
+__global__ void bgr2rgb(ImageDimension *im_size,
                           uint8_t *image){
 
     int x = blockIdx.x * blockDim.x + threadIdx.x;

@@ -1,7 +1,7 @@
 
 #include <stdint.h>
 
-struct ImageSize {
+struct ImageDimension {
     uint16_t width;
     uint16_t height;
     uint16_t channels;
@@ -16,8 +16,8 @@ struct BoundingBox{
 
 __global__ void rescalebbox(BoundingBox *bboxes,
                             BoundingBox *out_bboxes,
-                            ImageSize *original_image_size,
-                            ImageSize *rescaled_image_size){
+                            ImageDimension *original_image_size,
+                            ImageDimension *rescaled_image_size){
 
     uint16_t index = threadIdx.x;
 

@@ -10,7 +10,7 @@ sys.path.append("..")
 sys.path.append("../..")
 
 from CudaUtils import CUDA_BASE, CudaBinding # pylint: disable=import-error
-from Data import ImageSize, BoundingBox # pylint: disable=import-error
+from Data import ImageDimension, BoundingBox # pylint: disable=import-error
 
 
 class CuRescaleBbox(CUDA_BASE):
@@ -21,16 +21,16 @@ class CuRescaleBbox(CUDA_BASE):
     to the original image size.
 
     :param in_image_size: Image size of the model's input
-    :type in_image_size: ImageSize
+    :type in_image_size: ImageDimension
     :param in_image_size: Image size of the original image
-    :type in_image_size: ImageSize
+    :type in_image_size: ImageDimension
     """
 
     __CUDA_RESCALEBBOX_FILE_NAME = "rescalebbox.cu"
     __CUDA_RESCALEBBOX_FCT_NAME = "rescalebbox"
 
-    def __init__(self, in_image_size: ImageSize,
-                 rescaled_image_size: ImageSize,
+    def __init__(self, in_image_size: ImageDimension,
+                 out_image_size: ImageDimension,
                  n_max_bboxes: int):
         # pylint: disable=redefined-outer-name
 
@@ -41,7 +41,7 @@ class CuRescaleBbox(CUDA_BASE):
                                  Here n_max_bboxes={n_max_bboxes}.")
 
         self._in_image_size = in_image_size
-        self._rescaled_image_size = rescaled_image_size
+        self._rescaled_image_size = out_image_size
         self._n_max_bboxes = n_max_bboxes
 
         # Here, we import and compile self.__CUDA_FILE_NAME
@@ -109,10 +109,10 @@ if __name__ == "__main__":
 
     import time
 
-    in_image_size = ImageSize(width=1920, height=1080, channels=3,
-                              dtype=np.uint16)
-    rescale_image_size = ImageSize(width=640, height=640, channels=3,
+    in_image_size = ImageDimension(width=1920, height=1080, channels=3,
                                    dtype=np.uint16)
+    rescale_image_size = ImageDimension(width=640, height=640, channels=3,
+                                        dtype=np.uint16)
 
     bboxes = [BoundingBox(x0=100, y0=100, x1=600, y1=600, relative=False),
               BoundingBox(x0=0, y0=0, x1=640, y1=640, relative=False),
@@ -135,9 +135,9 @@ if __name__ == "__main__":
     bboxes_out_binding = CudaBinding()
     bboxes_out_binding.allocate(shape=(N_BBOXES, 4), dtype=np.uint16)
 
-    rescaler = CuRescaleBbox(in_image_size=ImageSize(1920, 1080, 3,
-                                                     np.uint16),
-                             rescaled_image_size=ImageSize(640, 640, 3,
+    rescaler = CuRescaleBbox(in_image_size=ImageDimension(1920, 1080, 3,
+                                                          np.uint16),
+                             out_image_size=ImageDimension(640, 640, 3,
                                                            np.uint16),
                              n_max_bboxes=N_BBOXES)
 

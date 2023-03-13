@@ -11,13 +11,16 @@ sys.path.append("..")
 sys.path.append("../..")
 
 from CudaUtils import CUDA_BASE, CudaBinding # pylint: disable=import-error
-from Data import ImageSize # pylint: disable=import-error
+from Data import ImageDimension # pylint: disable=import-error
 
 
 class CuBGR2RGB(CUDA_BASE):
     """Class that wraps the CUDA implementation of channel swapping
     from BGR to RGB. It is used to convert an BGR/RGB image to BGR/RGB
     respectively.
+
+    This wrapper is for now only managing images with the format
+    HWC.
     """
 
     __CUDA_BGR2RGB_FILE_NAME = "bgr2rgb.cu"
@@ -82,7 +85,7 @@ if __name__ == "__main__":
 
     stream = cuda.Stream()
 
-    out_image_size = ImageSize(width=500, height=500, channels=3,
+    out_image_size = ImageDimension(width=500, height=500, channels=3,
                                dtype=np.uint16)
 
     channel_swapper = CuBGR2RGB()

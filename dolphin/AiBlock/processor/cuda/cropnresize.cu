@@ -1,7 +1,7 @@
 
 #include <stdint.h>
 
-struct ImageSize {
+struct ImageDimension {
     uint16_t height;
     uint16_t width;
     uint16_t channels;
@@ -28,21 +28,21 @@ __device__ __forceinline__ float atomicMaxFloat(float* address, float val)
     return __int_as_float(old);
 }
 
-__global__ void cropnresize(uint8_t *src_image, 
+__global__ void cropnresize(uint8_t *src_image,
                             uint8_t* dst_images,
-                            ImageSize* in_size,
-                            ImageSize* out_size,
+                            ImageDimension* in_size,
+                            ImageDimension* out_size,
                             BoundingBox* bounding_boxes
                             ){
-    
+
     uint16_t i = blockDim.x * blockIdx.x + threadIdx.x;
     uint16_t j = blockDim.y * blockIdx.y + threadIdx.y;
     uint16_t b = blockDim.z * blockIdx.z + threadIdx.z;
 
     uint16_t bbox_width = bounding_boxes[b].x1 - bounding_boxes[b].x0;
     uint16_t bbox_height = bounding_boxes[b].y1 - bounding_boxes[b].y0;
-    
-    if (i < (out_size->width) && j < (out_size->height) && bbox_width > 0 && bbox_height > 0) 
+
+    if (i < (out_size->width) && j < (out_size->height) && bbox_width > 0 && bbox_height > 0)
     {
 
         uint32_t iIn = (uint32_t) bounding_boxes[b].x0+(i * (bbox_width) / (out_size->width));
@@ -51,8 +51,8 @@ __global__ void cropnresize(uint8_t *src_image,
         uint32_t dst_offset =  (j   * (out_size->width) + i  ) * (out_size->channels) + b*out_size->width*out_size->height*out_size->channels;
         uint32_t src_offset =  (jIn * (in_size->width)  + iIn) * (in_size->channels);
 
-        for (uint8_t c = 0; c < in_size->channels; ++c) 
-        { 
+        for (uint8_t c = 0; c < in_size->channels; ++c)
+        {
             dst_images[(uint32_t) dst_offset + c] = src_image[(uint32_t) src_offset + c];
         }
     }

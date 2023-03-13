@@ -1,13 +1,13 @@
 
 #include <stdint.h>
 
-struct ImageSize {
+struct ImageDimension {
     uint16_t height;
     uint16_t width;
     uint16_t channels;
 };
 
-__global__ void hwc2chw(ImageSize *im_size,
+__global__ void hwc2chw(ImageDimension *im_size,
                           uint8_t *in_image,
                           uint8_t *out_image){
 

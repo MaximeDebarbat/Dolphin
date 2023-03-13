@@ -11,7 +11,7 @@ sys.path.append("..")
 sys.path.append("../..")
 
 from CudaUtils import CUDA_BASE, CudaBinding  # pylint: disable=import-error
-from Data import ImageSize  # pylint: disable=import-error
+from Data import ImageDimension  # pylint: disable=import-error
 
 
 class CuHWC2CHW(CUDA_BASE):
@@ -19,9 +19,9 @@ class CuHWC2CHW(CUDA_BASE):
     HWC to CWH preprocessing. It reads an image and performs an efficient
     dimension swapping. It is the equivalent of the operation :
 
-    ...
-    np.transpose(image, (2, 1, 0))
-    ...
+      >>> import numpy as np
+      >>> image = cv2.imread(...)
+      >>> np.transpose(image, (2, 1, 0))
 
     Assuming `image` is here an HWC image (Default in OpenCV).
     """
@@ -52,11 +52,11 @@ class CuHWC2CHW(CUDA_BASE):
         preprocessing. It reads an image and performs an efficient
         dimension swapping.
 
-        F.e.:
-        binding_in_image = CudaBinding()
-        binding_in_image.allocate(shape=image.shape, dtype=np.uint8)
-        binding_in_image.write(data=image)
-        binding_in_image.h2d(stream=stream)
+        F.e.::
+          >>> binding_in_image = CudaBinding()
+          >>> binding_in_image.allocate(shape=image.shape, dtype=np.uint8)
+          >>> binding_in_image.write(data=image)
+          >>> binding_in_image.h2d(stream=stream)
 
         :param image_size_binding: Binding containing the image size
         :type image_size_binding: CudaBinding
@@ -89,7 +89,7 @@ if __name__ == "__main__":
 
     stream = cuda.Stream()
 
-    image_in_shape = ImageSize(1080, 1920, 3, np.uint16)
+    image_in_shape = ImageDimension(1080, 1920, 3, np.uint16)
     image_in = np.random.randint(0, 255, size=(image_in_shape.height,
                                                image_in_shape.width,
                                                image_in_shape.channels),

@@ -14,7 +14,7 @@ sys.path.append("..")
 sys.path.append("../..")
 
 from CudaUtils import CUDA_BASE, CudaBinding  # pylint: disable=import-error
-from Data import ImageSize  # pylint: disable=import-error
+from Data import ImageDimension  # pylint: disable=import-error
 
 
 class NormalizeMode(Enum):
@@ -136,7 +136,7 @@ def test_255():
 
     stream = cuda.Stream()
 
-    image_in_shape = ImageSize(width=1920,
+    image_in_shape = ImageDimension(width=1920,
                                height=1080,
                                channels=3,
                                dtype=np.uint16)
@@ -200,7 +200,7 @@ def test_mean_std():
 
     stream = cuda.Stream()
 
-    image_in_shape = ImageSize(width=1920,
+    image_in_shape = ImageDimension(width=1920,
                                height=1080,
                                channels=3,
                                dtype=np.uint16)
@@ -268,7 +268,7 @@ def test_128():
 
     stream = cuda.Stream()
 
-    image_in_shape = ImageSize(width=1920,
+    image_in_shape = ImageDimension(width=1920,
                                height=1080,
                                channels=3,
                                dtype=np.uint16)

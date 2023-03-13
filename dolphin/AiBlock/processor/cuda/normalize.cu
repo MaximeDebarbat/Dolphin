@@ -1,7 +1,7 @@
 
 #include <stdint.h>
 
-struct ImageSize {
+struct ImageDimension {
     uint16_t height;
     uint16_t width;
     uint16_t channels;
@@ -9,7 +9,7 @@ struct ImageSize {
 
 __global__ void normalize_255(uint8_t *src_img,
                           float *dst_img,
-                          ImageSize *image_size){
+                          ImageDimension *image_size){
 
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     int j = blockIdx.y * blockDim.y + threadIdx.y;
@@ -28,7 +28,7 @@ __global__ void normalize_255(uint8_t *src_img,
 
 __global__ void normalize_128(uint8_t *src_img,
                           float *dst_img,
-                          ImageSize *image_size){
+                          ImageDimension *image_size){
 
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     int j = blockIdx.y * blockDim.y + threadIdx.y;
@@ -47,7 +47,7 @@ __global__ void normalize_128(uint8_t *src_img,
 
 __global__ void normalize_mean_std(uint8_t *src_img,
                           float *dst_img,
-                          ImageSize *image_size,
+                          ImageDimension *image_size,
                           float* mean,
                           float* std){
 

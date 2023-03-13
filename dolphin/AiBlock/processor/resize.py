@@ -13,7 +13,7 @@ sys.path.append("..")
 sys.path.append("../..")
 
 from CudaUtils import CUDA_BASE, CudaBinding
-from Data import ImageSize
+from Data import ImageDimension
 
 
 class CuResize(CUDA_BASE):
@@ -23,13 +23,13 @@ class CuResize(CUDA_BASE):
     an efficient resize operation.
 
     :param out_image_size: Expected output image size
-    :type out_image_size: ImageSize
+    :type out_image_size: ImageDimension
     """
 
     __CUDA_RESIZE_FILE_NAME = "resize.cu"
     __CUDA_RESIZE_FCT_NAME = "resize"
 
-    def __init__(self, out_image_size: ImageSize) -> None:
+    def __init__(self, out_image_size: ImageDimension) -> None:
         # pylint: disable=redefined-outer-name
         super().__init__()
 
@@ -107,7 +107,7 @@ if __name__ == "__main__":
 
     stream = cuda.Stream()
 
-    out_image_size = ImageSize(width=500, height=500, channels=3,
+    out_image_size = ImageDimension(width=500, height=500, channels=3,
                                dtype=np.uint16)
     resizer = CuResize(out_image_size=out_image_size)
 
