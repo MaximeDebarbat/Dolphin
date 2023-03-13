@@ -11,8 +11,8 @@ import pycuda.driver as cuda
 
 import numpy as np
 
-from image_batcher import ImageBatcher  # pylint: disable=import-error
-from logger import TrtLogger  # pylint: disable=import-error
+from .image_batcher import ImageBatcher  # pylint: disable=import-error
+from .logger import TrtLogger  # pylint: disable=import-error
 
 
 class CalibratorBase:
