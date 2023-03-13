@@ -1,151 +1,152 @@
+"""_summary_
+"""
+
 from dataclasses import dataclass
 import numpy as np
-import struct
-from typing import List
+
 
 @dataclass
-class ImageSize:
+class ImageDimension:
     '''
-    ImageSize defines a generic dataclass in order to
-    formally manipulate image sizes. The standard format 
-    is (height, width, channels) uint16.
+    ImageDimension defines a generic dataclass in order to
+    formally manipulate image dimensions on host-side only.
+    Image dimension relies on these information :
+        - width dimension
+        - height dimension
+        - channels dimension
+        - dtype of image
+
+    This class will thus be used to define the shape of an image,
+    its type.
+
+    It contains the following properties:
+      >>> width: np.uint16
+      >>> height: np.uint16
+      >>> channels: np.uint16
+      >>> dtype: np.dtype
+      >>> shape_dtype: np.uint16 -> datatype of the shape
+      >>> ndarray: np.ndarray -> np.ndarray = dtype(h,w,c)
+      >>> bytesize: int -> size in bytes of the object
+      >>> ImageDimension: int -> size in bytes of the image
     '''
-    
-    width:int
-    height:int
-    channels:int
-    dtype:np.uint16
-    
+
+    width: np.uint16
+    height: np.uint16
+    channels: np.uint16
+    dtype: np.uint8
+    shape_dtype: np.dtype = np.uint16
+
     @property
     def shape(self):
+        """_summary_
+
+        :return: _description_
+        :rtype: _type_
+        """
         return (self.height, self.width, self.channels)
-        
-    @classmethod
-    def itemsize(self) -> int:
-        '''
-        returns datatype(width) + datatype(height) + datatype(channels)
-            ->  uint16 + uint16 + uint16
-            ->  48
-        '''
-        
-        return 48
-    
-    @classmethod
-    def fromStruct(self, stru:struct) -> 'ImageSize':
-        '''
-        '''
-        unpacked = np.array(struct.unpack('III', stru), dtype=np.uint16, order='C')
-        return ImageSize(width=unpacked[0], height=unpacked[1], channels=unpacked[2], dtype=np.uint16)
-    
+
     @property
-    def struct(self) -> bytes:
-        '''
-        '''
-        return struct.pack("III",
-                           *[self.width, self.height, self.channels])
-    
+    def shape_byte_size(self) -> int:
+        """
+        shape_byte_size is useful to know the size of the shape
+        in bytes in order to allocate memory for example.
+
+        With CUDA, we need to know the size of the shape
+        in bytes in order to allocate memory.
+
+        :return: _description_
+        :rtype: int
+        """
+        return int(self.width*self.height*self.channels *
+                   np.dtype(self.shape_dtype).itemsize)
+
     @property
-    def imagebytesize(self) -> int:
-        '''
-        returns width x height x channels x size(dtype)
-        '''
-        return int(self.width*self.height*self.channels*np.dtype(self.dtype).itemsize)
-    
+    def image_byte_size(self) -> int:
+        """
+        image_byte_size is useful to know the size of the whole image
+        itself as it is required to allocate memory for example.
+
+        With CUDA, we need to know the size of the shape
+        in bytes in order to allocate memory.
+
+        :return: _description_
+        :rtype: int
+        """
+        return int(self.width*self.height*self.channels *
+                   np.dtype(self.dtype).itemsize)
+
     @property
     def ndarray(self) -> np.ndarray:
-        '''
-        Creates a native numpy array
-        '''
-        
-        return np.array([self.height, self.width, self.channels]).flatten(order='C').astype(self.dtype)
-        
-        
-    @property
-    def host_ptr(self) -> int:
-        '''
-        Returns the pointer of this array
-            np.ndarray.__array_interface__['data'] -> (pointer:int, read_only_mode:bool)
-        '''
-        
-        return self.ndarray.__array_interface__['data'][0]
-    
+        """_summary_
+
+        :return: _description_
+        :rtype: np.ndarray
+        """
+
+        return np.array([self.height, self.width, self.channels]).flatten(
+            order='C').astype(self.shape_dtype)
+
+
 @dataclass
 class BoundingBox:
     '''
     BoundingBox defines a generic dataclass in order to
-    formallymanipulate Bounding Boxes, can be relative, 
+    formallymanipulate Bounding Boxes, can be relative,
     within [0..1] or absolute, within [0...{WIDTH, HEIGHT}]
     and will only be defined on 16 bytes (float16 or uint16)
     '''
-    
-    x0:object
-    y0:object
-    x1:object
-    y1:object
-    relative:bool
-    
-    @classmethod
-    def relativeBoundingBox(bbox:'BoundingBox', size:ImageSize) -> 'BoundingBox':
-        '''
-        Relative Bounding Box means that we rescale the coordinates betweeen [0..1] 
-        in order to adapt this bounding box to any size of image. 
-        '''
-        
-        return BoundingBox(
-            x0=bbox.x0/size.width,
-            y0=bbox.y0/size.height,
-            x1=bbox.x1/size.width,
-            y1=bbox.y1/size.height,
-            relative=True
-        )
-        
-    @classmethod
-    def itemsize(self) -> int:
-        '''
-        returns datatype(x0) + datatype(y0) + datatype(x1) + datatype(y1) 
-            ->  uint16/float16 + uint16/float16 + uint16/float16 + uint16/float16
-            ->  64
-            
-        We assume here that relative coordinates will be float16 
-        and absolute coordinates would be uint16
-        '''
-        
-        return int(64)
+
+    x_0: object
+    y_0: object
+    x_1: object
+    y_1: object
+    relative: bool
 
     @classmethod
-    def fromStruct(self, stru:struct) -> 'BoundingBox':
-        '''
-        '''
-        unpacked = np.array(struct.unpack('IIII', stru), dtype=np.uint16, order='C')
-        return BoundingBox(x0=unpacked[0], y0=unpacked[1], x1=unpacked[2], y1=unpacked[3] ,relative=False)
-    
-    @property
-    def struct(self) -> bytes:
-        '''
-        '''
-        return struct.pack("IIII",
-                           self.itemsize(), 
-                           np.array([self.x0, self.y0, self.x1, self.y1], 
-                           dtype=np.uint16, 
-                           order="C"))
+    def relative_bounding_blox(cls, bbox: 'BoundingBox',
+                               size: ImageDimension) -> 'BoundingBox':
+        """_summary_
+
+        :param bbox: _description_
+        :type bbox: BoundingBox
+        :param size: _description_
+        :type size: ImageDimension
+        :return: _description_
+        :rtype: BoundingBox
+        """
+
+        return BoundingBox(
+            x_0=bbox.x_0/size.width,
+            y_0=bbox.y_0/size.height,
+            x_1=bbox.x_1/size.width,
+            y_1=bbox.y_1/size.height,
+            relative=True
+        )
+
+    def itemsize(self) -> int:
+        """_summary_
+
+        :return: _description_
+        :rtype: int
+        """
+
+        if self.relative:
+            return 64*np.dtype(np.float32).itemsize
+
+        return 64*np.dtype(np.uint16).itemsize
 
     @property
     def ndarray(self) -> np.ndarray:
-        '''
-        returns a native numpy array
-        '''
-        
-        if(self.relative):
-            dtype = np.dtype(np.float16)
+        """_summary_
+
+        :return: _description_
+        :rtype: np.ndarray
+        """
+
+        if self.relative:
+            dtype = np.dtype(np.float32)
         else:
             dtype = np.dtype(np.uint16)
-        return np.array([self.x0, self.y0, self.x1, self.y1], dtype=dtype, order="C")
-    
-    @property
-    def host_ptr(self) -> int:
-        '''
-        Returns the pointer of this array
-            np.ndarray.__array_interface__['data'] -> (pointer:int, read_only_mode:bool)
-        '''
-        
-        return self.ndarray.__array_interface__['data'][0]
+
+        return np.array([self.x_0, self.y_0, self.x_1, self.y_1],
+                        dtype=dtype, order="C")
