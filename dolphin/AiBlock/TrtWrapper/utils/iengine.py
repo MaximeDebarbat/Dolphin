@@ -7,7 +7,7 @@ from .logger import TrtLogger
 
 sys.path.append("../..")
 
-from CudaUtils import CUDA_Buffers
+from CudaUtils import CudaTrtBuffers
 
 class IEngine:
     """_summary_
@@ -131,21 +131,3 @@ build.platform_has_fast_int8 check failed.")
         :rtype: trt.IExecutionContext
         """
         return self.engine.create_execution_context()
-
-    def allocate_buffers(self) -> CUDA_Buffers:
-        """_summary_
-
-        :return: _description_
-        :rtype: CUDA_Buffers
-        """
-
-        buffer = CUDA_Buffers()
-        for binding in self.engine:
-
-            shape = self.engine.get_binding_shape(binding)
-            dtype = self.engine.get_binding_dtype(binding)
-            if self.engine.binding_is_input(binding):
-                buffer.allocate_input(binding, shape, trt.nptype(dtype))
-            else:
-                buffer.allocate_output(binding, shape, trt.nptype(dtype))
-        return buffer

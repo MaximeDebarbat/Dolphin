@@ -1,13 +1,14 @@
 """_summary_
 """
 import sys
+import os
 import tensorrt as trt
 
 from .logger import TrtLogger
 
 sys.path.append("..")
 
-from CudaUtils import CUDA_Buffers
+from CudaUtils import CudaTrtBuffers
 
 
 class EEngine:
@@ -76,9 +77,9 @@ class EEngine:
 
             profile.set_shape(
                 input_layer_name,
-                self.optimisation_profile[0],
-                self.optimisation_profile[1],
-                self.optimisation_profile[2])
+                self.optimisation_profile,
+                self.optimisation_profile,
+                self.optimisation_profile)
 
             config.add_optimization_profile(profile)
 
@@ -145,47 +146,4 @@ class EEngine:
         _tmp_c = self.engine.create_execution_context()
         _tmp_c.active_optimization_profile = 0
 
-        for binding in _tmp_c.self.engine:
-            if _tmp_c.engine.binding_is_input(binding):
-                b_index = _tmp_c.engine.get_binding_index(binding)
-                available_shapes = _tmp_c.engine.get_profile_shape(0, b_index)
-                self.available_shapes[binding] = available_shapes
-
         return _tmp_c
-
-    def allocate_buffers(self) -> CUDA_Buffers:
-        """_summary_
-
-        :return: _description_
-        :rtype: CUDA_Buffers
-        """
-
-        buffer = CUDA_Buffers()
-        input_binding_index_list = []
-        output_binding_index_list = []
-
-        for b_name in self.context.engine:
-            _b_index = self.context.engine.get_binding_index(b_name)
-            if self.context.engine.binding_is_input(b_name):
-                input_binding_index_list.append(_b_index)
-            else:
-                output_binding_index_list.append(_b_index)
-
-        for b_i_idx in input_binding_index_list:
-
-            binding_profile_shape = self.context.engine.get_profile_shape(
-                0, b_i_idx)
-            self.context.set_binding_shape(b_i_idx, binding_profile_shape[-1])
-
-            shape = self.context.get_binding_shape(b_i_idx)
-            dtype = self.context.engine.get_binding_dtype(b_i_idx)
-
-            buffer.allocate_input(shape, trt.nptype(dtype))
-
-        for b_o_idx in output_binding_index_list:
-            shape = self.context.get_binding_shape(b_o_idx)
-            dtype = self.context.engine.get_binding_dtype(b_o_idx)
-
-            buffer.allocate_output(shape, trt.nptype(dtype))
-
-        return buffer
