@@ -258,6 +258,15 @@ class Bufferizer(CudaBinding):
         """
         return super().shape
 
+    @property
+    def dtype(self) -> np.dtype:
+        """_summary_
+
+        :return: _description_
+        :rtype: np.dtype
+        """
+        return self._dtype
+
     def __len__(self):
         return self._n_elements
 
@@ -442,13 +451,40 @@ class CudaTrtBuffers(object):
                   {self.__class__} : {exception}")
 
     @property
-    def shape(self) -> dict:
+    def input_shape(self) -> dict:
         """_summary_
 
         :return: _description_
         :rtype: dict
         """
         return {key: inp.shape for key, inp in self._inputs.items()}
+
+    @property
+    def input_dtype(self):
+        """_summary_
+
+        :return: _description_
+        :rtype: _type_
+        """
+        return {key: inp.dtype for key, inp in self._inputs.items()}
+
+    @property
+    def output_shape(self) -> dict:
+        """_summary_
+
+        :return: _description_
+        :rtype: dict
+        """
+        return {key: out.shape for key, out in self._outputs.items()}
+
+    @property
+    def output_dtype(self):
+        """_summary_
+
+        :return: _description_
+        :rtype: _type_
+        """
+        return {key: out.dtype for key, out in self._outputs.items()}
 
     @property
     def full(self) -> bool:

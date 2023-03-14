@@ -234,11 +234,48 @@ Check the logs for more details.")
 
     @property
     def output(self) -> dict:
+        """_summary_
+
+        :return: _description_
+        :rtype: dict
+        """
         return self.buffers.output
 
     @property
-    def shape(self) -> dict:
-        return self.buffers.shape
+    def input_shape(self) -> dict:
+        """_summary_
+
+        :return: _description_
+        :rtype: dict
+        """
+        return self.buffers.input_shape
+
+    @property
+    def input_dtype(self) -> dict:
+        """_summary_
+
+        :return: _description_
+        :rtype: dict
+        """
+        return self.buffers.input_dtype
+
+    @property
+    def output_shape(self) -> dict:
+        """_summary_
+
+        :return: _description_
+        :rtype: dict
+        """
+        return self.buffers.output_shape
+
+    @property
+    def output_dtype(self) -> dict:
+        """_summary_
+
+        :return: _description_
+        :rtype: dict
+        """
+        return self.buffers.output_dtype
 
 
 if __name__ == "__main__":
@@ -258,10 +295,12 @@ if __name__ == "__main__":
                             mode="fp16",
                             optimisation_profile=[1, 3, 224, 224])
 
-    dummy = np.random.rand(*static_model.shape["input"]).astype(np.float32)
+    dummy = np.random.rand(*static_model.input_shape["input"]).astype(
+        static_model.input_dtype["input"])
 
     input_binding = CudaBinding()
-    input_binding.allocate(shape=static_model.shape["input"], dtype=np.float32)
+    input_binding.allocate(shape=static_model.input_shape["input"],
+                           dtype=static_model.input_dtype["input"])
     input_binding.write(dummy)
     input_binding.h2d(stream)
 
