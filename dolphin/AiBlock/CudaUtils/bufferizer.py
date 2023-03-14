@@ -1,16 +1,13 @@
 """_summary_
 """
 
-import sys
-from functools import reduce
-
 import pycuda.autoinit  # pylint: disable=import-error
 import pycuda.driver as cuda  # pylint: disable=import-error
 import tensorrt as trt  # pylint: disable=import-error
 
 import numpy as np
 
-from bindings import CudaBinding, HostDeviceMem  # pylint: disable=import-error
+from .bindings import CudaBinding, HostDeviceMem  # pylint: disable=import-error
 
 
 class Bufferizer(CudaBinding):
@@ -88,7 +85,7 @@ class Bufferizer(CudaBinding):
                              self._itemsize * np.dtype(self._dtype).itemsize)
             # pylint: disable=no-member
         else:
-            cuda.memcpy_dtod_async(self._hdm.device + self._n_elements
+            cuda.memcpy_dtod_async(int(self._hdm.device) + self._n_elements
                                    * self._itemsize,
                                    binding.device,
                                    self._itemsize *
@@ -100,7 +97,7 @@ class Bufferizer(CudaBinding):
         if self._append_one_hook is not None:
             self._append_one_hook(self)
 
-        if self._n_elements == self._size:
+        if self.full:
             if self._buffer_full_hook is not None:
                 self._buffer_full_hook(self)
 
@@ -144,7 +141,7 @@ class Bufferizer(CudaBinding):
         if self._append_multiple_hook is not None:
             self._append_multiple_hook(self)
 
-        if self._n_elements == self._size:
+        if self.full:
             if self._buffer_full_hook is not None:
                 self._buffer_full_hook(self)
 
@@ -167,7 +164,8 @@ class Bufferizer(CudaBinding):
         else:
             cuda.memset_d8_async(self._hdm.device,
                                  value,
-                                 size, stream)
+                                 size,
+                                 stream)
             # pylint: disable=no-member
 
         self._n_elements = 0
@@ -242,8 +240,268 @@ class Bufferizer(CudaBinding):
         """
         return self._nbytes
 
+    @property
+    def full(self) -> bool:
+        """_summary_
+
+        :return: _description_
+        :rtype: bool
+        """
+        return self._n_elements == self._size
+
+    @property
+    def shape(self) -> tuple:
+        """_summary_
+
+        :return: _description_
+        :rtype: tuple
+        """
+        return super().shape
+
     def __len__(self):
         return self._n_elements
+
+
+class CudaTrtBuffers(object):
+    """_summary_
+
+    :param object: _description_
+    :type object: _type_
+    """
+
+    def __init__(self, ):
+
+        self._inputs = {}
+        self._outputs = {}
+
+        self._input_order = []
+        self._output_order = []
+
+    def allocate_input(self, name: str,
+                       shape: tuple,
+                       buffer_size: int,
+                       dtype: object,
+                       buffer_full_hook: callable = None,
+                       flush_hook: callable = None,
+                       allocate_hook: callable = None,
+                       append_one_hook: callable = None,
+                       append_multiple_hook: callable = None):
+        """_summary_
+
+        :param name: _description_
+        :type name: str
+        :param shape: _description_
+        :type shape: tuple
+        :param dtype: _description_
+        :type dtype: object
+        """
+
+        self._inputs[name] = Bufferizer(shape=shape,
+                                        buffer_size=buffer_size,
+                                        dtype=dtype,
+                                        buffer_full_hook=buffer_full_hook,
+                                        flush_hook=flush_hook,
+                                        allocate_hook=allocate_hook,
+                                        append_one_hook=append_one_hook,
+                                        append_multiple_hook=append_multiple_hook)
+        self._inputs[name].allocate()
+
+        self._input_order.append(name)
+
+    def allocate_output(self, name: str,
+                        shape: tuple,
+                        dtype: object):
+        """_summary_
+
+        :param name: _description_
+        :type name: str
+        :param shape: _description_
+        :type shape: tuple
+        :param dtype: _description_
+        :type dtype: object
+        """
+
+        self._outputs[name] = CudaBinding()
+
+        self._outputs[name].allocate(shape, dtype)
+
+        self._output_order.append(name)
+
+    def input_h2d(self, stream: cuda.Stream = None) -> None:
+        """_summary_
+
+        :param stream: _description_, defaults to None
+        :type stream: cuda.Stream, optional
+        """
+
+        for inp in self._inputs.values():
+            inp.h2d(stream)
+
+    def input_d2h(self, stream: cuda.Stream = None) -> None:
+        """_summary_
+
+        :param stream: _description_, defaults to None
+        :type stream: cuda.Stream, optional
+        """
+
+        for inp in self._inputs.values():
+            inp.d2h(stream)
+
+    def output_h2d(self, stream: cuda.Stream = None) -> None:
+        """_summary_
+
+        :param stream: _description_, defaults to None
+        :type stream: cuda.Stream, optional
+        """
+
+        for inp in self._outputs.values():
+            inp.h2d(stream)
+
+    def output_d2h(self, stream: cuda.Stream = None) -> None:
+        """_summary_
+
+        :param stream: _description_, defaults to None
+        :type stream: cuda.Stream, optional
+        """
+
+        for inp in self._outputs.values():
+            inp.d2h(stream)
+
+    def flush(self, value: int = 0,
+              stream: cuda.Stream = None) -> None:
+        """_summary_
+
+        :param value: _description_, defaults to 0
+        :type value: int, optional
+        :param stream: _description_, defaults to None
+        :type stream: cuda.Stream, optional
+        """
+
+        for inp in self._inputs.values():
+            inp.flush(value, stream)
+
+    def write_input_host(self,
+                         name: str,
+                         data: object):
+        """_summary_
+
+        :param name: _description_
+        :type name: str
+        :param data: _description_
+        :type data: object
+        :return: _description_
+        :rtype: _type_
+        """
+
+        self._inputs[name].write(data)
+
+    def append_one_input(self, name: str,
+                         data: CudaBinding,
+                         stream: cuda.Stream = None):
+        """_summary_
+
+        :param name: _description_
+        :type name: str
+        :param data: _description_
+        :type data: CudaBinding
+        :param stream: _description_, defaults to None
+        :type stream: cuda.Stream, optional
+        """
+
+        self._inputs[name].append_one(data, stream)
+
+    def append_multiple_input(self, name: str,
+                              data: CudaBinding,
+                              stream: cuda.Stream = None):
+        """_summary_
+
+        :param name: _description_
+        :type name: str
+        :param data: _description_
+        :type data: CudaBinding
+        :param stream: _description_, defaults to None
+        :type stream: cuda.Stream, optional
+        """
+
+        self._inputs[name].append_multiple_input(data, stream)
+
+    def __del__(self):
+        """_summary_
+
+        :return: _description_
+        :rtype: _type_
+        """
+        try:
+            for element in self._inputs.values():
+                del element
+            for element in self._outputs.values():
+                del element
+        except Exception as exception:
+            # pylint: disable=broad-exception-caught
+            print(f"Encountered Exception while destroying object \
+                  {self.__class__} : {exception}")
+
+    @property
+    def shape(self) -> dict:
+        """_summary_
+
+        :return: _description_
+        :rtype: dict
+        """
+        return {key: inp.shape for key, inp in self._inputs.items()}
+
+    @property
+    def full(self) -> bool:
+        """_summary_
+
+        :return: _description_
+        :rtype: bool
+        """
+
+        for binding_name in self._inputs.keys():
+            if self._inputs[binding_name].full:
+                return True
+
+        return False
+
+    @property
+    def output(self):
+        """_summary_
+
+        :return: _description_
+        :rtype: _type_
+        """
+
+        return {key: out.value for key, out in self._outputs.items()}
+
+    @property
+    def input_bindings(self):
+        """_summary_
+
+        :return: _description_
+        :rtype: _type_
+        """
+
+        return [self._inputs[name].device for name in self._input_order]
+
+    @property
+    def output_bindings(self):
+        """_summary_
+
+        :return: _description_
+        :rtype: _type_
+        """
+
+        return [self._outputs[name].device for name in self._output_order]
+
+    @property
+    def bindings(self):
+        """_summary_
+
+        :return: _description_
+        :rtype: _type_
+        """
+        return self.input_bindings + self.output_bindings
 
 
 if __name__ == "__main__":
