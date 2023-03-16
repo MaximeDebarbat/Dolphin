@@ -8,7 +8,8 @@ struct ImageDimension {
 };
 
 __global__ void bgr2rgb(ImageDimension *im_size,
-                          uint8_t *image){
+                          uint8_t *in_image,
+                          uint8_t *out_image){
 
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -17,9 +18,9 @@ __global__ void bgr2rgb(ImageDimension *im_size,
 
         uint32_t offset = (y * im_size->width + x) * im_size->channels;
 
-        uint8_t temp = image[offset];
-        image[offset] = image[offset+2];
-        image[offset+2] = temp;
+        uint8_t temp = in_image[offset];
+        out_image[offset] = in_image[offset+2];
+        out_image[offset+2] = temp;
 
     }
 
