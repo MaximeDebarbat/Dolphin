@@ -15,6 +15,7 @@ sys.path.append("../..")
 
 from CudaUtils import CUDA_BASE, CudaBinding  # pylint: disable=import-error
 from Data import ImageDimension  # pylint: disable=import-error
+from image_processor import ImageProcessor
 
 
 class NormalizeMode(Enum):
@@ -26,7 +27,7 @@ class NormalizeMode(Enum):
     _128 = 2
 
 
-class CuNormalize(CUDA_BASE):
+class CuNormalize(ImageProcessor):
     """CuHWC2CWH is a class wrapping the CUDA implementation of
     HWC to CWH preprocessing. It reads an image and performs an efficient
     dimension swapping. It is the equivalent of the operation :
@@ -38,10 +39,10 @@ class CuNormalize(CUDA_BASE):
     Assuming `image` is here an HWC image (Default in OpenCV).
     """
 
-    __CUDA_NORMALIZE_FILE_NAME = "normalize.cu"
-    __CUDA_NORMALIZE_FCT_NAME_MEAN_STD = "normalize_mean_std"
-    __CUDA_NORMALIZE_FCT_NAME_255 = "normalize_255"
-    __CUDA_NORMALIZE_FCT_NAME_128 = "normalize_128"
+    _CUDA_FILE_NAME = "normalize.cu"
+    _CUDA_NORMALIZE_FCT_NAME_MEAN_STD = "normalize_mean_std"
+    _CUDA_NORMALIZE_FCT_NAME_255 = "normalize_255"
+    _CUDA_NORMALIZE_FCT_NAME_128 = "normalize_128"
 
     def __init__(self, norm_type: NormalizeMode =
                  NormalizeMode._255,
@@ -53,10 +54,6 @@ class CuNormalize(CUDA_BASE):
         self._type = norm_type
 
         if (mean is not None and std is not None):
-            # if (self._type != self.NormalizeMode.MEAN_STD):
-            #     raise ValueError(f"mean and std can only be used with \
-            #                      NormalizeMode.MEAN_STD. Found \
-            #                      {self._type}")
 
             if mean.shape != std.shape:
                 raise ValueError(f"mean and std must have the same shape. \
@@ -80,47 +77,47 @@ class CuNormalize(CUDA_BASE):
             self._mean_binding.h2d()
             self._std_binding.h2d()
 
-        self._normalize_cuda_sm = open(os.path.join(os.path.split(
-            os.path.abspath(__file__))[0], "cuda",
-            self.__CUDA_NORMALIZE_FILE_NAME), "rt", encoding="utf-8")
-        self._normalize_cuda_sm = SourceModule(self._normalize_cuda_sm.read())
+        self._cuda_sm = SourceModule(self._cuda_sm.read())
 
         self._fct_binder = {
-            NormalizeMode.MEAN_STD: self._normalize_cuda_sm.get_function(
-                                    self.__CUDA_NORMALIZE_FCT_NAME_MEAN_STD),
-            NormalizeMode._255: self._normalize_cuda_sm.get_function(
-                                    self.__CUDA_NORMALIZE_FCT_NAME_255),
-            NormalizeMode._128: self._normalize_cuda_sm.get_function(
-                                    self.__CUDA_NORMALIZE_FCT_NAME_128)
+            NormalizeMode.MEAN_STD: self._cuda_sm.get_function(
+                                    self._CUDA_NORMALIZE_FCT_NAME_MEAN_STD),
+            NormalizeMode._255: self._cuda_sm.get_function(
+                                    self._CUDA_NORMALIZE_FCT_NAME_255),
+            NormalizeMode._128: self._cuda_sm.get_function(
+                                    self._CUDA_NORMALIZE_FCT_NAME_128)
         }
 
         self._block = (self.MAX_BLOCK_X, self.MAX_BLOCK_Y, 1)
 
-    def __call__(self, image_binding: CudaBinding,
-                 out_image_binding: CudaBinding,
-                 image_size_binding: CudaBinding) -> None:
+    def __call__(self, binding_in_image: CudaBinding,
+                 binding_in_image_size: CudaBinding,
+                 binding_out_image: CudaBinding,
+                 stream: cuda.Stream = None) -> None:
         # pylint: disable=redefined-outer-name
         """_summary_
         """
-        grid = (max(1, math.ceil(image_size_binding.value[1] /
+        grid = (max(1, math.ceil(binding_in_image_size.value[1] /
                                  self._block[0])),
-                max(1, math.ceil(image_size_binding.value[1] /
+                max(1, math.ceil(binding_in_image_size.value[1] /
                                  self._block[1])))
 
         if self._type == NormalizeMode.MEAN_STD:
-            self._fct_binder[self._type](image_binding.device,
-                                         out_image_binding.device,
-                                         image_size_binding.device,
+            self._fct_binder[self._type](binding_in_image.device,
+                                         binding_out_image.device,
+                                         binding_in_image_size.device,
                                          self._mean_binding.device,
                                          self._std_binding.device,
                                          block=self._block,
-                                         grid=grid)
+                                         grid=grid,
+                                         stream=stream)
         else:
-            self._fct_binder[self._type](image_binding.device,
-                                         out_image_binding.device,
-                                         image_size_binding.device,
+            self._fct_binder[self._type](binding_in_image.device,
+                                         binding_out_image.device,
+                                         binding_in_image_size.device,
                                          block=self._block,
-                                         grid=grid)
+                                         grid=grid,
+                                         stream=stream)
 
 
 def test_255():
@@ -137,9 +134,9 @@ def test_255():
     stream = cuda.Stream()
 
     image_in_shape = ImageDimension(width=1920,
-                               height=1080,
-                               channels=3,
-                               dtype=np.uint16)
+                                    height=1080,
+                                    channels=3,
+                                    dtype=np.uint16)
 
     image_in = np.random.randint(0, 255, size=(image_in_shape.channels,
                                                image_in_shape.height,
@@ -173,7 +170,10 @@ def test_255():
 
     t_1 = time.time()
     for _ in range(n_iter):
-        normalizer(image_in_binding, image_out_binding, image_size_binding)
+        normalizer(image_in_binding,
+                   image_size_binding,
+                   image_out_binding,
+                   stream)
     cuda_time = 1000/n_iter*(time.time()-t_1)
     print(f"CUDA Time : {cuda_time}ms/iter over {n_iter} iterations")
 
@@ -245,7 +245,10 @@ def test_mean_std():
 
     t_1 = time.time()
     for _ in range(n_iter):
-        normalizer(image_in_binding, image_out_binding, image_size_binding)
+        normalizer(image_in_binding,
+                   image_size_binding,
+                   image_out_binding,
+                   stream)
     cuda_time = 1000/n_iter*(time.time()-t_1)
     print(f"CUDA Time : {cuda_time}ms/iter over {n_iter} iterations")
 
@@ -305,7 +308,10 @@ def test_128():
 
     t_1 = time.time()
     for _ in range(n_iter):
-        normalizer(image_in_binding, image_out_binding, image_size_binding)
+        normalizer(image_in_binding,
+                   image_size_binding,
+                   image_out_binding,
+                   stream)
     cuda_time = 1000/n_iter*(time.time()-t_1)
     print(f"CUDA Time : {cuda_time}ms/iter over {n_iter} iterations")
 

@@ -12,9 +12,10 @@ sys.path.append("../..")
 
 from CudaUtils import CUDA_BASE, CudaBinding # pylint: disable=import-error
 from Data import ImageDimension # pylint: disable=import-error
+from image_processor import ImageProcessor
 
 
-class CuBGR2RGB(CUDA_BASE):
+class CuBGR2RGB(ImageProcessor):
     """Class that wraps the CUDA implementation of channel swapping
     from BGR to RGB. It is used to convert an BGR/RGB image to BGR/RGB
     respectively.
@@ -23,23 +24,19 @@ class CuBGR2RGB(CUDA_BASE):
     HWC.
     """
 
-    __CUDA_BGR2RGB_FILE_NAME = "bgr2rgb.cu"
-    __CUDA_BGR2RGB_FCT_NAME = "bgr2rgb"
+    _CUDA_FILE_NAME = "bgr2rgb.cu"
+    _CUDA_FCT_NAME = "bgr2rgb"
 
     def __init__(self):
         super().__init__()
 
-        # Here, we import and compile self.__CUDA_FILE_NAME
-        self.__bgr2rgb_cuda_sm = open(os.path.join(os.path.split(
-            os.path.abspath(__file__))[0], "cuda",
-                                            self.__CUDA_BGR2RGB_FILE_NAME),
-                                      "rt", encoding="utf-8")
-        self.__bgr2rgb_cuda_sm = SourceModule(self.__bgr2rgb_cuda_sm.read())
-        self.__bgr2rgb_cuda_f = self.__bgr2rgb_cuda_sm.get_function(
-            self.__CUDA_BGR2RGB_FCT_NAME)
+        self._cuda_sm = SourceModule(self._cuda_sm.read())
+        self._cuda_f = self._cuda_sm.get_function(
+            self._CUDA_FCT_NAME)
 
-    def __call__(self, image_size_binding: CudaBinding,
-                 in_out_image_binding: CudaBinding,
+    def __call__(self, binding_in_image: CudaBinding,
+                 binding_in_image_size: CudaBinding,
+                 binding_out_image: CudaBinding,
                  stream: cuda.Stream = None):
         # pylint: disable=redefined-outer-name
         """Callable method to call the CUDA function that performs
@@ -65,17 +62,18 @@ class CuBGR2RGB(CUDA_BASE):
         :type stream: cuda.Stream, optional
         """
 
-        block = (min(image_size_binding.value[1], self.MAX_BLOCK_X),
-                 min(image_size_binding.value[0], self.MAX_BLOCK_Y), 1)
+        block = (min(binding_in_image_size.value[1], self.MAX_BLOCK_X),
+                 min(binding_in_image_size.value[0], self.MAX_BLOCK_Y), 1)
 
-        grid = (max(1, math.ceil(image_size_binding.value[1] /
+        grid = (max(1, math.ceil(binding_in_image_size.value[1] /
                                  block[0])),
-                max(1, math.ceil(image_size_binding.value[0] /
+                max(1, math.ceil(binding_in_image_size.value[0] /
                                  block[1])))
 
-        self.__bgr2rgb_cuda_f(image_size_binding.device,
-                              in_out_image_binding.device,
-                              block=block, grid=grid, stream=stream)
+        self._cuda_f(binding_in_image_size.device,
+                          binding_in_image.device,
+                          binding_out_image.device,
+                          block=block, grid=grid, stream=stream)
 
 
 if __name__ == "__main__":
@@ -84,9 +82,6 @@ if __name__ == "__main__":
     import cv2
 
     stream = cuda.Stream()
-
-    out_image_size = ImageDimension(width=500, height=500, channels=3,
-                               dtype=np.uint16)
 
     channel_swapper = CuBGR2RGB()
 
@@ -104,17 +99,17 @@ if __name__ == "__main__":
     in_image_size_binding.h2d(stream=stream)
 
     out_image_binding = CudaBinding()
-    out_image_binding.allocate(shape=(out_image_size.height,
-                                      out_image_size.width,
-                                      out_image_size.channels),
+    out_image_binding.allocate(shape=image.shape,
                                dtype=np.uint8)
 
     N_ITER = int(np.ceil(1e5) // 2 * 2 + 1)
 
     t1 = time.time()
     for _ in range(N_ITER):
-        channel_swapper(image_size_binding=in_image_size_binding,
-                        in_out_image_binding=in_image_binding)
+        channel_swapper(binding_in_image=in_image_binding,
+                        binding_in_image_size=in_image_size_binding,
+                        binding_out_image=out_image_binding,
+                        stream=stream)
     cuda_time = 1000/N_ITER*(time.time()-t1)
     print(f"AVG CUDA Time : {cuda_time}ms/iter over {N_ITER} iterations")
 

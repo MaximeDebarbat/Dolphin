@@ -12,9 +12,10 @@ sys.path.append("../..")
 
 from CudaUtils import CUDA_BASE, CudaBinding  # pylint: disable=import-error
 from Data import ImageDimension  # pylint: disable=import-error
+from image_processor import ImageProcessor
 
 
-class CuHWC2CHW(CUDA_BASE):
+class CuHWC2CHW(ImageProcessor):
     """CuHWC2CWH is a class wrapping the CUDA implementation of
     HWC to CWH preprocessing. It reads an image and performs an efficient
     dimension swapping. It is the equivalent of the operation :
@@ -26,27 +27,22 @@ class CuHWC2CHW(CUDA_BASE):
     Assuming `image` is here an HWC image (Default in OpenCV).
     """
 
-    __CUDA_HWC2CHW_FILE_NAME = "hwc2chw.cu"
-    __CUDA_HWC2CHW_FCT_NAME = "hwc2chw"
+    _CUDA_FILE_NAME: str = "hwc2chw.cu"
+    _CUDA_FCT_NAME: str = "hwc2chw"
 
     def __init__(self) -> None:
         super().__init__()
 
-        self._hwc2chw_cuda_sm = open(os.path.join(os.path.split(
-            os.path.abspath(__file__))[0], "cuda",
-            self.__CUDA_HWC2CHW_FILE_NAME), "rt", encoding="utf-8")
-        self._hwc2chw_cuda_sm = SourceModule(self._hwc2chw_cuda_sm.read())
-        self._hwc2chw_cuda_f = self._hwc2chw_cuda_sm.get_function(
-            self.__CUDA_HWC2CHW_FCT_NAME)
-
+        self._cuda_sm = SourceModule(self._cuda_sm.read())
+        self._cuda_f = self._cuda_sm.get_function(self._CUDA_FCT_NAME)
         self._block = (self.MAX_BLOCK_X, self.MAX_BLOCK_Y, 1)
 
-    def __call__(self,
-                 in_image_binding: CudaBinding,
-                 in_image_size_binding: CudaBinding,
-                 out_image_binding: CudaBinding,
-                 stream: cuda.Stream = None
-                 ) -> None:
+    def forward(self,
+                in_image_binding: CudaBinding,
+                in_image_size_binding: CudaBinding,
+                out_image_binding: CudaBinding,
+                stream: cuda.Stream = None
+                ) -> None:
         # pylint: disable=redefined-outer-name
         """Calls the CUDA implementation of the HWC to CWH
         preprocessing. It reads an image and performs an efficient
@@ -71,7 +67,7 @@ class CuHWC2CHW(CUDA_BASE):
                 max(1, math.ceil(image_size_binding.value[0] /
                                  self._block[1])))
 
-        self._hwc2chw_cuda_f(
+        self._cuda_f(
             in_image_size_binding.device,
             in_image_binding.device,
             out_image_binding.device,

@@ -18,9 +18,10 @@ sys.path.append("../..")
 
 from CudaUtils import CUDA_BASE, CudaBinding  # pylint: disable=import-error
 from Data import ImageDimension  # pylint: disable=import-error
+from image_processor import ImageProcessor
 
 
-class CuLetterBox(CUDA_BASE):
+class CuLetterBox(ImageProcessor):
     """CuLetterBox is a class wrapping the CUDA implementation of LetterBox
     preprocessing.
     This preprocessing function is used to resize an image to a given size
@@ -32,8 +33,8 @@ class CuLetterBox(CUDA_BASE):
     :type padding_value: int, optional
     """
 
-    __CUDA_LETTERBOX_FILE_NAME = "letterbox.cu"
-    __CUDA_LETTERBOX_FCT_NAME = "letterbox"
+    _CUDA_FILE_NAME: str = "letterbox.cu"
+    _CUDA_FCT_NAME: str = "letterbox"
 
     def __init__(self, out_image_dimension: Union[ImageDimension, tuple],
                  padding_value: int = 127):
@@ -65,22 +66,20 @@ class CuLetterBox(CUDA_BASE):
 
         self._padding_value = padding_value
 
-        self._letterbox_cuda_sm = open(os.path.join(os.path.split(
-            os.path.abspath(__file__))[0], "cuda",
-            self.__CUDA_LETTERBOX_FILE_NAME), "rt", encoding="utf-8")
-
-        processed_template = Template(self._letterbox_cuda_sm.read()).render(
+        processed_template = Template(self._cuda_sm.read()).render(
             out_type=_cuda_out_type)
 
-        self._letterbox_cuda_sm = SourceModule(processed_template)
+        self._cuda_sm = SourceModule(processed_template)
 
-        self._letterbox_fct = self._letterbox_cuda_sm.get_function(
-            self.__CUDA_LETTERBOX_FCT_NAME)
+        self._cuda_f = self._cuda_sm.get_function(
+            self._CUDA_FCT_NAME)
 
         self._out_image_dimension_binding = CudaBinding()
 
-        self._out_image_dimension_binding.allocate(shape=(3,),
-                                                   dtype=self._out_image_dimension.shape_dtype)
+        self._out_image_dimension_binding.allocate(
+                                shape=(3,),
+                                dtype=self._out_image_dimension.shape_dtype)
+
         self._out_image_dimension_binding.write(data=self.
                                                 _out_image_dimension.ndarray)
         self._out_image_dimension_binding.h2d()
@@ -114,13 +113,13 @@ class CuLetterBox(CUDA_BASE):
         :type stream: cuda.Stream, optional
         """
 
-        self._letterbox_fct(binding_in_image.device,
-                            binding_out_image.device,
-                            binding_in_image_size.device,
-                            self._out_image_dimension_binding.device,
-                            self._padding_value_binding.device,
-                            block=self._block, grid=self._grid,
-                            stream=stream)
+        self._cuda_f(binding_in_image.device,
+                     binding_out_image.device,
+                     binding_in_image_size.device,
+                     self._out_image_dimension_binding.device,
+                     self._padding_value_binding.device,
+                     block=self._block, grid=self._grid,
+                     stream=stream)
 
 
 if __name__ == "__main__":
