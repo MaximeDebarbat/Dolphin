@@ -10,7 +10,7 @@ import numpy as np
 sys.path.append("..")
 sys.path.append("../..")
 
-from CudaUtils import CUDA_BASE, CudaBinding  # pylint: disable=import-error
+from CudaUtils import CudaBase, CudaBinding  # pylint: disable=import-error
 from Data import ImageDimension  # pylint: disable=import-error
 from .image_processor import ImageProcessor
 

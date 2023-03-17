@@ -9,11 +9,11 @@ import numpy as np
 sys.path.append("..")
 sys.path.append("../..")
 
-from CudaUtils import CUDA_BASE, CudaBinding # pylint: disable=import-error
+from CudaUtils import CudaBase, CudaBinding # pylint: disable=import-error
 from Data import ImageDimension, BoundingBox # pylint: disable=import-error
 
 
-class CuRescaleBbox(CUDA_BASE):
+class CuRescaleBbox(CudaBase):
     """CuRescaleBbox is a class wrapping the CUDA implementation of
     rescaling bounding boxes to a new image size. For instance,
     after TRT:EfficientNMS, we have a list of bounding boxes that

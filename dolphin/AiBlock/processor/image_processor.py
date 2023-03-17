@@ -8,11 +8,11 @@ from pycuda.compiler import SourceModule  # pylint: disable=import-error
 sys.path.append("..")
 sys.path.append("../..")
 
-from CudaUtils import CUDA_BASE, CudaBinding  # pylint: disable=import-error
+from CudaUtils import CudaBase, CudaBinding  # pylint: disable=import-error
 from Data import ImageDimension  # pylint: disable=import-error
 
 
-class ImageProcessor(CUDA_BASE):
+class ImageProcessor(CudaBase):
 
     _CUDA_FILE_NAME: str = None
 

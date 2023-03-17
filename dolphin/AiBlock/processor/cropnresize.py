@@ -12,11 +12,11 @@ import numpy as np
 sys.path.append("..")
 sys.path.append("../..")
 
-from CudaUtils import CUDA_BASE, CudaBinding # pylint: disable=import-error
+from CudaUtils import CudaBase, CudaBinding # pylint: disable=import-error
 from Data import ImageDimension # pylint: disable=import-error
 
 
-class CuCropNResize(CUDA_BASE):
+class CuCropNResize(CudaBase):
     """CuCropNResize is a class wrapping the CUDA implementation of
     Crop and Resize preprocessing. I reads an image and a list of
     bounding boxes and performs an efficient crop and resize operation.

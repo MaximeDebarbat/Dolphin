@@ -14,12 +14,12 @@ import pycuda.driver as cuda  # pylint: disable=import-error
 from pycuda.compiler import SourceModule  # pylint: disable=import-error
 
 try:
-    from CudaUtils import CUDA_BASE, CudaBinding  # pylint: disable=import-error
+    from CudaUtils import CudaBase, CudaBinding  # pylint: disable=import-error
     from Data import ImageDimension  # pylint: disable=import-error
     from .image_processor import ImageProcessor
 except:
     sys.path.append("..")
-    from CudaUtils import CUDA_BASE, CudaBinding  # pylint: disable=import-error
+    from CudaUtils import CudaBase, CudaBinding  # pylint: disable=import-error
     from Data import ImageDimension  # pylint: disable=import-error
     from image_processor import ImageProcessor
 

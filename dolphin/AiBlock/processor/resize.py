@@ -12,11 +12,11 @@ import numpy as np
 sys.path.append("..")
 sys.path.append("../..")
 
-from CudaUtils import CUDA_BASE, CudaBinding
+from CudaUtils import CudaBase, CudaBinding
 from Data import ImageDimension
 
 
-class CuResize(CUDA_BASE):
+class CuResize(CudaBase):
     """CuResize is a class wrapping the CUDA implementation of
     the INTER_NEAREST resize operation. It reads an image,
     an expected output image size and performs

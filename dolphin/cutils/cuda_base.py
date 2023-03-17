@@ -5,7 +5,7 @@ import numpy as np
 import math
 
 
-class CUDA_BASE:
+class CudaBase:
 
     def __init__(self):
 

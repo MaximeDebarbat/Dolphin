@@ -2,6 +2,7 @@
 """
 
 from enum import Enum
+from typing import Union
 import numpy
 
 
@@ -25,13 +26,31 @@ class dtype(Enum):  # pylint: disable=invalid-name
 
     Properties::
 
+        @property
         numpy_dtype: numpy.dtype
             >>> mytype = dtype.uint8
             >>> mynptype = mytype.numpy_dtype (numpy.uint8)
 
+        @property
         cuda_dtype: numpy.dtype
             >>> mytype = dtype.uint8
             >>> mycudatype = mytype.cuda_dtype ('uint8_t')
+
+        @property
+        itemsize: int
+            >>> a = dtype.uint8
+            >>> a.itemsize            # 1
+            >>> a = dtype.uint16
+            >>> a.itemsize            # 2
+            >>> a = dtype.uint32
+            >>> a.itemsize            # 4
+
+        __getitem__(key: [str, int]): numpy.dtype or str
+            >>> a = dtype.uint8
+            >>> a[0]                  # numpy.uint8
+            >>> a[1]                  # 'uint8_t'
+            >>> a["numpy_dtype"]      # numpy.uint8
+            >>> a["cuda_dtype"]       # 'uint8_t'
 
     """
 
@@ -65,6 +84,55 @@ class dtype(Enum):  # pylint: disable=invalid-name
         """
         return self.value[1]
 
+    @property
+    def itemsize(self) -> int:
+        """Returns the size of the data type in bytes.
+        Uses the numpy data type to get the size :
+
+          >>> @property
+          >>> def itemsize(self) -> int:
+          >>>     return self.numpy_dtype.itemsize
+
+        """
+        return self.numpy_dtype.itemsize
+
+    def __getitem__(self,
+                    key: Union[str, int]
+                    ) -> Union[numpy.dtype, str]:
+        """In order to dynamically access the numpy and CUDA data types,
+        we also need to implement the __getitem__ method.
+        if key is an integer, it will return one of the tuple element
+        as long as the key is either 0 or 1.
+        if key is a string, it will return the numpy or CUDA data type
+        as long as the key is either 'numpy_dtype' or 'cuda_dtype'.
+
+        Usage::
+
+          a = dtype.uint8
+          a[0]                  # numpy.uint8
+          a[1]                  # 'uint8_t'
+          a["numpy_dtype"]      # numpy.uint8
+          a["cuda_dtype"]       # 'uint8_t'
+
+        :param key: 'numpy_dtype' or 'cuda_dtype' or a int 0 or 1
+        :type key: Union[str, int]
+        :raises KeyError: If the key is not valid as described above
+        :return: The numpy or CUDA data type
+        :rtype: Union[numpy.dtype, str]
+        """
+        if isinstance(key, int):
+            if (key != 0 or key != 1):
+                raise KeyError("Key must be either 0 or 1")
+            return self.value[key]
+        elif isinstance(key, str):
+            if key == "numpy_dtype":
+                return self.numpy_dtype
+            elif key == "cuda_dtype":
+                return self.cuda_dtype
+            else:
+                raise KeyError("Key must be either 'numpy_dtype' \
+or 'cuda_dtype'")
+
 
 if __name__ == "__main__":
 
@@ -73,3 +141,5 @@ if __name__ == "__main__":
     print(mydtype)
     print(mydtype.numpy_dtype)
     print(mydtype.cuda_dtype)
+    print(mydtype[0])
+    print(mydtype["cuda_dtype"])
