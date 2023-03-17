@@ -11,8 +11,8 @@ import numpy as np
 import pycuda.autoinit
 import pycuda.driver as cuda
 
-from utils import TrtLogger
-from utils import EEngine, IEngine
+from .utils import TrtLogger
+from .utils import EEngine, IEngine
 
 sys.path.append("..")
 
@@ -51,11 +51,14 @@ class Engine(EEngine, IEngine):
             stdout=self.stdout,
             stderr=self.stderr)
 
+        trt.init_libnvinfer_plugins(self.trt_logger, namespace="")
+
         self.optimisation_profile = optimisation_profile
         self.runtime = trt.Runtime(self.trt_logger)
 
         if engine_path is not None and os.path.exists(engine_path):
             self.engine = self.load_engine(engine_path)
+            self.dynamic = self.engine.has_implicit_batch_dimension
         else:
             if (onnx_file_path is None or not os.path.exists(onnx_file_path)):
                 raise ValueError("onnx_file_path is None and no engine \
@@ -64,8 +67,6 @@ has been found at engine_path.")
             self.dynamic = self.is_dynamic(onnx_file_path)
             self.engine = self.build_engine(
                 onnx_file_path, engine_path, mode=mode)
-
-        self.dynamic = self.engine.has_implicit_batch_dimension
 
         if self.engine is None:
             self.trt_logger.log(
@@ -115,6 +116,7 @@ Check the logs for more details.")
         with open(engine_file_path, 'rb') as engine_file:
             engine_data = engine_file.read()
         engine = runtime.deserialize_cuda_engine(engine_data)
+
         return engine
 
     def is_dynamic(self, onnx_file_path: str) -> bool:
@@ -186,7 +188,6 @@ Check the logs for more details.")
 
     def __del__(self):
         try:
-            del self.context
             del self.engine
             del self.buffers
         except RuntimeError as error:
@@ -309,9 +310,6 @@ if __name__ == "__main__":
         static_engine.infer({"input": input_binding}, stream=stream)
     print(f"Static engine: {1000/(time.time() - t1)/n_iter}ms/iter \
 over {n_iter} iter")
-
-    print(f"output: {static_engine.output['output']}")
-    exit(0)
 
     t1 = time.time()
     for _ in range(n_iter):

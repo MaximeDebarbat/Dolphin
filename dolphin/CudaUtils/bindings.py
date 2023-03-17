@@ -131,8 +131,9 @@ class CudaBinding:
             self._hdm.device.free()
             del self._hdm.device
             del self._hdm.host
-        except Exception as exception:
-            # pylint: disable=broad-exception-caught
+        except AttributeError:
+            pass
+        except Exception as exception:  # pylint: disable=broad-exception-caught
             print(f"Encountered Exception while destroying object \
                   {self.__class__} : {exception}")
 

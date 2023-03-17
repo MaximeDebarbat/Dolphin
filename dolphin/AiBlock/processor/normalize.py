@@ -15,7 +15,7 @@ sys.path.append("../..")
 
 from CudaUtils import CUDA_BASE, CudaBinding  # pylint: disable=import-error
 from Data import ImageDimension  # pylint: disable=import-error
-from image_processor import ImageProcessor
+from .image_processor import ImageProcessor
 
 
 class NormalizeMode(Enum):
@@ -90,31 +90,31 @@ class CuNormalize(ImageProcessor):
 
         self._block = (self.MAX_BLOCK_X, self.MAX_BLOCK_Y, 1)
 
-    def __call__(self, binding_in_image: CudaBinding,
-                 binding_in_image_size: CudaBinding,
-                 binding_out_image: CudaBinding,
+    def __call__(self, in_image_binding: CudaBinding,
+                 in_image_size_binding: CudaBinding,
+                 out_image_binding: CudaBinding,
                  stream: cuda.Stream = None) -> None:
         # pylint: disable=redefined-outer-name
         """_summary_
         """
-        grid = (max(1, math.ceil(binding_in_image_size.value[1] /
+        grid = (max(1, math.ceil(in_image_size_binding.value[1] /
                                  self._block[0])),
-                max(1, math.ceil(binding_in_image_size.value[1] /
+                max(1, math.ceil(in_image_size_binding.value[1] /
                                  self._block[1])))
 
         if self._type == NormalizeMode.MEAN_STD:
-            self._fct_binder[self._type](binding_in_image.device,
-                                         binding_out_image.device,
-                                         binding_in_image_size.device,
+            self._fct_binder[self._type](in_image_binding.device,
+                                         out_image_binding.device,
+                                         in_image_size_binding.device,
                                          self._mean_binding.device,
                                          self._std_binding.device,
                                          block=self._block,
                                          grid=grid,
                                          stream=stream)
         else:
-            self._fct_binder[self._type](binding_in_image.device,
-                                         binding_out_image.device,
-                                         binding_in_image_size.device,
+            self._fct_binder[self._type](in_image_binding.device,
+                                         out_image_binding.device,
+                                         in_image_size_binding.device,
                                          block=self._block,
                                          grid=grid,
                                          stream=stream)

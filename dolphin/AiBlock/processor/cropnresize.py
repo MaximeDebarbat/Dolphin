@@ -49,18 +49,18 @@ class CuCropNResize(CUDA_BASE):
             self.__CUDA_CROPNRESIZE_FCT_NAME)
 
         self._binding_n_max_bboxes = CudaBinding()
-        self._binding_out_image_size = CudaBinding()
+        self._out_image_binding_size = CudaBinding()
         self._binding_max_width = CudaBinding()
         self._binding_max_height = CudaBinding()
 
         self._binding_n_max_bboxes.allocate(shape=(), dtype=np.uint16)
-        self._binding_out_image_size.allocate(shape=(3,),
+        self._out_image_binding_size.allocate(shape=(3,),
                                               dtype=self._out_image_size.dtype)
         self._binding_max_width.allocate(shape=(), dtype=np.float32)
         self._binding_max_height.allocate(shape=(), dtype=np.float32)
 
-        self._binding_out_image_size.write(data=self._out_image_size.ndarray)
-        self._binding_out_image_size.h2d()
+        self._out_image_binding_size.write(data=self._out_image_size.ndarray)
+        self._out_image_binding_size.h2d()
 
         self._binding_n_max_bboxes.write(data=self._n_max_bboxes)
         self._binding_n_max_bboxes.d2h()
@@ -69,10 +69,10 @@ class CuCropNResize(CUDA_BASE):
         self._grid = (math.ceil(self._out_image_size.width / self._block[0]),
                       math.ceil(self._out_image_size.height / self._block[1]))
 
-    def __call__(self, binding_in_image: CudaBinding,
-                 binding_in_image_size: CudaBinding,
+    def __call__(self, in_image_binding: CudaBinding,
+                 in_image_binding_size: CudaBinding,
                  binding_bounding_boxes: CudaBinding,
-                 binding_out_image_batch: CudaBinding,
+                 out_image_binding_batch: CudaBinding,
                  stream: cuda.Stream = None
                  ) -> None:
         """Callable method to call the CUDA function that performs the crop
@@ -84,36 +84,36 @@ class CuCropNResize(CUDA_BASE):
         before calling this function.
 
         F.e.:
-          >>> binding_in_image = CudaBinding()
-          >>> binding_in_image.allocate(shape=image.shape, dtype=np.uint8)
-          >>> binding_in_image.write(data=image)
-          >>> binding_in_image.h2d(stream=stream)
+          >>> in_image_binding = CudaBinding()
+          >>> in_image_binding.allocate(shape=image.shape, dtype=np.uint8)
+          >>> in_image_binding.write(data=image)
+          >>> in_image_binding.h2d(stream=stream)
 
-        :param binding_in_image: The CudaBinding object containing \
+        :param in_image_binding: The CudaBinding object containing \
         the input image.
         Must be allocated and written before calling this function.
-        :type binding_in_image: CudaBinding
-        :param binding_in_image_size: The CudaBinding object containing
+        :type in_image_binding: CudaBinding
+        :param in_image_binding_size: The CudaBinding object containing
         the input image size.
         Must be allocated and written before calling this function.
-        :type binding_in_image_size: CudaBinding
+        :type in_image_binding_size: CudaBinding
         :param binding_bounding_boxes: The CudaBinding object containing
         the bounding boxes.
         Must be allocated and written before calling this function.
         :type binding_bounding_boxes: CudaBinding
-        :param binding_out_image_batch: The CudaBinding object containing
+        :param out_image_binding_batch: The CudaBinding object containing
         the output image batch. Must be allocated before calling this function.
-        :type binding_out_image_batch: CudaBinding
+        :type out_image_binding_batch: CudaBinding
         :param stream: The CUDA stream to perform the operation, defaults to None
         :type stream: cuda.Stream, optional
         :return: None
         :rtype: None
         """
 
-        self._cnr_cuda_f(binding_in_image.device,
-                         binding_out_image_batch.device,
-                         binding_in_image_size.device,
-                         self._binding_out_image_size.device,
+        self._cnr_cuda_f(in_image_binding.device,
+                         out_image_binding_batch.device,
+                         in_image_binding_size.device,
+                         self._out_image_binding_size.device,
                          binding_bounding_boxes.device,
                          block=self._block,
                          grid=self._grid,
@@ -172,10 +172,10 @@ if __name__ == "__main__":
 
     t1 = time.time()
     for _ in range(N_ITER):
-        cropnrezise(binding_in_image=in_image_binding,
-                    binding_in_image_size=in_image_size_binding,
+        cropnrezise(in_image_binding=in_image_binding,
+                    in_image_binding_size=in_image_size_binding,
                     binding_bounding_boxes=bounding_boxes_binding,
-                    binding_out_image_batch=out_image_binding)
+                    out_image_binding_batch=out_image_binding)
     cuda_time = 1000/N_ITER*(time.time()-t1)
     print(f"AVG CUDA Time : {cuda_time}ms/iter over {N_ITER} iterations")
 

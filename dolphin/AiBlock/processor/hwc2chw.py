@@ -12,7 +12,7 @@ sys.path.append("../..")
 
 from CudaUtils import CUDA_BASE, CudaBinding  # pylint: disable=import-error
 from Data import ImageDimension  # pylint: disable=import-error
-from image_processor import ImageProcessor
+from .image_processor import ImageProcessor
 
 
 class CuHWC2CHW(ImageProcessor):
@@ -49,22 +49,22 @@ class CuHWC2CHW(ImageProcessor):
         dimension swapping.
 
         F.e.::
-          >>> binding_in_image = CudaBinding()
-          >>> binding_in_image.allocate(shape=image.shape, dtype=np.uint8)
-          >>> binding_in_image.write(data=image)
-          >>> binding_in_image.h2d(stream=stream)
+          >>> in_image_binding = CudaBinding()
+          >>> in_image_binding.allocate(shape=image.shape, dtype=np.uint8)
+          >>> in_image_binding.write(data=image)
+          >>> in_image_binding.h2d(stream=stream)
 
-        :param image_size_binding: Binding containing the image size
-        :type image_size_binding: CudaBinding
+        :param in_image_size_binding: Binding containing the image size
+        :type in_image_size_binding: CudaBinding
         :param in_out_image_binding: Image whose channels will be swapped
         :type in_out_image_binding: CudaBinding
         :param stream: Cuda stream to perform async operation, defaults to None
         :type stream: cuda.Stream, optional
         """
 
-        grid = (max(1, math.ceil(image_size_binding.value[1] /
+        grid = (max(1, math.ceil(in_image_size_binding.value[1] /
                                  self._block[0])),
-                max(1, math.ceil(image_size_binding.value[0] /
+                max(1, math.ceil(in_image_size_binding.value[0] /
                                  self._block[1])))
 
         self._cuda_f(

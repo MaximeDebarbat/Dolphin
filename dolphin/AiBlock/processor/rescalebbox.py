@@ -53,10 +53,10 @@ class CuRescaleBbox(CUDA_BASE):
         self.__rb_cuda_f = self.__rb_cuda_sm.get_function(
             self.__CUDA_RESCALEBBOX_FCT_NAME)
 
-        self._binding_in_image_size = CudaBinding()
+        self._in_image_binding_size = CudaBinding()
         self._binding_rescaled_image_size = CudaBinding()
 
-        self._binding_in_image_size.allocate(shape=(3,),
+        self._in_image_binding_size.allocate(shape=(3,),
                                              dtype=self._in_image_size.dtype)
         self._binding_rescaled_image_size.allocate(shape=(3,),
                                                    dtype=self._in_image_size.
@@ -66,8 +66,8 @@ class CuRescaleBbox(CUDA_BASE):
         # COPY #
         ########
 
-        self._binding_in_image_size.write(data=self._in_image_size.ndarray)
-        self._binding_in_image_size.h2d()
+        self._in_image_binding_size.write(data=self._in_image_size.ndarray)
+        self._in_image_binding_size.h2d()
 
         self._binding_rescaled_image_size.write(
             data=self._rescaled_image_size.ndarray)
@@ -84,10 +84,10 @@ class CuRescaleBbox(CUDA_BASE):
         before calling this function.
 
         F.e.:
-            binding_in_image = CudaBinding()
-            binding_in_image.allocate(shape=image.shape, dtype=np.uint8)
-            binding_in_image.write(data=image)
-            binding_in_image.h2d(stream=stream)
+            in_image_binding = CudaBinding()
+            in_image_binding.allocate(shape=image.shape, dtype=np.uint8)
+            in_image_binding.write(data=image)
+            in_image_binding.h2d(stream=stream)
 
         :param binding_bounding_boxes: Bounding boxes to rescale
         :type binding_bounding_boxes: CudaBinding
@@ -99,7 +99,7 @@ class CuRescaleBbox(CUDA_BASE):
 
         self.__rb_cuda_f(binding_bounding_boxes.device,
                          binding_out_bboxes.device,
-                         self._binding_in_image_size.device,
+                         self._in_image_binding_size.device,
                          self._binding_rescaled_image_size.device,
                          block=(self._n_max_bboxes, 1, 1),
                          grid=(1, 1), stream=stream)

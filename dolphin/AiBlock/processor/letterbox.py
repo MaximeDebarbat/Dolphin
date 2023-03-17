@@ -13,12 +13,15 @@ from jinja2 import Template
 import pycuda.driver as cuda  # pylint: disable=import-error
 from pycuda.compiler import SourceModule  # pylint: disable=import-error
 
-sys.path.append("..")
-sys.path.append("../..")
-
-from CudaUtils import CUDA_BASE, CudaBinding  # pylint: disable=import-error
-from Data import ImageDimension  # pylint: disable=import-error
-from image_processor import ImageProcessor
+try:
+    from CudaUtils import CUDA_BASE, CudaBinding  # pylint: disable=import-error
+    from Data import ImageDimension  # pylint: disable=import-error
+    from .image_processor import ImageProcessor
+except:
+    sys.path.append("..")
+    from CudaUtils import CUDA_BASE, CudaBinding  # pylint: disable=import-error
+    from Data import ImageDimension  # pylint: disable=import-error
+    from image_processor import ImageProcessor
 
 
 class CuLetterBox(ImageProcessor):
@@ -97,25 +100,25 @@ class CuLetterBox(ImageProcessor):
                       max(1, math.ceil(self._out_image_dimension.height /
                                        self._block[1])))
 
-    def __call__(self, binding_in_image: CudaBinding,
-                 binding_in_image_size: CudaBinding,
-                 binding_out_image: CudaBinding,
+    def __call__(self, in_image_binding: CudaBinding,
+                 in_image_size_binding: CudaBinding,
+                 out_image_binding: CudaBinding,
                  stream: cuda.Stream() = None) -> None:
         """_summary_
 
-        :param binding_in_image: _description_
-        :type binding_in_image: CudaBinding
-        :param binding_in_image_size: _description_
-        :type binding_in_image_size: CudaBinding
-        :param binding_out_image: _description_
-        :type binding_out_image: CudaBinding
+        :param in_image_binding: _description_
+        :type in_image_binding: CudaBinding
+        :param in_image_size_binding: _description_
+        :type in_image_size_binding: CudaBinding
+        :param out_image_binding: _description_
+        :type out_image_binding: CudaBinding
         :param stream: _description_, defaults to None
         :type stream: cuda.Stream, optional
         """
 
-        self._cuda_f(binding_in_image.device,
-                     binding_out_image.device,
-                     binding_in_image_size.device,
+        self._cuda_f(in_image_binding.device,
+                     out_image_binding.device,
+                     in_image_size_binding.device,
                      self._out_image_dimension_binding.device,
                      self._padding_value_binding.device,
                      block=self._block, grid=self._grid,
@@ -147,7 +150,7 @@ if __name__ == "__main__":
     in_image_size_binding.h2d()
 
     out_image_dimension = ImageDimension(width=640, height=640, channels=3,
-                                         dtype=np.uint8)
+                                         dtype=np.float32)
 
     out_image_binding = CudaBinding()
     out_image_binding.allocate(shape=out_image_dimension.shape,
@@ -164,4 +167,4 @@ if __name__ == "__main__":
 
     out_image_binding.d2h()
 
-    cv2.imwrite("out.jpg", out_image_binding.value)
+    cv2.imwrite("out.jpg", out_image_binding.value.astype(np.uint8))

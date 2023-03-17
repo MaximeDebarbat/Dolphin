@@ -12,7 +12,7 @@ sys.path.append("../..")
 
 from CudaUtils import CUDA_BASE, CudaBinding # pylint: disable=import-error
 from Data import ImageDimension # pylint: disable=import-error
-from image_processor import ImageProcessor
+from .image_processor import ImageProcessor
 
 
 class CuBGR2RGB(ImageProcessor):
@@ -34,9 +34,9 @@ class CuBGR2RGB(ImageProcessor):
         self._cuda_f = self._cuda_sm.get_function(
             self._CUDA_FCT_NAME)
 
-    def __call__(self, binding_in_image: CudaBinding,
-                 binding_in_image_size: CudaBinding,
-                 binding_out_image: CudaBinding,
+    def __call__(self, in_image_binding: CudaBinding,
+                 in_image_size_binding: CudaBinding,
+                 out_image_binding: CudaBinding,
                  stream: cuda.Stream = None):
         # pylint: disable=redefined-outer-name
         """Callable method to call the CUDA function that performs
@@ -49,10 +49,10 @@ class CuBGR2RGB(ImageProcessor):
         before calling this function.
 
         F.e.:
-            binding_in_image = CudaBinding()
-            binding_in_image.allocate(shape=image.shape, dtype=np.uint8)
-            binding_in_image.write(data=image)
-            binding_in_image.h2d(stream=stream)
+            in_image_binding = CudaBinding()
+            in_image_binding.allocate(shape=image.shape, dtype=np.uint8)
+            in_image_binding.write(data=image)
+            in_image_binding.h2d(stream=stream)
 
         :param image_size_binding: Binding containing the image size
         :type image_size_binding: CudaBinding
@@ -62,18 +62,18 @@ class CuBGR2RGB(ImageProcessor):
         :type stream: cuda.Stream, optional
         """
 
-        block = (min(binding_in_image_size.value[1], self.MAX_BLOCK_X),
-                 min(binding_in_image_size.value[0], self.MAX_BLOCK_Y), 1)
+        block = (min(in_image_size_binding.value[1], self.MAX_BLOCK_X),
+                 min(in_image_size_binding.value[0], self.MAX_BLOCK_Y), 1)
 
-        grid = (max(1, math.ceil(binding_in_image_size.value[1] /
+        grid = (max(1, math.ceil(in_image_size_binding.value[1] /
                                  block[0])),
-                max(1, math.ceil(binding_in_image_size.value[0] /
+                max(1, math.ceil(in_image_size_binding.value[0] /
                                  block[1])))
 
-        self._cuda_f(binding_in_image_size.device,
-                          binding_in_image.device,
-                          binding_out_image.device,
-                          block=block, grid=grid, stream=stream)
+        self._cuda_f(in_image_size_binding.device,
+                     in_image_binding.device,
+                     out_image_binding.device,
+                     block=block, grid=grid, stream=stream)
 
 
 if __name__ == "__main__":
@@ -106,9 +106,9 @@ if __name__ == "__main__":
 
     t1 = time.time()
     for _ in range(N_ITER):
-        channel_swapper(binding_in_image=in_image_binding,
-                        binding_in_image_size=in_image_size_binding,
-                        binding_out_image=out_image_binding,
+        channel_swapper(in_image_binding=in_image_binding,
+                        in_image_binding_size=in_image_size_binding,
+                        out_image_binding=out_image_binding,
                         stream=stream)
     cuda_time = 1000/N_ITER*(time.time()-t1)
     print(f"AVG CUDA Time : {cuda_time}ms/iter over {N_ITER} iterations")
