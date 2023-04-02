@@ -7,8 +7,9 @@ https://www.linkedin.com/in/mdebarbat/
 """
 
 
+from .cutils.cuda_base import CudaBase
 from .core.dtype import dtype
 from .core.darray import darray
 from .core.dimage import dimage
 from .cutils.bindings import CudaBinding
-from .cutils.cuda_base import CudaBase
+from .cutils import cufunc

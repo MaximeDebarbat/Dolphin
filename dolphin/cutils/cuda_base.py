@@ -8,7 +8,6 @@ import math
 class CudaBase:
 
     def __init__(self):
-
         self.MAX_THREADS_PER_BLOCKS = int(
             pycuda.autoinit.device.get_attribute(
                 pycuda.driver.device_attribute.MAX_THREADS_PER_BLOCK))
@@ -38,7 +37,6 @@ class CudaBase:
             self.MAX_BLOCK_Y = int(np.sqrt(self.MAX_THREADS_PER_BLOCKS))
 
         self.TOTAL_THREADS = self.MAX_BLOCK_X * self.MAX_BLOCK_Y
-
 
     def _GET_BLOCK_X_Y(self, Z: int) -> tuple:
         """Get the block size for a given Z.

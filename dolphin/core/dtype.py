@@ -94,7 +94,27 @@ class dtype(Enum):  # pylint: disable=invalid-name
           >>>     return self.numpy_dtype.itemsize
 
         """
-        return self.numpy_dtype.itemsize
+        return numpy.dtype(self.numpy_dtype).itemsize
+
+    @staticmethod
+    def from_numpy_dtype(numpy_dtype: numpy.dtype) -> "dtype":
+        """Returns the equivalent Dolphin data type from the numpy data type.
+
+        :param numpy_dtype: The numpy data type
+        :type numpy_dtype: numpy.dtype
+        :return: The equivalent Dolphin data type
+        :rtype: dtype
+        """
+        for d in dtype:
+            if d.numpy_dtype == numpy_dtype:
+                return d
+        raise ValueError("Invalid numpy data type")
+
+    def __repr__(self) -> str:
+        return self.cuda_dtype
+
+    def __str__(self) -> str:
+        return self.cuda_dtype
 
     def __getitem__(self,
                     key: Union[str, int]
