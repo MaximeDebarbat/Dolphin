@@ -9,7 +9,6 @@ __global__ void elt_wise_div_{{ dtype }}({{ dtype }} *x,
                                    uint8_t *error){
 
     uint32_t i = blockIdx.x * blockDim.x + threadIdx.x;
-
     if (i < n) {
         if(y[i] == 0){
             z[i] = ({{dtype}}) 0;

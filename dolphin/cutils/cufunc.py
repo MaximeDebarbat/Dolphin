@@ -25,11 +25,16 @@ class AXpBZ(dolphin.CudaBase):
             self.__CU_FILENAME), "rt", encoding="utf-8").read()
         self._func = {}
 
+        source = ""
         for dtype in dolphin.dtype:
-            self._func[dtype.cuda_dtype] = SourceModule(
-                Template(self._cuda_source).render(
-                    dtype=dtype.cuda_dtype)).get_function(
-                        self.__CU_FUNC_NAME + dtype.cuda_dtype)
+            source += Template(self._cuda_source).render(
+                    dtype=dtype.cuda_dtype)
+
+        compiled_source = SourceModule(source)
+
+        for dtype in dolphin.dtype:
+            self._func[dtype.cuda_dtype] = compiled_source.get_function(
+                        self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare("PP"+numpy.dtype(dtype.numpy_dtype).char+numpy.dtype(dtype.numpy_dtype).char+"I")
 
     def __call__(self,
                  x_array: dolphin.darray,
@@ -41,15 +46,25 @@ class AXpBZ(dolphin.CudaBase):
                  grid: tuple,
                  stream: cuda.Stream = None) -> None:
 
-        self._func[x_array.dtype.cuda_dtype](
-                    x_array.allocation,
-                    z_array.allocation,
-                    x_array.dtype.numpy_dtype(a_scalar),
-                    x_array.dtype.numpy_dtype(b_scalar),
-                    numpy.uint32(size),
-                    block=block,
-                    grid=grid,
-                    stream=stream)
+        if stream is None:
+            self._func[x_array.dtype.cuda_dtype].prepared_call(
+                        grid,
+                        block,
+                        x_array.allocation,
+                        z_array.allocation,
+                        x_array.dtype.numpy_dtype(a_scalar),
+                        x_array.dtype.numpy_dtype(b_scalar),
+                        numpy.uint32(size))
+        else:
+            self._func[x_array.dtype.cuda_dtype].prepared_async_call(
+                        grid,
+                        block,
+                        stream,
+                        x_array.allocation,
+                        z_array.allocation,
+                        x_array.dtype.numpy_dtype(a_scalar),
+                        x_array.dtype.numpy_dtype(b_scalar),
+                        numpy.uint32(size))
 
 
 class AXpBYZ(dolphin.CudaBase):
@@ -64,11 +79,16 @@ class AXpBYZ(dolphin.CudaBase):
             self.__CU_FILENAME), "rt", encoding="utf-8").read()
         self._func = {}
 
+        source = ""
         for dtype in dolphin.dtype:
-            s = Template(self._cuda_source).render(
+            source += Template(self._cuda_source).render(
                     dtype=dtype.cuda_dtype)
-            self._func[dtype.cuda_dtype] = SourceModule(s).get_function(
-                        self.__CU_FUNC_NAME + dtype.cuda_dtype)
+
+        compiled_source = SourceModule(source)
+
+        for dtype in dolphin.dtype:
+            self._func[dtype.cuda_dtype] = compiled_source.get_function(
+                        self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare("PPP"+numpy.dtype(dtype.numpy_dtype).char+numpy.dtype(dtype.numpy_dtype).char+"I")
 
     def __call__(self,
                  x_array: dolphin.darray,
@@ -81,16 +101,28 @@ class AXpBYZ(dolphin.CudaBase):
                  grid: tuple,
                  stream: cuda.Stream = None) -> None:
 
-        self._func[x_array.dtype.cuda_dtype](
-                    x_array.allocation,
-                    y_array.allocation,
-                    z_array.allocation,
-                    x_array.dtype.numpy_dtype(a_scalar),
-                    x_array.dtype.numpy_dtype(b_scalar),
-                    numpy.uint32(size),
-                    block=block,
-                    grid=grid,
-                    stream=stream)
+        if stream is None:
+            self._func[x_array.dtype.cuda_dtype].prepared_call(
+                        grid,
+                        block,
+                        x_array.allocation,
+                        y_array.allocation,
+                        z_array.allocation,
+                        x_array.dtype.numpy_dtype(a_scalar),
+                        x_array.dtype.numpy_dtype(b_scalar),
+                        numpy.uint32(size))
+        else:
+            self._func[x_array.dtype.cuda_dtype].prepared_async_call(
+                        grid,
+                        block,
+                        stream,
+                        x_array.allocation,
+                        y_array.allocation,
+                        z_array.allocation,
+                        x_array.dtype.numpy_dtype(a_scalar),
+                        x_array.dtype.numpy_dtype(b_scalar),
+                        numpy.uint32(size))
+
 
 
 class EltwiseMult(dolphin.CudaBase):
@@ -105,11 +137,16 @@ class EltwiseMult(dolphin.CudaBase):
             self.__CU_FILENAME), "rt", encoding="utf-8").read()
         self._func = {}
 
+        source = ""
         for dtype in dolphin.dtype:
-            self._func[dtype.cuda_dtype] = SourceModule(
-                Template(self._cuda_source).render(
-                    dtype=dtype.cuda_dtype)).get_function(
-                        self.__CU_FUNC_NAME + dtype.cuda_dtype)
+            source += Template(self._cuda_source).render(
+                    dtype=dtype.cuda_dtype)
+
+        compiled_source = SourceModule(source)
+
+        for dtype in dolphin.dtype:
+            self._func[dtype.cuda_dtype] = compiled_source.get_function(
+                        self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare("PPPI")
 
     def __call__(self,
                  x_array: dolphin.darray,
@@ -120,14 +157,23 @@ class EltwiseMult(dolphin.CudaBase):
                  grid: tuple,
                  stream: cuda.Stream = None) -> None:
 
-        self._func[x_array.dtype.cuda_dtype](
-                    x_array.allocation,
-                    y_array.allocation,
-                    z_array.allocation,
-                    numpy.uint32(size),
-                    block=block,
-                    grid=grid,
-                    stream=stream)
+        if stream is None:
+            self._func[x_array.dtype.cuda_dtype].prepared_call(
+                        grid,
+                        block,
+                        x_array.allocation,
+                        y_array.allocation,
+                        z_array.allocation,
+                        numpy.uint32(size))
+        else:
+            self._func[x_array.dtype.cuda_dtype].prepared_async_call(
+                        grid,
+                        block,
+                        stream,
+                        x_array.allocation,
+                        y_array.allocation,
+                        z_array.allocation,
+                        numpy.uint32(size))
 
 
 class EltwiseDiv(dolphin.CudaBase):
@@ -143,12 +189,18 @@ class EltwiseDiv(dolphin.CudaBase):
         self._func = {}
 
         self._error = cuda.mem_alloc(numpy.dtype(numpy.uint8).itemsize)
+        cuda.memcpy_htod(self._error, numpy.uint8(0))
+
+        source = ""
+        for dtype in dolphin.dtype:
+            source += Template(self._cuda_source).render(
+                    dtype=dtype.cuda_dtype)
+
+        compiled_source = SourceModule(source)
 
         for dtype in dolphin.dtype:
-            self._func[dtype.cuda_dtype] = SourceModule(
-                Template(self._cuda_source).render(
-                    dtype=dtype.cuda_dtype)).get_function(
-                        self.__CU_FUNC_NAME + dtype.cuda_dtype)
+            self._func[dtype.cuda_dtype] = compiled_source.get_function(
+                        self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare("PPPIP")
 
     def __call__(self,
                  x_array: dolphin.darray,
@@ -159,17 +211,27 @@ class EltwiseDiv(dolphin.CudaBase):
                  grid: tuple,
                  stream: cuda.Stream = None) -> None:
 
-        cuda.memcpy_htod(self._error, numpy.uint8(0))
-
-        self._func[x_array.dtype.cuda_dtype](
-                    x_array.allocation,
-                    y_array.allocation,
-                    z_array.allocation,
-                    numpy.uint32(size),
-                    self._error,
-                    block=block,
-                    grid=grid,
-                    stream=stream)
+        if stream is None:
+            cuda.memcpy_htod(self._error, numpy.uint8(0))
+            self._func[x_array.dtype.cuda_dtype].prepared_call(
+                        grid,
+                        block,
+                        x_array.allocation,
+                        y_array.allocation,
+                        z_array.allocation,
+                        numpy.uint32(size),
+                        self._error)
+        else:
+            cuda.memcpy_htod_async(self._error, numpy.uint8(0), stream)
+            self._func[x_array.dtype.cuda_dtype].prepared_async_call(
+                        grid,
+                        block,
+                        stream,
+                        x_array.allocation,
+                        y_array.allocation,
+                        z_array.allocation,
+                        numpy.uint32(size),
+                        self._error)
 
         error = numpy.zeros(1, dtype=numpy.uint8)
         if stream is None:
@@ -198,11 +260,16 @@ class ScalDiv(dolphin.CudaBase):
             self.__CU_FILENAME), "rt", encoding="utf-8").read()
         self._func = {}
 
+        source = ""
         for dtype in dolphin.dtype:
-            self._func[dtype.cuda_dtype] = SourceModule(
-                Template(self._cuda_source).render(
-                    dtype=dtype.cuda_dtype)).get_function(
-                        self.__CU_FUNC_NAME + dtype.cuda_dtype)
+            source += Template(self._cuda_source).render(
+                    dtype=dtype.cuda_dtype)
+
+        compiled_source = SourceModule(source)
+
+        for dtype in dolphin.dtype:
+            self._func[dtype.cuda_dtype] = compiled_source.get_function(
+                        self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare("PP"+numpy.dtype(dtype.numpy_dtype).char+"I")
 
     def __call__(self,
                  x_array: dolphin.darray,
@@ -213,14 +280,25 @@ class ScalDiv(dolphin.CudaBase):
                  grid: tuple,
                  stream: cuda.Stream = None) -> None:
 
-        self._func[x_array.dtype.cuda_dtype](
-                    x_array.allocation,
-                    z_array.allocation,
-                    x_array.dtype.numpy_dtype(a_scalar),
-                    numpy.uint32(size),
-                    block=block,
-                    grid=grid,
-                    stream=stream)
+        if stream is None:
+
+            self._func[x_array.dtype.cuda_dtype].prepared_call(
+                        grid,
+                        block,
+                        x_array.allocation,
+                        z_array.allocation,
+                        x_array.dtype.numpy_dtype(a_scalar),
+                        numpy.uint32(size))
+        else:
+
+            self._func[x_array.dtype.cuda_dtype].prepared_async_call(
+                        grid,
+                        block,
+                        stream,
+                        x_array.allocation,
+                        z_array.allocation,
+                        x_array.dtype.numpy_dtype(a_scalar),
+                        numpy.uint32(size))
 
 
 class InvScalDiv(dolphin.CudaBase):
@@ -237,11 +315,16 @@ class InvScalDiv(dolphin.CudaBase):
 
         self._error = cuda.mem_alloc(numpy.dtype(numpy.uint8).itemsize)
 
+        source = ""
         for dtype in dolphin.dtype:
-            self._func[dtype.cuda_dtype] = SourceModule(
-                Template(self._cuda_source).render(
-                    dtype=dtype.cuda_dtype)).get_function(
-                        self.__CU_FUNC_NAME + dtype.cuda_dtype)
+            source += Template(self._cuda_source).render(
+                    dtype=dtype.cuda_dtype)
+
+        compiled_source = SourceModule(source)
+
+        for dtype in dolphin.dtype:
+            self._func[dtype.cuda_dtype] = compiled_source.get_function(
+                        self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare("PP"+numpy.dtype(dtype.numpy_dtype).char+"IP")
 
     def __call__(self,
                  x_array: dolphin.darray,
@@ -252,17 +335,27 @@ class InvScalDiv(dolphin.CudaBase):
                  grid: tuple,
                  stream: cuda.Stream = None) -> None:
 
-        cuda.memcpy_htod(self._error, numpy.uint8(0))
-
-        self._func[x_array.dtype.cuda_dtype](
-                    x_array.allocation,
-                    z_array.allocation,
-                    x_array.dtype.numpy_dtype(a_scalar),
-                    numpy.uint32(size),
-                    self._error,
-                    block=block,
-                    grid=grid,
-                    stream=stream)
+        if stream is None:
+            cuda.memcpy_htod(self._error, numpy.uint8(0))
+            self._func[x_array.dtype.cuda_dtype].prepared_call(
+                        grid,
+                        block,
+                        x_array.allocation,
+                        z_array.allocation,
+                        x_array.dtype.numpy_dtype(a_scalar),
+                        numpy.uint32(size),
+                        self._error)
+        else:
+            cuda.memcpy_htod_async(self._error, numpy.uint8(0), stream)
+            self._func[x_array.dtype.cuda_dtype].prepared_async_call(
+                        grid,
+                        block,
+                        stream,
+                        x_array.allocation,
+                        z_array.allocation,
+                        x_array.dtype.numpy_dtype(a_scalar),
+                        numpy.uint32(size),
+                        self._error)
 
         error = numpy.zeros(1, dtype=numpy.uint8)
         if stream is None:
@@ -291,15 +384,21 @@ class EltWiseCast(dolphin.CudaBase):
             self.__CU_FILENAME), "rt", encoding="utf-8").read()
         self._func = {}
 
+        s = ""
         for dtype in dolphin.dtype:
             for dtype2 in dolphin.dtype:
 
-                s = Template(self._cuda_source).render(
+                s += Template(self._cuda_source).render(
                         indtype=dtype.cuda_dtype,
                         outdtype=dtype2.cuda_dtype)
 
-                self._func[dtype.cuda_dtype + self.__CU_FUNC_NAME + dtype2.cuda_dtype] = SourceModule(s).get_function(
-                            dtype.cuda_dtype + self.__CU_FUNC_NAME + dtype2.cuda_dtype)
+        compiled_source = SourceModule(s)
+
+        for dtype in dolphin.dtype:
+            for dtype2 in dolphin.dtype:
+
+                self._func[dtype.cuda_dtype + self.__CU_FUNC_NAME + dtype2.cuda_dtype] = compiled_source.get_function(
+                            dtype.cuda_dtype + self.__CU_FUNC_NAME + dtype2.cuda_dtype).prepare("PPI")
 
     def __call__(self,
                  x_array: dolphin.darray,
@@ -309,13 +408,21 @@ class EltWiseCast(dolphin.CudaBase):
                  grid: tuple,
                  stream: cuda.Stream = None) -> None:
 
-        self._func[x_array.dtype.cuda_dtype + self.__CU_FUNC_NAME + z_array.dtype.cuda_dtype](
-                    x_array.allocation,
-                    z_array.allocation,
-                    numpy.uint32(size),
-                    block=block,
-                    grid=grid,
-                    stream=stream)
+        if stream is None:
+            self._func[x_array.dtype.cuda_dtype + self.__CU_FUNC_NAME + z_array.dtype.cuda_dtype].prepared_call(
+                        grid,
+                        block,
+                        x_array.allocation,
+                        z_array.allocation,
+                        numpy.uint32(size))
+        else:
+            self._func[x_array.dtype.cuda_dtype + self.__CU_FUNC_NAME + z_array.dtype.cuda_dtype].prepared_async_call(
+                        grid,
+                        block,
+                        stream,
+                        x_array.allocation,
+                        z_array.allocation,
+                        numpy.uint32(size))
 
 
 class EltwiseAbs(dolphin.CudaBase):
@@ -330,11 +437,16 @@ class EltwiseAbs(dolphin.CudaBase):
             self.__CU_FILENAME), "rt", encoding="utf-8").read()
         self._func = {}
 
+        source = ""
         for dtype in dolphin.dtype:
-            self._func[dtype.cuda_dtype] = SourceModule(
-                Template(self._cuda_source).render(
-                    dtype=dtype.cuda_dtype)).get_function(
-                        self.__CU_FUNC_NAME + dtype.cuda_dtype)
+            source += Template(self._cuda_source).render(
+                    dtype=dtype.cuda_dtype)
+
+        compiled_source = SourceModule(source)
+
+        for dtype in dolphin.dtype:
+            self._func[dtype.cuda_dtype] = compiled_source.get_function(
+                        self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare("PI")
 
     def __call__(self,
                  x_array: dolphin.darray,
@@ -343,13 +455,19 @@ class EltwiseAbs(dolphin.CudaBase):
                  grid: tuple,
                  stream: cuda.Stream = None) -> None:
 
-        self._func[x_array.dtype.cuda_dtype](
-                    x_array.allocation,
-                    numpy.uint32(size),
-                    block=block,
-                    grid=grid,
-                    stream=stream)
-
+        if stream is None:
+            self._func[x_array.dtype.cuda_dtype].prepared_call(
+                        grid,
+                        block,
+                        x_array.allocation,
+                        numpy.uint32(size))
+        else:
+            self._func[x_array.dtype.cuda_dtype].prepared_async_call(
+                        grid,
+                        block,
+                        stream,
+                        x_array.allocation,
+                        numpy.uint32(size))
 
 class Transpose(dolphin.CudaBase):
     __CU_FILENAME: str = "transpose.cu"
@@ -362,11 +480,16 @@ class Transpose(dolphin.CudaBase):
             self.__CU_FILENAME), "rt", encoding="utf-8").read()
         self._func = {}
 
+        source = ""
         for dtype in dolphin.dtype:
-            self._func[dtype.cuda_dtype] = SourceModule(
-                Template(self._cuda_source).render(
-                    dtype=dtype.cuda_dtype)).get_function(
-                        self.__CU_FUNC_NAME + dtype.cuda_dtype)
+            source += Template(self._cuda_source).render(
+                    dtype=dtype.cuda_dtype)
+
+        compiled_source = SourceModule(source)
+
+        for dtype in dolphin.dtype:
+            self._func[dtype.cuda_dtype] = compiled_source.get_function(
+                        self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare("PPPPII")
 
     def __call__(self,
                  x_array: dolphin.darray,
@@ -379,24 +502,45 @@ class Transpose(dolphin.CudaBase):
                  grid: tuple,
                  stream: cuda.Stream = None) -> None:
 
-        self._func[x_array.dtype.cuda_dtype](
-                    x_array.allocation,
-                    y_array.allocation,
-                    shape,
-                    strides,
-                    numpy.uint32(ndim),
-                    numpy.uint32(size),
-                    block=block,
-                    grid=grid,
-                    stream=stream)
+        if stream is None:
+            self._func[x_array.dtype.cuda_dtype].prepared_call(
+                        grid,
+                        block,
+                        x_array.allocation,
+                        y_array.allocation,
+                        shape,
+                        strides,
+                        numpy.uint32(ndim),
+                        numpy.uint32(size))
+        else:
+            self._func[x_array.dtype.cuda_dtype].prepared_async_call(
+                        grid,
+                        block,
+                        stream,
+                        x_array.allocation,
+                        y_array.allocation,
+                        shape,
+                        strides,
+                        numpy.uint32(ndim),
+                        numpy.uint32(size))
 
 
+print("Compiling...")
+print("AXpBZ")
 CU_AXPBZ = AXpBZ()
+print("AXpBYZ")
 CU_AXPBYZ = AXpBYZ()
+print("EltwiseMult")
 CU_ELTWISE_MULT = EltwiseMult()
+print("EltwiseDiv")
 CU_ELTWISE_DIV = EltwiseDiv()
+print("InvScalDiv")
 CU_INVSCAL_DIV = InvScalDiv()
+print("ScalDiv")
 CU_SCAL_DIV = ScalDiv()
+print("EltwiseCast")
 CU_ELTWISE_CAST = EltWiseCast()
+print("EltwiseAbs")
 CU_ELTWISE_ABS = EltwiseAbs()
+print("transpose")
 CU_TRANSPOSE = Transpose()

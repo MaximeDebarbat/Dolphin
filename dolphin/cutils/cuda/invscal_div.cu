@@ -1,3 +1,4 @@
+
 #include <stdint.h>
 
 __global__ void invscal_div_{{ dtype }}({{ dtype }} *x,
