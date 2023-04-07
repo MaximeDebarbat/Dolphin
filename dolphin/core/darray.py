@@ -1,17 +1,17 @@
 
-import pycuda.driver as cuda  # pylint: disable=import-error
-import tensorrt as trt
 import math
-import numbers
+import time
+
+import pycuda.driver as cuda  # pylint: disable=import-error
+import tensorrt as trt  # pylint: disable=import-error
 
 import numpy
 import dolphin
 
-import time
-
 
 class darray(dolphin.CudaBase):
-    """_summary_
+    """
+    test
     """
 
     def __init__(self,
@@ -24,18 +24,8 @@ class darray(dolphin.CudaBase):
         super(darray, self).__init__()
 
         if array is not None:
-            _a_dtype = dolphin.dtype.from_numpy_dtype(array.dtype)
-            _a_shape = array.shape
-
-            if shape is not None and shape != _a_shape:
-                raise ValueError(f"Shape mismatch : {shape} != {_a_shape}")
-            if dtype is not None and dtype != _a_dtype:
-                raise ValueError(f"Type mismatch : {dtype.numpy_dtype} \
-!= {_a_dtype}")
-            if shape is None:
-                shape = _a_shape
-            if dtype is None:
-                dtype = _a_dtype
+            dtype = dolphin.dtype.from_numpy_dtype(array.dtype)
+            shape = array.shape
 
         self._stream: cuda.Stream = stream
         self._dtype: dolphin.dtype = dtype
@@ -45,27 +35,23 @@ class darray(dolphin.CudaBase):
 
         self._allocation: cuda.DeviceAllocation = cuda.mem_alloc(self._nbytes)
 
-        if self._stream is None:
-            if array is not None:
-                cuda.memcpy_htod(self._allocation, array.flatten(order="C"))
-        else:
-            if array is not None:
-                cuda.memcpy_htod_async(self._allocation,
-                                       array,
-                                       self._stream)
+        if array is not None:
+            cuda.memcpy_htod_async(self._allocation,
+                                   array,
+                                   self._stream)
 
         self._block = (int(min(self.MAX_THREADS_PER_BLOCKS, self._size)), 1, 1)
         self._grid = (int(math.ceil(self._size / self._block[0])), 1)
 
-        self._cu_axpbz = dolphin.cufunc.CU_AXPBZ
-        self._cu_axpbyz = dolphin.cufunc.CU_AXPBYZ
-        self._cu_eltwise_mult = dolphin.cufunc.CU_ELTWISE_MULT
-        self._cu_eltwise_div = dolphin.cufunc.CU_ELTWISE_DIV
-        self._cu_scal_div = dolphin.cufunc.CU_SCAL_DIV
-        self._cu_invscal_div = dolphin.cufunc.CU_INVSCAL_DIV
-        self._cu_eltwise_cast = dolphin.cufunc.CU_ELTWISE_CAST
-        self._cu_eltwise_abs = dolphin.cufunc.CU_ELTWISE_ABS
-        self._cu_transpose = dolphin.cufunc.CU_TRANSPOSE
+        self._cu_axpbz = dolphin.cudarray.CU_AXPBZ
+        self._cu_axpbyz = dolphin.cudarray.CU_AXPBYZ
+        self._cu_eltwise_mult = dolphin.cudarray.CU_ELTWISE_MULT
+        self._cu_eltwise_div = dolphin.cudarray.CU_ELTWISE_DIV
+        self._cu_scal_div = dolphin.cudarray.CU_SCAL_DIV
+        self._cu_invscal_div = dolphin.cudarray.CU_INVSCAL_DIV
+        self._cu_eltwise_cast = dolphin.cudarray.CU_ELTWISE_CAST
+        self._cu_eltwise_abs = dolphin.cudarray.CU_ELTWISE_ABS
+        self._cu_transpose = dolphin.cudarray.CU_TRANSPOSE
 
     @staticmethod
     def compute_strides(shape: tuple) -> tuple:
@@ -95,36 +81,37 @@ class darray(dolphin.CudaBase):
 
         self.__init__(array=array, stream=self._stream)
 
-    def astype(self, dtype: dolphin.dtype) -> None:
+    def astype(self, dtype: dolphin.dtype,
+               dst: 'darray' = None) -> 'darray':
         """Converts the darray to a different dtype.
         Note that a copy from device to device is performed.
 
         :param dtype: Dtype to convert the darray to
         :type dtype: dolphin.dtype
         """
+
+        if dst is not None and dtype != dst.dtype:
+            raise ValueError("dst dtype doesn't match")
+
         if dtype == self._dtype:
-            return self.copy()
+            if dst is None:
+                return self.copy()
+            else:
+                return dst
 
-        res = darray(shape=self._shape,
-                     dtype=dtype,
-                     stream=self._stream)
+        if dst is None:
+            dst = self.__class__(shape=self._shape,
+                                 dtype=dtype,
+                                 stream=self._stream)
 
-        # print(f"ASTYPE DEBUG : \nres.nbytes = {res._nbytes}\nself.nbytes = {self._nbytes}\nres.dtype = {res._dtype}\nself.dtype = {self._dtype}\nres.shape = {res._shape}\nself.shape = {self._shape}\nres.size = {res._size}\nself.size = {self._size}\nres.allocation = {res._allocation}\nself.allocation = {self._allocation}\nres.block = {res._block}\nself.block = {self._block}\nres.grid = {res._grid}\nself.grid = {self._grid}\nres.stream = {res._stream}\nself.stream = {self._stream}\nres.cu_eltwise_cast = {res._cu_eltwise_cast}\nself.cu_eltwise_cast = {self._cu_eltwise_cast}\n")
-        if self._stream is None:
-            self._cu_eltwise_cast(self,
-                                  res,
-                                  self._size,
-                                  block=self._block,
-                                  grid=self._grid)
-        else:
-            self._cu_eltwise_cast(self,
-                                  res,
-                                  self._size,
-                                  block=self._block,
-                                  grid=self._grid,
-                                  stream=self._stream)
+        self._cu_eltwise_cast(self,
+                              dst,
+                              self._size,
+                              block=self._block,
+                              grid=self._grid,
+                              stream=self._stream)
 
-        return res
+        return dst
 
     def transpose(self, *axes: int, dst: 'darray' = None) -> 'darray':
         """Transposes the darray according to the axes.
@@ -136,10 +123,10 @@ class darray(dolphin.CudaBase):
         """
 
         if len(axes) != len(self._shape):
-            raise ValueError(f"axes don't match array")
+            raise ValueError("axes don't match array")
 
         if not all(isinstance(v, int) for v in axes):
-            raise ValueError(f"axes must be integers")
+            raise ValueError("axes must be integers")
 
         strides = self.strides
         new_shape = [self.shape[i] for i in axes]
@@ -147,9 +134,9 @@ class darray(dolphin.CudaBase):
 
         if dst is not None:
             if dst.shape != tuple(new_shape):
-                raise ValueError(f"dst shape doesn't match")
+                raise ValueError("dst shape doesn't match")
             if dst.dtype != self.dtype:
-                raise ValueError(f"dst dtype doesn't match")
+                raise ValueError("dst dtype doesn't match")
 
         new_shape = numpy.array(new_shape,
                                 dtype=numpy.uint32)
@@ -159,23 +146,18 @@ class darray(dolphin.CudaBase):
         new_shape_allocation = cuda.mem_alloc(new_shape.nbytes)
         new_strides_allocation = cuda.mem_alloc(new_strides.nbytes)
 
-        if self._stream is None:
-            cuda.memcpy_htod(new_shape_allocation, new_shape)
-            cuda.memcpy_htod(new_strides_allocation, new_strides)
-        else:
-            cuda.memcpy_htod_async(new_shape_allocation,
-                                   new_shape,
-                                   self._stream)
-            cuda.memcpy_htod_async(new_strides_allocation,
-                                   new_strides,
-                                   self._stream)
-
+        cuda.memcpy_htod_async(new_shape_allocation,
+                               new_shape,
+                               self._stream)
+        cuda.memcpy_htod_async(new_strides_allocation,
+                               new_strides,
+                               self._stream)
         if dst is not None:
             res = dst
         else:
-            res = darray(shape=tuple(new_shape),
-                         dtype=self._dtype,
-                         stream=self._stream)
+            res = self.__class__(shape=tuple(new_shape),
+                                 dtype=self._dtype,
+                                 stream=self._stream)
 
         self._cu_transpose(
             self,
@@ -197,19 +179,14 @@ class darray(dolphin.CudaBase):
         :return: Copy of the array with another cuda allocation
         :rtype: darray
         """
-        res = darray(shape=self._shape,
-                     dtype=self._dtype,
-                     stream=self._stream)
+        res = self.__class__(shape=self._shape,
+                             dtype=self._dtype,
+                             stream=self._stream)
 
-        if self._stream is None:
-            cuda.memcpy_dtod(res._allocation,
-                             self._allocation,
-                             self._nbytes)
-        else:
-            cuda.memcpy_dtod_async(res._allocation,
-                                   self._allocation,
-                                   self._nbytes,
-                                   stream=self._stream)
+        cuda.memcpy_dtod_async(res._allocation,
+                               self._allocation,
+                               self._nbytes,
+                               stream=self._stream)
 
         return res
 
@@ -268,12 +245,10 @@ class darray(dolphin.CudaBase):
         :rtype: numpy.ndarray
         """
         res = numpy.empty(self._shape, dtype=self._dtype.numpy_dtype)
-        if self._stream is None:
-            cuda.memcpy_dtoh(res, self._allocation)
-        else:
-            cuda.memcpy_dtoh_async(res,
-                                   self._allocation,
-                                   self._stream)
+
+        cuda.memcpy_dtoh_async(res,
+                               self._allocation,
+                               self._stream)
         return res
 
     @property
@@ -621,18 +596,17 @@ class darray(dolphin.CudaBase):
 
             if other == 0:
                 return self.copy()
-            else:
 
-                result = self.copy()
-                self._cu_axpbz(
-                            x_array=self,
-                            z_array=result,
-                            a_scalar=1,
-                            b_scalar=-other,
-                            size=self._size,
-                            block=self._block,
-                            grid=self._grid,
-                            stream=self._stream)
+            result = self.copy()
+            self._cu_axpbz(
+                        x_array=self,
+                        z_array=result,
+                        a_scalar=1,
+                        b_scalar=-other,
+                        size=self._size,
+                        block=self._block,
+                        grid=self._grid,
+                        stream=self._stream)
             return result
 
         elif type(other) == type(self):
@@ -659,7 +633,7 @@ class darray(dolphin.CudaBase):
             raise TypeError(f"unsupported operand type(s) for -: '{type(self)}' and '{type(other)}'")
 
     def reversed_substract(self, other: object,
-                          dst: 'darray' = None) -> 'darray':
+                           dst: 'darray' = None) -> 'darray':
         """Efficient reverse substraction of an object with darray.
         It is efficient if dst is provided because it does not
         invoke cuda.memalloc.
@@ -789,17 +763,16 @@ class darray(dolphin.CudaBase):
 
             if other == 0:
                 return self
-            else:
 
-                self._cu_axpbz(
-                            x_array=self,
-                            z_array=self,
-                            a_scalar=1,
-                            b_scalar=-other,
-                            size=self._size,
-                            block=self._block,
-                            grid=self._grid,
-                            stream=self._stream)
+            self._cu_axpbz(
+                        x_array=self,
+                        z_array=self,
+                        a_scalar=1,
+                        b_scalar=-other,
+                        size=self._size,
+                        block=self._block,
+                        grid=self._grid,
+                        stream=self._stream)
             return self
 
         elif type(other) == type(self):
@@ -855,17 +828,15 @@ class darray(dolphin.CudaBase):
                                        self._allocation,
                                        self._nbytes,
                                        self._stream)
-            else:
-
-                self._cu_axpbz(
-                            x_array=self,
-                            z_array=dst,
-                            a_scalar=other,
-                            b_scalar=0,
-                            size=self._size,
-                            block=self._block,
-                            grid=self._grid,
-                            stream=self._stream)
+            self._cu_axpbz(
+                        x_array=self,
+                        z_array=dst,
+                        a_scalar=other,
+                        b_scalar=0,
+                        size=self._size,
+                        block=self._block,
+                        grid=self._grid,
+                        stream=self._stream)
 
         elif type(other) == type(self):
 
@@ -1140,7 +1111,6 @@ class darray(dolphin.CudaBase):
             if other.dtype != self._dtype:
                 raise ValueError(f"Type mismatch : {other.dtype} != {self.dtype}")
 
-            result = self.copy()
             self._cu_eltwise_div(
                             x_array=self,
                             y_array=other,
@@ -1476,7 +1446,7 @@ def test(dolphin_dtype: dolphin.dtype = dolphin.dtype.float32,
 
     # zeros
 
-    dummy = numpy.zeros(shape=shape, dtype=dolphin_dtype)
+    dummy = numpy.zeros(shape=shape, dtype=dolphin_dtype.numpy_dtype)
     cuda_array = zeros(shape=shape, dtype=dolphin_dtype)
 
     diff = numpy.linalg.norm(cuda_array.ndarray - dummy)
@@ -1488,8 +1458,14 @@ def test(dolphin_dtype: dolphin.dtype = dolphin.dtype.float32,
 
     # zeros_like
 
-    dummy = numpy.zeros(shape=shape, dtype=dolphin_dtype)
-    cuda_array_1 = zeros_like(cuda_array)
+    dummy = numpy.zeros(shape=shape, dtype=dolphin_dtype.numpy_dtype)
+    cuda_array_empty = darray(shape=shape, dtype=dolphin_dtype)
+    cuda_array = zeros_like(cuda_array_empty)
+
+    assert diff < 1e-5, "Creation test 4 failed"
+
+    print(f"Creation test 4 : {diff} | first number : \
+{cuda_array.ndarray[0, 0]} == {dummy[0, 0]}")
 
     #######################
     #    ADD SCAL TEST    #
@@ -1951,13 +1927,14 @@ def test(dolphin_dtype: dolphin.dtype = dolphin.dtype.float32,
 
 if __name__ == "__main__":
 
-    shape = (100, 100)
+    shape = (640, 640)
+    n_iter = int(1e2)
 
-    test(dolphin.dtype.float32, shape=shape, n_iter=1e3)
-    test(dolphin.dtype.float64, shape=shape, n_iter=1e3)
-    test(dolphin.dtype.uint8, shape=shape, n_iter=1e3)
-    test(dolphin.dtype.uint16, shape=shape, n_iter=1e3)
-    test(dolphin.dtype.uint32, shape=shape, n_iter=1e3)
-    test(dolphin.dtype.int8, shape=shape, n_iter=1e3)
-    test(dolphin.dtype.int16, shape=shape, n_iter=1e3)
-    test(dolphin.dtype.int32, shape=shape, n_iter=1e3)
+    test(dolphin.dtype.float32, shape=shape, n_iter=n_iter)
+    test(dolphin.dtype.float64, shape=shape, n_iter=n_iter)
+    test(dolphin.dtype.uint8, shape=shape, n_iter=n_iter)
+    test(dolphin.dtype.uint16, shape=shape, n_iter=n_iter)
+    test(dolphin.dtype.uint32, shape=shape, n_iter=n_iter)
+    test(dolphin.dtype.int8, shape=shape, n_iter=n_iter)
+    test(dolphin.dtype.int16, shape=shape, n_iter=n_iter)
+    test(dolphin.dtype.int32, shape=shape, n_iter=n_iter)
