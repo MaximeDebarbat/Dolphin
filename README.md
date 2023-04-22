@@ -27,7 +27,7 @@ pytest
 Dolphin can be installed with Pypi (coming soon) or built with Docker which is the recommended way to use it :
 
 ```
-docker build  -f dockerfile \
+docker build  -f Dockerfile \
               --rm \
               -t dolphin:latest \
               .
