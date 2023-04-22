@@ -4,6 +4,7 @@
 import os
 import math
 from time import time
+from typing import Union
 
 import numpy
 
@@ -11,6 +12,46 @@ import pycuda.driver as cuda  # pylint: disable=import-error
 from pycuda.compiler import SourceModule  # pylint: disable=import-error
 from jinja2 import Template
 import dolphin
+
+
+class CuFill(dolphin.CudaBase):
+    __CU_FILENAME: str = "fill.cu"
+    __CU_FUNC_NAME: str = "fill_"
+
+    def __init__(self):
+
+        super(CuFill, self).__init__()
+        self._cuda_source: str = open(os.path.join(os.path.split(
+            os.path.abspath(__file__))[0], "cuda",
+            self.__CU_FILENAME), "rt", encoding="utf-8").read()
+        self._func = {}
+
+        source = ""
+        for dtype in dolphin.dtype:
+            source += Template(self._cuda_source).render(
+                dtype=dtype.cuda_dtype)
+
+        compiled_source = SourceModule(source)
+
+        for dtype in dolphin.dtype:
+            self._func[dtype.cuda_dtype] = compiled_source.get_function(self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare(
+                "P" + numpy.dtype(dtype.numpy_dtype).char + "I")
+
+    def __call__(self,
+                 array: dolphin.darray,
+                 value: Union[int, float, numpy.number],
+                 size: numpy.uint32,
+                 block: tuple,
+                 grid: tuple,
+                 stream: cuda.Stream = None):
+
+        self._func[array.dtype.cuda_dtype].prepared_async_call(
+            grid,
+            block,
+            stream,
+            array.allocation,
+            value,
+            numpy.uint32(size))
 
 
 class AXpBZ(dolphin.CudaBase):
@@ -365,10 +406,11 @@ class EltwiseAbs(dolphin.CudaBase):
 
         for dtype in dolphin.dtype:
             self._func[dtype.cuda_dtype] = compiled_source.get_function(
-                self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare("PI")
+                self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare("PPI")
 
     def __call__(self,
                  x_array: dolphin.darray,
+                 z_array: dolphin.darray,
                  size: numpy.uint32,
                  block: tuple,
                  grid: tuple,
@@ -379,6 +421,7 @@ class EltwiseAbs(dolphin.CudaBase):
             block,
             stream,
             x_array.allocation,
+            z_array.allocation,
             numpy.uint32(size))
 
 
@@ -427,21 +470,6 @@ class Transpose(dolphin.CudaBase):
             numpy.uint32(size))
 
 
-def Stream(flags: cuda.event_flags = 0):
-    """Wraps PyCUDA's Stream class in order not to expose the PyCUDA module,
-    for the sake of clarity.
-    Please refer to the official PyCUDA documentation for more information.
-    https://documen.tician.de/pycuda/driver.html#pycuda.driver.Stream
-
-    :param flags: Flag, defaults to 0
-    :type flags: cuda.event_flags, optional
-    :return: pycuda.driver.Stream object
-    :rtype: pycuda.driver.Stream
-    """
-
-    return cuda.Stream(flags)
-
-
 CU_AXPBZ = AXpBZ()
 CU_AXPBYZ = AXpBYZ()
 CU_ELTWISE_MULT = EltwiseMult()
@@ -451,3 +479,4 @@ CU_SCAL_DIV = ScalDiv()
 CU_ELTWISE_CAST = EltWiseCast()
 CU_ELTWISE_ABS = EltwiseAbs()
 CU_TRANSPOSE = Transpose()
+CU_FILL = CuFill()

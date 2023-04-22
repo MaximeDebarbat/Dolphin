@@ -1,7 +1,6 @@
 
 from dolphin import dtype
 
-import pycuda.autoinit
 import pycuda.driver as cuda
 import tensorrt as trt
 
