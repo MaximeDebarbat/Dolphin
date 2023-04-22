@@ -41,7 +41,9 @@ REQUIRED = [
     "pytools==2022.1.14",
     "tomli==2.0.1",
     "tqdm==4.65.0",
-    "typing_extensions==4.4.0"
+    "typing_extensions==4.4.0",
+    "pytest==7.3.1",
+    "gdown==4.7.1"
 ]
 
 try:
