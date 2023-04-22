@@ -1,2 +1,2 @@
-from TrtWrapper.utils import *
-from TrtWrapper.Engine import Engine
+from .utils import *
+from .Engine import Engine

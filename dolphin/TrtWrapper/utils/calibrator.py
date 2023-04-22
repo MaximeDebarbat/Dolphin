@@ -237,23 +237,3 @@ class IInt8MinMaxCalibrator(CalibratorBase, trt.IInt8MinMaxCalibrator):
     def __init__(self, cache_file: str, logger: TrtLogger):
         trt.IInt8MinMaxCalibrator.__init__(self)
         CalibratorBase.__init__(self, cache_file, logger)
-
-
-if __name__ == "__main__":
-
-    print(f"TensorRT version: {trt.__version__}")
-    print("Instanciating calibrators...")
-
-    legacy_calibrator = IInt8LegacyCalibrator(cache_file=None,
-                                              logger=TrtLogger())
-    minmax_calibrator = IInt8MinMaxCalibrator(cache_file=None,
-                                              logger=TrtLogger())
-    entropy_calibrator = IInt8EntropyCalibrator(cache_file=None,
-                                                logger=TrtLogger())
-    entropy2_calibrator = IInt8EntropyCalibrator2(cache_file=None,
-                                                  logger=TrtLogger())
-
-    print(f"Instanciated calibrator {legacy_calibrator.__class__.__name__}")
-    print(f"Instanciated calibrator {minmax_calibrator.__class__.__name__}")
-    print(f"Instanciated calibrator {entropy_calibrator.__class__.__name__}")
-    print(f"Instanciated calibrator {entropy2_calibrator.__class__.__name__}")

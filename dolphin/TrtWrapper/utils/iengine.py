@@ -5,9 +5,7 @@ import tensorrt as trt
 
 from .logger import TrtLogger
 
-sys.path.append("../..")
-
-from CudaUtils import CudaTrtBuffers
+from dolphin import CudaTrtBuffers
 
 class IEngine:
     """_summary_

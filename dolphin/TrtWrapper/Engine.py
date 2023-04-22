@@ -4,26 +4,22 @@
 import os
 import sys
 import onnx
-import time
-from typing import Dict
+from typing import Dict, Union
 import tensorrt as trt
-import numpy as np
-import pycuda.autoinit
 import pycuda.driver as cuda
 
 from .utils import TrtLogger
 from .utils import EEngine, IEngine
 
-sys.path.append("..")
-
-from CudaUtils import CudaTrtBuffers, CudaBinding
+from dolphin import CudaTrtBuffers, darray
+import dolphin
 
 
 class Engine(EEngine, IEngine):
     """_summary_
     """
 
-    def __init__(self, onnx_file_path: str,
+    def __init__(self, onnx_file_path: str = None,
                  engine_path: str = None,
                  mode: str = "fp16",
                  optimisation_profile=None,
@@ -93,9 +89,11 @@ Check the logs for more details.")
                 buffer.allocate_input(name=binding,
                                       shape=shape[1:],
                                       buffer_size=shape[0],
-                                      dtype=trt.nptype(dtype))
+                                      dtype=dolphin.dtype.from_numpy_dtype(trt.nptype(dtype)))
             else:
-                buffer.allocate_output(binding, shape, trt.nptype(dtype))
+                buffer.allocate_output(binding,
+                                       shape,
+                                       dolphin.dtype.from_numpy_dtype(trt.nptype(dtype)))
         return buffer
 
     def load_engine(self, engine_file_path: str,
@@ -186,13 +184,6 @@ Check the logs for more details.")
                                     mode,
                                     max_workspace_size)
 
-    def __del__(self):
-        try:
-            del self.engine
-            del self.buffers
-        except RuntimeError as error:
-            print(f"Encountered error while deleting Engine: {error}")
-
     def do_inference(self, stream: cuda.Stream = None) -> None:
         """_summary_
 
@@ -206,32 +197,34 @@ Check the logs for more details.")
         else:
             self.context.execute_v2(bindings=self.buffers.bindings)
 
-    def infer(self, inputs: Dict[str, CudaBinding],
+    def infer(self, inputs: Dict[str, darray],
               batched_input: bool = False,
               force_infer: bool = False,
-              stream: cuda.Stream = None) -> CudaBinding:
+              stream: cuda.Stream = None) -> Union[darray, None]:
         """_summary_
 
         :param inputs: _description_
-        :type inputs: Dict[str, CudaBinding]
+        :type inputs: Dict[str, darray]
         :param batched_input: _description_, defaults to False
         :type batched_input: bool, optional
         :param stream: _description_, defaults to None
         :type stream: cuda.Stream, optional
         :return: _description_
-        :rtype: CudaBinding
+        :rtype: darray
         """
 
         for name in inputs.keys():
             if batched_input:
-                self.buffers.append_multiple_input(name, inputs[name], stream)
+                self.buffers.append_multiple_input(name, inputs[name])
             else:
-                self.buffers.append_one_input(name, inputs[name], stream)
+                self.buffers.append_one_input(name, inputs[name])
 
         if self.buffers.full or force_infer:
             self.do_inference(stream)
-            self.buffers.output_d2h(stream)
-            self.buffers.flush(stream=stream)
+            self.buffers.flush()
+            return self.output
+
+        return None
 
     @property
     def output(self) -> dict:
@@ -277,42 +270,3 @@ Check the logs for more details.")
         :rtype: dict
         """
         return self.buffers.output_dtype
-
-
-if __name__ == "__main__":
-
-    n_iter = int(1e4)
-    stream = cuda.Stream()
-
-    static_model = onnx.load("model_static_shape.onnx")
-    dynamic_model = onnx.load("model_dynamic_shape.onnx")
-
-    static_engine = Engine(onnx_file_path="model_static_shape.onnx",
-                           engine_path="model_static_shape.trt",
-                           mode="fp16")
-
-    dynamic_engine = Engine(onnx_file_path="model_dynamic_shape.onnx",
-                            engine_path="model_dynamic_shape.trt",
-                            mode="fp16",
-                            optimisation_profile=[1, 3, 224, 224])
-
-    dummy = np.random.rand(*static_model.input_shape["input"]).astype(
-        static_model.input_dtype["input"])
-
-    input_binding = CudaBinding()
-    input_binding.allocate(shape=static_model.input_shape["input"],
-                           dtype=static_model.input_dtype["input"])
-    input_binding.write(dummy)
-    input_binding.h2d(stream)
-
-    t1 = time.time()
-    for _ in range(n_iter):
-        static_engine.infer({"input": input_binding}, stream=stream)
-    print(f"Static engine: {1000/(time.time() - t1)/n_iter}ms/iter \
-over {n_iter} iter")
-
-    t1 = time.time()
-    for _ in range(n_iter):
-        dynamic_engine.infer({"input": input_binding}, stream=stream)
-    print(f"Static engine: {1000/(time.time() - t1)/n_iter}ms/iter \
-over {n_iter} iter")
