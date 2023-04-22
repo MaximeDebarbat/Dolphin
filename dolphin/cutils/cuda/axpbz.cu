@@ -7,9 +7,7 @@ __global__ void axpbz_{{ dtype }}({{ dtype }} *x,
                                   {{ dtype }} b,
                                   uint32_t n){
 
-    uint32_t i = blockIdx.x * blockDim.x + threadIdx.x;
-
-    if (i < n) {
+    for(uint32_t i = blockIdx.x * blockDim.x + threadIdx.x; i < n; i += blockDim.x * gridDim.x){
         z[i] = a*x[i] + b;
     }
 }
