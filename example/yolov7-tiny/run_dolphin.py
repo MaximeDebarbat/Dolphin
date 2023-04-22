@@ -63,10 +63,9 @@ def run(args: argparse.Namespace):
 
         # 2. We perform letterbox resize
 
-        _, r, dwdh = dp.resize(src=transposed_frame,
-                               shape=(640, 640),
-                               dst=resized_frame,
-                               resize_type=dp.DOLPHIN_PADDED)
+        _, r, dwdh = dp.resize_padding(src=transposed_frame,
+                                       shape=(640, 640),
+                                       dst=resized_frame)
 
         # 3. We swap the channels
 
