@@ -98,6 +98,7 @@ from .core.dimage import (dimage,
                           dimage_resize_type,
                           dimage_normalize_type,
                           resize,
+                          resize_padding,
                           cvtColor,
                           normalize)
 from .cutils import cudarray, cudimage
