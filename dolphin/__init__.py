@@ -23,7 +23,7 @@ although there exist some bindings and functions to convert them to
 Sample usage::
 
   import dolphin as dp
-  cuda_array = dp.zeros((10, 10), dtype=dp.dtype.float32)
+  cuda_array = dp.zeros((10, 10), dtype=dp.float32)
   cuda_array += 255
   print(cuda_array)
 
@@ -32,7 +32,7 @@ Also, dolphin provides a set of functions to manipulate `dolphin.darray`::
   import dolphin as dp
   np_array = np.random.rand(10, 10)
   stream = dp.Stream()
-  cuda_array = dp.darray(numpy, dtype=dp.dtype.float32)
+  cuda_array = dp.darray(numpy, dtype=dp.float32)
   cuda_array = dp.add(cuda_array, 255)
 
 - Optimization note
@@ -42,14 +42,14 @@ A really important part of the optimization of the code regarding
 already allocated memory and dolphin darray functions::
 
   import dolphin as dp
-  cuda_array = dp.zeros((10, 10), dtype=dp.dtype.float32)
+  cuda_array = dp.zeros((10, 10), dtype=dp.float32)
   cuda_array = (cuda_array.transpose(1, 0)*50)*cuda_array
 
 Is not going to be as efficient (at least in terms of latency)
 as the following code::
 
   import dolphin as dp
-  cuda_array = dp.zeros((10, 10), dtype=dp.dtype.float32)
+  cuda_array = dp.zeros((10, 10), dtype=dp.float32)
   cuda_array_result = dp.zeros_like(cuda_array)
   dp.transpose((1, 0), cuda_array, cuda_array_result)
   dp.multiply(50, cuda_array_result, cuda_array_result)
@@ -68,8 +68,11 @@ debarbat.maxime@gmail.com
 https://www.linkedin.com/in/mdebarbat/
 """
 
+import pycuda.autoinit
+import pycuda.driver as cuda  # pylint: disable=import-error
 
 from .cutils.cuda_base import CudaBase
+from .cutils.cuda_base_new import CudaBaseNew
 from .core.dtype import dtype
 from .core.darray import (
     darray,
@@ -83,14 +86,43 @@ from .core.darray import (
     reversed_divide,
     substract,
     reversed_substract,
-    ones
+    ones,
+    ones_like,
+    empty_like,
+    absolute,
+    abs
 )
 from .core.dimage import (dimage,
                           dimage_dim_format,
                           dimage_channel_format,
                           dimage_resize_type,
-                          dimage_normalize_type)
-from .cutils.bindings import CudaBinding
+                          dimage_normalize_type,
+                          resize,
+                          cvtColor,
+                          normalize)
 from .cutils import cudarray, cudimage
-from .cutils.cudarray import Stream
-#from .TrtWrapper.Engine import Engine
+from .core.bufferizer import Bufferizer
+from .core.trtbuffer import CudaTrtBuffers
+from .cutils.bindings import CudaBinding
+from .TrtWrapper.Engine import Engine
+
+globals().update(dimage_dim_format.__members__)
+globals().update(dimage_channel_format.__members__)
+globals().update(dimage_resize_type.__members__)
+globals().update(dimage_normalize_type.__members__)
+globals().update(dtype.__members__)
+
+
+def Stream(flags: cuda.event_flags = 0):
+    """Wraps PyCUDA's Stream class in order not to expose the PyCUDA module,
+    for the sake of clarity.
+    Please refer to the official PyCUDA documentation for more information.
+    https://documen.tician.de/pycuda/driver.html#pycuda.driver.Stream
+
+    :param flags: Flag, defaults to 0
+    :type flags: cuda.event_flags, optional
+    :return: pycuda.driver.Stream object
+    :rtype: pycuda.driver.Stream
+    """
+
+    return cuda.Stream(flags)
