@@ -305,7 +305,7 @@ by using the `force_infer` argument of the `Engine.infer()` method.
 If the TensorRT engine does not exist, it will be created from the onnx model,
 if it exists, it will be loaded.
 
-You can refer to the [Yolov7-tiny example using dolphin](https://github.com/MaximeDebarbat/Dolphin/example/yolov7-tiny/run_dolphin.py) for a better understanding of how to use `Engine`.
+You can refer to the [Yolov7-tiny example using dolphin](https://github.com/MaximeDebarbat/Dolphin/blob/main/example/yolov7-tiny/run_dolphin.py) for a better understanding of how to use `Engine`.
 
 ## Optimization
 
