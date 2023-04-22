@@ -43,7 +43,8 @@ REQUIRED = [
     "tqdm==4.65.0",
     "typing_extensions==4.4.0",
     "pytest==7.3.1",
-    "gdown==4.7.1"
+    "gdown==4.7.1",
+    "onnxruntime-gpu==1.10.0",
 ]
 
 try:
