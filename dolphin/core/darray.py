@@ -1,6 +1,65 @@
+"""
+# darray
+
+This module implements the `darray` class.
+`darray` is a generic numpy style array that can be used
+with the `dolphin` library. It implements common features
+such as `astype`, `transpose`, `copy`...
+
+Along `darray` class, this module also implements wrappers
+to use `darray` operations directly from the `dolphin` module
+in a numpy style.
+
+## darray class
+
+Main class for array operations. You can find more information about
+this class in the `darray` class documentation directly. To use it,
+you can simply import it with::
+
+    import numpy as np
+    import dolphin as dp
+
+    a = np.random.rand(10, 10)
+    d = dp.darray(a)
+
+    d+=10
+    e = d.astype(dp.dtype.float32)
+    ...
+
+## Wrappers
+
+The purpose of the wrappers is to provide a simple and fast way to perform
+Numpy style operations on `darray` objects.
+
+These operations are as follow:
+- transpose
+- astype
+- copy
+- add
+- subtract
+- multiply
+- divide
+- reversed_divide
+- reversed_subtract
+- zeros
+- zeros_like
+- ones
+- ones_like
+- empty
+- empty_like
+
+It is important to note that if you want to perform operations in
+an efficient way, you should allocate the destination before calling the
+functions.
+Creation functions and methods do not allow to specify the destination. Thus,
+they are not efficient and thus have to be called with caution and if possible,
+only once.
+"""
+
 
 import math
 import time
+from typing import Union
 
 import pycuda.driver as cuda  # pylint: disable=import-error
 import tensorrt as trt  # pylint: disable=import-error
@@ -9,9 +68,72 @@ import numpy
 import dolphin
 
 
-class darray(dolphin.CudaBase):
+class darray(dolphin.CudaBaseNew):
     """
-    test
+    ## darray
+
+    This class implements a generic numpy style array that can be used
+    with the `dolphin` library. It implements common features available
+    with numpy arrays such as `astype`, `transpose`, `copy`...
+
+    ### Constructor
+
+    `darray` constructor can be created with the following parameters::
+        array: numpy.ndarray = None
+        shape: tuple = None
+        dtype: dolphin.dtype = None
+        stream: cuda.Stream = None
+        allocation: cuda.DeviceAllocation = None
+
+    ### Overview
+
+    `darray` is made with the same philosophy as `numpy.ndarray`. The usability
+    is really close to numpy arrays. However, `darray` is meant to be much more
+    performant than `numpy.ndarray` since it is GPU accelerated.
+
+    ### Proporties
+
+    `darray` has the following proporties::
+
+        strides: tuple
+            Strides of the array
+        shape: tuple
+            Shape of the array
+        dtype: dolphin.dtype
+            Dtype of the array
+        size: int
+            Number of elements in the array
+        nbytes: int
+            Number of bytes in the array
+        stream: cuda.Stream
+            Stream used for the operations
+        allocation: cuda.DeviceAllocation
+            Allocation of the array on the device
+
+    ### Methods
+
+    The methods `darray` currently supports are::
+
+        from_ndarray(array: numpy.ndarray) -> None
+            Creates a darray from a numpy array.
+        astype(dtype: dolphin.dtype, dst: 'darray' = None) -> 'darray'
+            Casts the array to a new dtype.
+        transpose(*axes: int, dst: 'darray' = None) -> 'darray'
+            Transposes the array.
+        copy() -> 'darray'
+            Copies the array.
+        add(other: 'darray', dst: 'darray' = None) -> 'darray'
+            Adds the array to another array or a scalar.
+        subtract(other: 'darray', dst: 'darray' = None) -> 'darray'
+            Subtracts the array to another array or a scalar.
+        multiply(other: 'darray', dst: 'darray' = None) -> 'darray'
+            Multiplies the array to another array or a scalar.
+        divide(other: 'darray', dst: 'darray' = None) -> 'darray'
+            Divides the array to another array or a scalar.
+        reversed_divide(other: 'darray', dst: 'darray' = None) -> 'darray'
+            Divides another array or a scalar to the array.
+        reversed_subtract(other: 'darray', dst: 'darray' = None) -> 'darray'
+            Subtracts another array or a scalar to the array.
     """
 
     def __init__(self,
@@ -19,9 +141,10 @@ class darray(dolphin.CudaBase):
                  shape: tuple = None,
                  dtype: dolphin.dtype = None,
                  stream: cuda.Stream = None,
+                 allocation: cuda.DeviceAllocation = None
                  ) -> None:
 
-        super(darray, self).__init__()
+        super().__init__()
 
         if array is not None:
             dtype = dolphin.dtype.from_numpy_dtype(array.dtype)
@@ -33,15 +156,20 @@ class darray(dolphin.CudaBase):
         self._size: int = trt.volume(self._shape)
         self._nbytes: int = int(self._size * self._dtype.itemsize)
 
-        self._allocation: cuda.DeviceAllocation = cuda.mem_alloc(self._nbytes)
+        if allocation is not None:
+            self._allocation: cuda.DeviceAllocation = allocation
+        else:
+            self._allocation: cuda.DeviceAllocation = cuda.mem_alloc(self._nbytes)
 
         if array is not None:
             cuda.memcpy_htod_async(self._allocation,
                                    array,
                                    self._stream)
 
-        self._block = (int(min(self.MAX_THREADS_PER_BLOCKS, self._size)), 1, 1)
-        self._grid = (int(math.ceil(self._size / self._block[0])), 1)
+        # self._block = (int(min(self.MAX_THREADS_PER_BLOCKS, self._size)), 1, 1) # LEADS TO 0.17ms of timing
+        # self._grid = (int(math.ceil(self._size / self._block[0])), 1) # LEADS TO 0.17ms of timing
+
+        self._block, self._grid = self.GET_BLOCK_GRID_1D(self._size)
 
         self._cu_axpbz = dolphin.cudarray.CU_AXPBZ
         self._cu_axpbyz = dolphin.cudarray.CU_AXPBYZ
@@ -52,6 +180,7 @@ class darray(dolphin.CudaBase):
         self._cu_eltwise_cast = dolphin.cudarray.CU_ELTWISE_CAST
         self._cu_eltwise_abs = dolphin.cudarray.CU_ELTWISE_ABS
         self._cu_transpose = dolphin.cudarray.CU_TRANSPOSE
+        self._cu_fill = dolphin.cudarray.CU_FILL
 
     @staticmethod
     def compute_strides(shape: tuple) -> tuple:
@@ -67,19 +196,33 @@ class darray(dolphin.CudaBase):
         if shape:
             strides = [1]
             for s in shape[:0:-1]:
-                strides.append(strides[-1]*max(1, s))
+                strides.append(strides[-1] * max(1, s))
             return tuple(strides[::-1])
-        else:
-            return ()
+
+        return ()
 
     def from_ndarray(self, array: numpy.ndarray) -> None:
-        """Creates a darray from a numpy array.
+        """Writes allocation from a numpy array.
+        If the array is not the same shape or dtype as the darray,
+        an error is raised.
 
         :param array: Numpy array create the darray from
         :type array: numpy.ndarray
         """
 
-        self.__init__(array=array, stream=self._stream)
+        if array.shape != self._shape:
+            raise ValueError(
+                f"array shape doesn't match darray : {array.shape} \
+                    != {self.shape}")
+
+        if dolphin.dtype.from_numpy_dtype(array.dtype) != self._dtype:
+            raise ValueError(
+                f"array does not match the dtype : {array.dtype} \
+                    != {self.dtype}")
+
+        cuda.memcpy_htod_async(self._allocation,
+                               array.flatten(order="C"),
+                               self._stream)
 
     def astype(self, dtype: dolphin.dtype,
                dst: 'darray' = None) -> 'darray':
@@ -90,14 +233,23 @@ class darray(dolphin.CudaBase):
         :type dtype: dolphin.dtype
         """
 
+        if dst is not None and self._shape != dst.shape:
+            raise ValueError(
+                f"dst shape doesn't match darray : {self.shape} != {dst.shape}")
+
         if dst is not None and dtype != dst.dtype:
-            raise ValueError("dst dtype doesn't match")
+            raise ValueError(
+                f"dst does not match the dtype : {self.dtype} != {dst.dtype}")
 
         if dtype == self._dtype:
             if dst is None:
                 return self.copy()
-            else:
-                return dst
+
+            cuda.memcpy_dtod_async(dst.allocation,
+                                   self._allocation,
+                                   self._nbytes,
+                                   self._stream)
+            return dst
 
         if dst is None:
             dst = self.__class__(shape=self._shape,
@@ -183,7 +335,7 @@ class darray(dolphin.CudaBase):
                              dtype=self._dtype,
                              stream=self._stream)
 
-        cuda.memcpy_dtod_async(res._allocation,
+        cuda.memcpy_dtod_async(res.allocation,
                                self._allocation,
                                self._nbytes,
                                stream=self._stream)
@@ -269,6 +421,24 @@ class darray(dolphin.CudaBase):
         """
         return self._stream
 
+    @property
+    def T(self) -> 'darray':
+        """Performs a transpose operation on the darray.
+        This transpose reverse the order of the axes::
+
+            >>> a = darray(shape=(2, 3, 4))
+            >>> a.T.shape
+            (4, 3, 2)
+
+        Also, please note that this function is not efficient as
+        it performs a copy of the `darray`.
+
+        :return: Transposed darray
+        :rtype: darray
+        """
+
+        return self.transpose(*self._shape[::-1])
+
     @stream.setter
     def stream(self, stream: cuda.Stream) -> None:
         """Sets the stream of the darray.
@@ -316,6 +486,29 @@ class darray(dolphin.CudaBase):
         """
         return self.ndarray.__repr__()  # pylint: disable=E1120
 
+    def fill(self, value: Union[int, float, numpy.number]) -> 'darray':
+        """
+        Fills the darray with the value of value.
+
+        :param value: Value to fill the array with
+        :type value: object
+        :return: Filled darray
+        :rtype: darray
+        """
+
+        if not isinstance(value, (numpy.number, int, float)):
+
+            raise ValueError("Only scalar values are supported")
+
+        self._cu_fill(self,
+                      value,
+                      self._size,
+                      self._block,
+                      self._grid,
+                      self._stream)
+
+        return self
+
     def add(self, other: object,
             dst: 'darray' = None) -> 'darray':
         """Efficient addition of a darray with another object.
@@ -335,7 +528,7 @@ class darray(dolphin.CudaBase):
         :rtype: darray
         """
         if dst is None:
-            return self + other
+            dst = self.copy()
 
         if dst.nbytes != self._nbytes:
             raise ValueError(f"Size mismatch : \
@@ -347,10 +540,7 @@ class darray(dolphin.CudaBase):
             raise ValueError(f"Shape mismatch : \
 {dst.shape} != {self._shape}")
 
-        if isinstance(other, int) or isinstance(other, float) or \
-            (isinstance(other, numpy.ndarray) and
-             other.shape == () and
-             numpy.issubdtype(other.dtype, numpy.number)):
+        if isinstance(other, (numpy.number, int, float)):
             if other == 0:
                 cuda.memcpy_dtod_async(dst.allocation,
                                        self._allocation,
@@ -358,14 +548,15 @@ class darray(dolphin.CudaBase):
                                        self._stream)
             else:
                 self._cu_axpbz(
-                            x_array=self,
-                            z_array=dst,
-                            a_scalar=1,
-                            b_scalar=other,
-                            size=self._size,
-                            block=self._block,
-                            grid=self._grid,
-                            stream=self._stream)
+                    x_array=self,
+                    z_array=dst,
+                    a_scalar=1,
+                    b_scalar=other,
+                    size=self._size,
+                    block=self._block,
+                    grid=self._grid,
+                    stream=self._stream)
+
         elif isinstance(other, darray):
             if other.shape != self._shape:
                 raise ValueError(f"Shape mismatch : \
@@ -374,17 +565,19 @@ class darray(dolphin.CudaBase):
                 raise ValueError(f"Type mismatch : \
 {other.dtype} != {self._dtype}")
             self._cu_axpbyz(
-                            x_array=self,
-                            y_array=other,
-                            z_array=dst,
-                            a_scalar=1,
-                            b_scalar=1,
-                            size=self._size,
-                            block=self._block,
-                            grid=self._grid,
-                            stream=self._stream)
+                x_array=self,
+                y_array=other,
+                z_array=dst,
+                a_scalar=1,
+                b_scalar=1,
+                size=self._size,
+                block=self._block,
+                grid=self._grid,
+                stream=self._stream)
         else:
-            raise TypeError(f"unsupported operand type(s) for +: '{type(self)}' and '{type(other)}'")
+            raise TypeError(
+                f"unsupported operand type(s) for +: '{type(self)}' \
+                    and '{type(other)}'")
 
         return dst
 
@@ -402,52 +595,7 @@ class darray(dolphin.CudaBase):
         :rtype: darray
         """
 
-        if isinstance(other, int) or isinstance(other, float) or \
-           (isinstance(other, numpy.ndarray) and
-           other.shape == () and
-           numpy.issubdtype(other.dtype, numpy.number)):
-
-            if other == 0:
-                return self.copy()
-            else:
-
-                result = self.copy()
-
-                self._cu_axpbz(
-                            x_array=self,
-                            z_array=result,
-                            a_scalar=1,
-                            b_scalar=other,
-                            size=self._size,
-                            block=self._block,
-                            grid=self._grid,
-                            stream=self._stream)
-            return result
-
-        elif isinstance(other, darray):
-
-            if other.shape != self._shape:
-                raise ValueError(f"Shape mismatch : \
-{other.shape} != {self._shape}")
-            if other.dtype != self._dtype:
-                raise ValueError(f"Type mismatch : \
-{other.dtype} != {self._dtype}")
-
-            result = self.copy()
-            self._cu_axpbyz(
-                            x_array=self,
-                            y_array=other,
-                            z_array=result,
-                            a_scalar=1,
-                            b_scalar=1,
-                            size=self._size,
-                            block=self._block,
-                            grid=self._grid,
-                            stream=self._stream)
-            return result
-
-        else:
-            raise TypeError(f"unsupported operand type(s) for +: '{type(self)}' and '{type(other)}'")
+        return self.add(other)
 
     __radd__ = __add__  # object + array
 
@@ -464,49 +612,7 @@ class darray(dolphin.CudaBase):
         :rtype: darray
         """
 
-        if isinstance(other, int) or isinstance(other, float) or \
-           (isinstance(other, numpy.ndarray) and
-           other.shape == () and
-           numpy.issubdtype(other.dtype, numpy.number)):
-
-            if other == 0:
-                return self
-            else:
-
-                self._cu_axpbz(
-                            x_array=self,
-                            z_array=self,
-                            a_scalar=1,
-                            b_scalar=other,
-                            size=self._size,
-                            block=self._block,
-                            grid=self._grid,
-                            stream=self._stream)
-            return self
-
-        elif isinstance(other, darray):
-
-            if other.shape != self._shape:
-                raise ValueError(f"Shape mismatch : \
-{other.shape} != {self._shape}")
-            if other.dtype != self._dtype:
-                raise ValueError(f"Type mismatch : \
-{other.dtype} != {self._dtype}")
-
-            self._cu_axpbyz(
-                            x_array=self,
-                            y_array=other,
-                            z_array=self,
-                            a_scalar=1,
-                            b_scalar=1,
-                            size=self._size,
-                            block=self._block,
-                            grid=self._grid,
-                            stream=self._stream)
-            return self
-
-        else:
-            raise TypeError(f"unsupported operand type(s) for +: '{type(self)}' and '{type(other)}'")
+        return self.add(other, self)
 
     def substract(self, other: object,
                   dst: 'darray' = None) -> 'darray':
@@ -521,7 +627,7 @@ class darray(dolphin.CudaBase):
         :rtype: darray
         """
         if dst is None:
-            return self - other
+            dst = self.copy()
 
         if dst.nbytes != self._nbytes:
             raise ValueError(f"Size mismatch : \
@@ -533,10 +639,7 @@ class darray(dolphin.CudaBase):
             raise ValueError(f"Shape mismatch : \
 {dst.shape} != {self._shape}")
 
-        if isinstance(other, int) or isinstance(other, float) or \
-            (isinstance(other, numpy.ndarray) and
-             other.shape == () and
-             numpy.issubdtype(other.dtype, numpy.number)):
+        if isinstance(other, (numpy.number, int, float)):
             if other == 0:
                 cuda.memcpy_dtod_async(dst.allocation,
                                        self._allocation,
@@ -544,14 +647,14 @@ class darray(dolphin.CudaBase):
                                        self._stream)
             else:
                 self._cu_axpbz(
-                            x_array=self,
-                            z_array=dst,
-                            a_scalar=1,
-                            b_scalar=-other,
-                            size=self._size,
-                            block=self._block,
-                            grid=self._grid,
-                            stream=self._stream)
+                    x_array=self,
+                    z_array=dst,
+                    a_scalar=1,
+                    b_scalar=-other,
+                    size=self._size,
+                    block=self._block,
+                    grid=self._grid,
+                    stream=self._stream)
         elif isinstance(other, darray):
             if other.shape != self._shape:
                 raise ValueError(f"Shape mismatch : \
@@ -560,17 +663,19 @@ class darray(dolphin.CudaBase):
                 raise ValueError(f"Type mismatch : \
 {other.dtype} != {self._dtype}")
             self._cu_axpbyz(
-                            x_array=self,
-                            y_array=other,
-                            z_array=dst,
-                            a_scalar=1,
-                            b_scalar=-1,
-                            size=self._size,
-                            block=self._block,
-                            grid=self._grid,
-                            stream=self._stream)
+                x_array=self,
+                y_array=other,
+                z_array=dst,
+                a_scalar=1,
+                b_scalar=-1,
+                size=self._size,
+                block=self._block,
+                grid=self._grid,
+                stream=self._stream)
         else:
-            raise TypeError(f"unsupported operand type(s) for -: '{type(self)}' and '{type(other)}'")
+            raise TypeError(
+                f"unsupported operand type(s) for -: '{type(self)}' \
+                    and '{type(other)}'")
 
         return dst
 
@@ -589,48 +694,8 @@ class darray(dolphin.CudaBase):
         :return: A copy of the darray where the result is written
         :rtype: darray
         """
-        if isinstance(other, int) or isinstance(other, float) or \
-           (isinstance(other, numpy.ndarray) and
-           other.shape == () and
-           numpy.issubdtype(other.dtype, numpy.number)):
 
-            if other == 0:
-                return self.copy()
-
-            result = self.copy()
-            self._cu_axpbz(
-                        x_array=self,
-                        z_array=result,
-                        a_scalar=1,
-                        b_scalar=-other,
-                        size=self._size,
-                        block=self._block,
-                        grid=self._grid,
-                        stream=self._stream)
-            return result
-
-        elif type(other) == type(self):
-
-            if other.shape != self._shape:
-                raise ValueError(f"Shape mismatch : {other.shape} != {self.shape}")
-            if other.dtype != self._dtype:
-                raise ValueError(f"Type mismatch : {other.dtype} != {self.dtype}")
-
-            result = self.copy()
-            self._cu_axpbyz(
-                            x_array=self,
-                            y_array=other,
-                            z_array=result,
-                            a_scalar=1,
-                            b_scalar=-1,
-                            size=self._size,
-                            block=self._block,
-                            grid=self._grid,
-                            stream=self._stream)
-            return result
-
-        else:
-            raise TypeError(f"unsupported operand type(s) for -: '{type(self)}' and '{type(other)}'")
+        return self.substract(other)
 
     def reversed_substract(self, other: object,
                            dst: 'darray' = None) -> 'darray':
@@ -648,21 +713,18 @@ class darray(dolphin.CudaBase):
         :rtype: darray
         """
         if dst is None:
-            return self.__rsub__(other)
+            dst = self.copy()
 
-        if isinstance(other, int) or isinstance(other, float) or \
-           (isinstance(other, numpy.ndarray) and
-           other.shape == () and
-           numpy.issubdtype(other.dtype, numpy.number)):
+        if isinstance(other, (numpy.number, int, float)):
             self._cu_axpbz(
-                        x_array=self,
-                        z_array=dst,
-                        a_scalar=-1,
-                        b_scalar=other,
-                        size=self._size,
-                        block=self._block,
-                        grid=self._grid,
-                        stream=self._stream)
+                x_array=self,
+                z_array=dst,
+                a_scalar=-1,
+                b_scalar=other,
+                size=self._size,
+                block=self._block,
+                grid=self._grid,
+                stream=self._stream)
         elif isinstance(other, darray):
             if other.shape != self._shape:
                 raise ValueError(f"Shape mismatch : \
@@ -671,15 +733,15 @@ class darray(dolphin.CudaBase):
                 raise ValueError(f"Type mismatch : \
 {other.dtype} != {self._dtype}")
             self._cu_axpbyz(
-                            x_array=self,
-                            y_array=other,
-                            z_array=dst,
-                            a_scalar=-1,
-                            b_scalar=1,
-                            size=self._size,
-                            block=self._block,
-                            grid=self._grid,
-                            stream=self._stream)
+                x_array=self,
+                y_array=other,
+                z_array=dst,
+                a_scalar=-1,
+                b_scalar=1,
+                size=self._size,
+                block=self._block,
+                grid=self._grid,
+                stream=self._stream)
 
         else:
             raise TypeError(f"unsupported operand type(s) for -: \
@@ -699,49 +761,7 @@ class darray(dolphin.CudaBase):
         :return: A copy of the darray where the result is written
         :rtype: darray
         """
-        if isinstance(other, int) or isinstance(other, float) or \
-           (isinstance(other, numpy.ndarray) and
-           other.shape == () and
-           numpy.issubdtype(other.dtype, numpy.number)):
-
-            result = self.copy()
-            self._cu_axpbz(
-                        x_array=self,
-                        z_array=result,
-                        a_scalar=-1,
-                        b_scalar=other,
-                        size=self._size,
-                        block=self._block,
-                        grid=self._grid,
-                        stream=self._stream)
-
-            return result
-
-        elif isinstance(other, darray):
-
-            if other.shape != self._shape:
-                raise ValueError(f"Shape mismatch : \
-{other.shape} != {self._shape}")
-            if other.dtype != self._dtype:
-                raise ValueError(f"Type mismatch : \
-{other.dtype} != {self._dtype}")
-
-            result = self.copy()
-            self._cu_axpbyz(
-                            x_array=self,
-                            y_array=other,
-                            z_array=result,
-                            a_scalar=-1,
-                            b_scalar=1,
-                            size=self._size,
-                            block=self._block,
-                            grid=self._grid,
-                            stream=self._stream)
-            return result
-
-        else:
-            raise TypeError(f"unsupported operand type(s) for -: \
-'{type(self).__name__}' and '{type(other).__name__}'")
+        return self.reversed_substract(other)
 
     def __isub__(self, other: object) -> 'darray':  # array -= object
         """Non-Efficient -= operation.
@@ -756,52 +776,13 @@ class darray(dolphin.CudaBase):
         :return: A copy of the darray where the result is written
         :rtype: darray
         """
-        if isinstance(other, int) or isinstance(other, float) or \
-           (isinstance(other, numpy.ndarray) and
-           other.shape == () and
-           numpy.issubdtype(other.dtype, numpy.number)):
-
-            if other == 0:
-                return self
-
-            self._cu_axpbz(
-                        x_array=self,
-                        z_array=self,
-                        a_scalar=1,
-                        b_scalar=-other,
-                        size=self._size,
-                        block=self._block,
-                        grid=self._grid,
-                        stream=self._stream)
-            return self
-
-        elif type(other) == type(self):
-
-            if other.shape != self._shape:
-                raise ValueError(f"Shape mismatch : {other.shape} != {self.shape}")
-            if other.dtype != self._dtype:
-                raise ValueError(f"Type mismatch : {other.dtype} != {self.dtype}")
-
-            self._cu_axpbyz(
-                            x_array=self,
-                            y_array=other,
-                            z_array=self,
-                            a_scalar=1,
-                            b_scalar=-1,
-                            size=self._size,
-                            block=self._block,
-                            grid=self._grid,
-                            stream=self._stream)
-            return self
-
-        else:
-            raise TypeError(f"unsupported operand type(s) for -: '{type(self)}' and '{type(other)}'")
+        return self.substract(other, dst=self)
 
     def multiply(self, other: object,
                  dst: 'darray' = None) -> 'darray':  # array.multiply(object)
         """Efficient multiplication of a darray with another object.
         Can be a darray or a scalar. If dst is None, normal __add__
-        is called. Also this multiplication is efficient.
+        is called.
         This method is much more efficient than the __mul__ method
         because __mul__ implies a copy of the array.
         cuda.memalloc is really time consuming (up to 95% of the total
@@ -818,44 +799,46 @@ class darray(dolphin.CudaBase):
         if dst is None:
             return self * other
 
-        if isinstance(other, int) or isinstance(other, float) or \
-           (isinstance(other, numpy.ndarray) and
-           other.shape == () and
-           numpy.issubdtype(other.dtype, numpy.number)):
-
+        if isinstance(other, (numpy.number, int, float)):
             if other == 1:
                 cuda.memcpy_dtod_async(dst.allocation,
                                        self._allocation,
                                        self._nbytes,
                                        self._stream)
             self._cu_axpbz(
-                        x_array=self,
-                        z_array=dst,
-                        a_scalar=other,
-                        b_scalar=0,
-                        size=self._size,
-                        block=self._block,
-                        grid=self._grid,
-                        stream=self._stream)
+                x_array=self,
+                z_array=dst,
+                a_scalar=other,
+                b_scalar=0,
+                size=self._size,
+                block=self._block,
+                grid=self._grid,
+                stream=self._stream)
 
-        elif type(other) == type(self):
+        elif isinstance(other, type(self)):
 
             if other.shape != self._shape:
-                raise ValueError(f"Shape mismatch : {other.shape} != {self.shape}")
+                raise ValueError(
+                    f"Shape mismatch : {other.shape} != {self.shape}")
             if other.dtype != self._dtype:
-                raise ValueError(f"Type mismatch : {other.dtype} != {self.dtype}")
+                raise ValueError(
+                    f"Type mismatch : {other.dtype} != {self.dtype}")
 
             self._cu_eltwise_mult(
-                            x_array=self,
-                            y_array=other,
-                            z_array=dst,
-                            size=self._size,
-                            block=self._block,
-                            grid=self._grid,
-                            stream=self._stream)
+                x_array=self,
+                y_array=other,
+                z_array=dst,
+                size=self._size,
+                block=self._block,
+                grid=self._grid,
+                stream=self._stream)
         else:
-            raise TypeError(f"unsupported operand type(s) for *: '{type(self)}' and '{type(other)}'")
+            raise TypeError(
+                f"unsupported operand type(s) for *: '{type(self)}' \
+                    and '{type(other)}'")
         return dst
+
+    mul = multiply
 
     def __mul__(self, other: object) -> 'darray':  # array * object
         """Non-Efficient multiplication of a darray with another object.
@@ -871,47 +854,47 @@ class darray(dolphin.CudaBase):
         :return: The darray where the result is written
         :rtype: darray
         """
-        if isinstance(other, int) or isinstance(other, float) or \
-           (isinstance(other, numpy.ndarray) and
-           other.shape == () and
-           numpy.issubdtype(other.dtype, numpy.number)):
+        if isinstance(other, (numpy.number, int, float)):
 
             if other == 1:
                 return self.copy()
-            else:
 
-                result = self.copy()
-                self._cu_axpbz(
-                            x_array=self,
-                            z_array=result,
-                            a_scalar=other,
-                            b_scalar=0,
-                            size=self._size,
-                            block=self._block,
-                            grid=self._grid,
-                            stream=self._stream)
+            result = self.copy()
+            self._cu_axpbz(
+                x_array=self,
+                z_array=result,
+                a_scalar=other,
+                b_scalar=0,
+                size=self._size,
+                block=self._block,
+                grid=self._grid,
+                stream=self._stream)
             return result
 
-        elif type(other) == type(self):
+        if isinstance(other, type(self)):
 
             if other.shape != self._shape:
-                raise ValueError(f"Shape mismatch : {other.shape} != {self.shape}")
+                raise ValueError(
+                    f"Shape mismatch : {other.shape} != {self.shape}")
             if other.dtype != self._dtype:
-                raise ValueError(f"Type mismatch : {other.dtype} != {self.dtype}")
+                raise ValueError(
+                    f"Type mismatch : {other.dtype} != {self.dtype}")
 
             result = self.copy()
             self._cu_eltwise_mult(
-                            x_array=self,
-                            y_array=other,
-                            z_array=result,
-                            size=self._size,
-                            block=self._block,
-                            grid=self._grid,
-                            stream=self._stream)
+                x_array=self,
+                y_array=other,
+                z_array=result,
+                size=self._size,
+                block=self._block,
+                grid=self._grid,
+                stream=self._stream)
             return result
 
         else:
-            raise TypeError(f"unsupported operand type(s) for *: '{type(self)}' and '{type(other)}'")
+            raise TypeError(
+                f"unsupported operand type(s) for *: '{type(self)}' \
+                    and '{type(other)}'")
 
     __rmul__ = __mul__  # object * array
 
@@ -929,63 +912,30 @@ class darray(dolphin.CudaBase):
         :return: The darray where the result is written
         :rtype: darray
         """
+        return self.multiply(other, dst=self)
 
-        if isinstance(other, int) or isinstance(other, float) or \
-           (isinstance(other, numpy.ndarray) and
-           other.shape == () and
-           numpy.issubdtype(other.dtype, numpy.number)):
-
-            if other == 1:
-                return self
-            else:
-
-                self._cu_axpbz(
-                            x_array=self,
-                            z_array=self,
-                            a_scalar=other,
-                            b_scalar=0,
-                            size=self._size,
-                            block=self._block,
-                            grid=self._grid,
-                            stream=self._stream)
-            return self
-
-        elif type(other) == type(self):
-
-            if other.shape != self._shape:
-                raise ValueError(f"Shape mismatch : {other.shape} != {self.shape}")
-            if other.dtype != self._dtype:
-                raise ValueError(f"Type mismatch : {other.dtype} != {self.dtype}")
-
-            self._cu_eltwise_mult(
-                            x_array=self,
-                            y_array=other,
-                            z_array=self,
-                            size=self._size,
-                            block=self._block,
-                            grid=self._grid,
-                            stream=self._stream)
-            return self
-
-        else:
-            raise TypeError(f"unsupported operand type(s) for *: '{type(self)}' and '{type(other)}'")
-
-    def divide(self, other: object, dst: 'darray') -> 'darray':
+    def divide(self, other: object, dst: 'darray' = None) -> 'darray':
         """Efficient division of a darray with another object.
+        Can be a darray or a scalar. If dst is None, normal __div__
+        is called.
+        This method is much more efficient than the __div__ method
+        because __div__ implies a copy of the array.
+        cuda.memalloc is really time consuming (up to 95% of the total
+        latency is spent in cuda.memalloc only).
 
-        :param other: _description_
-        :type other: object
-        :param dst: _description_
+        :param other: scalar or darray to divide by
+        :type other: [scalar, darray]
+        :param dst: darray where to write the result
         :type dst: darray
-        :return: _description_
+        :raises ValueError: If other is not a scalar or a darray
+        :return: The darray where the result is written
         :rtype: darray
         """
+
         if dst is None:
-            return self / other
-        if isinstance(other, int) or isinstance(other, float) or \
-           (isinstance(other, numpy.ndarray) and
-           other.shape == () and
-           numpy.issubdtype(other.dtype, numpy.number)):
+            dst = self.copy()
+
+        if isinstance(other, (numpy.number, int, float)):
 
             if other == 1:
                 cuda.memcpy_dtod_async(dst.allocation,
@@ -997,30 +947,39 @@ class darray(dolphin.CudaBase):
             else:
 
                 self._cu_scal_div(
-                            x_array=self,
-                            z_array=dst,
-                            a_scalar=numpy.float32(other),
-                            size=self._size,
-                            block=self._block,
-                            grid=self._grid,
-                            stream=self._stream)
-        elif type(other) == type(self):
-            if other.shape != self._shape:
-                raise ValueError(f"Shape mismatch : {other.shape} != {self.shape}")
-            if other.dtype != self._dtype:
-                raise ValueError(f"Type mismatch : {other.dtype} != {self.dtype}")
-            self._cu_eltwise_div(
-                            x_array=self,
-                            y_array=other,
-                            z_array=dst,
-                            size=self._size,
-                            block=self._block,
-                            grid=self._grid,
-                            stream=self._stream)
+                    x_array=self,
+                    z_array=dst,
+                    a_scalar=numpy.float32(other),
+                    size=self._size,
+                    block=self._block,
+                    grid=self._grid,
+                    stream=self._stream)
 
+        elif isinstance(other, type(self)):
+
+            if other.shape != self._shape:
+                raise ValueError(
+                    f"Shape mismatch : {other.shape} != {self.shape}")
+            if other.dtype != self._dtype:
+                raise ValueError(
+                    f"Type mismatch : {other.dtype} != {self.dtype}")
+
+            self._cu_eltwise_div(
+                x_array=self,
+                y_array=other,
+                z_array=dst,
+                size=self._size,
+                block=self._block,
+                grid=self._grid,
+                stream=self._stream)
         else:
-            raise TypeError(f"unsupported operand type(s) for /: '{type(self)}' and '{type(other)}'")
+            raise TypeError(
+                f"unsupported operand type(s) for /: '{type(self)}' \
+                    and '{type(other)}'")
+
         return dst
+
+    div = divide
 
     def __div__(self, other: object) -> 'darray':  # array / object
         """Non-Efficient division of a darray with another object.
@@ -1035,93 +994,61 @@ class darray(dolphin.CudaBase):
         :return: The darray where the result is written
         :rtype: darray
         """
-
-        if isinstance(other, int) or isinstance(other, float) or \
-           (isinstance(other, numpy.ndarray) and
-           other.shape == () and
-           numpy.issubdtype(other.dtype, numpy.number)):
-
-            if other == 1:
-                return self.copy()
-            elif other == 0:
-                raise ZeroDivisionError("Division by zero")
-            else:
-
-                result = self.copy()
-                self._cu_scal_div(
-                            x_array=self,
-                            z_array=result,
-                            a_scalar=numpy.float32(other),
-                            size=self._size,
-                            block=self._block,
-                            grid=self._grid,
-                            stream=self._stream)
-            return result
-
-        elif type(other) == type(self):
-
-            if other.shape != self._shape:
-                raise ValueError(f"Shape mismatch : {other.shape} != {self.shape}")
-            if other.dtype != self._dtype:
-                raise ValueError(f"Type mismatch : {other.dtype} != {self.dtype}")
-
-            result = self.copy()
-            self._cu_eltwise_div(
-                            x_array=self,
-                            y_array=other,
-                            z_array=result,
-                            size=self._size,
-                            block=self._block,
-                            grid=self._grid,
-                            stream=self._stream)
-            return result
-
-        else:
-            raise TypeError(f"unsupported operand type(s) for /: '{type(self)}' and '{type(other)}'")
+        return self.divide(other)
 
     def reversed_divide(self, other: object, dst: 'darray') -> 'darray':
-        """Efficient reversed division of a darray with another object.
+        """Efficient division of a darray with another object.
+        Can be a darray or a scalar. If dst is None, normal __rdiv__
+        is called.
+        This method is much more efficient than the __rdiv__ method
+        because __rdiv__ implies a copy of the array.
+        cuda.memalloc is really time consuming (up to 95% of the total
+        latency is spent in cuda.memalloc only).
 
-        :param other: _description_
-        :type other: object
-        :param dst: _description_
+        :param other: scalar or darray to divide by
+        :type other: [scalar, darray]
+        :param dst: darray where to write the result
         :type dst: darray
-        :return: _description_
+        :raises ValueError: If other is not a scalar or a darray
+        :return: The darray where the result is written
         :rtype: darray
         """
         if dst is None:
             return other / self
 
-        if isinstance(other, int) or isinstance(other, float) or \
-           (isinstance(other, numpy.ndarray) and
-           other.shape == () and
-           numpy.issubdtype(other.dtype, numpy.number)):
+        if isinstance(other, (numpy.number, int, float)):
             self._cu_invscal_div(
-                        x_array=self,
-                        z_array=dst,
-                        a_scalar=other,
-                        size=self._size,
-                        block=self._block,
-                        grid=self._grid,
-                        stream=self._stream)
-        elif type(other) == type(self):
+                x_array=self,
+                z_array=dst,
+                a_scalar=other,
+                size=self._size,
+                block=self._block,
+                grid=self._grid,
+                stream=self._stream)
+        elif isinstance(other, type(self)):
 
             if other.shape != self._shape:
-                raise ValueError(f"Shape mismatch : {other.shape} != {self.shape}")
+                raise ValueError(
+                    f"Shape mismatch : {other.shape} != {self.shape}")
             if other.dtype != self._dtype:
-                raise ValueError(f"Type mismatch : {other.dtype} != {self.dtype}")
+                raise ValueError(
+                    f"Type mismatch : {other.dtype} != {self.dtype}")
 
             self._cu_eltwise_div(
-                            x_array=self,
-                            y_array=other,
-                            z_array=dst,
-                            size=self._size,
-                            block=self._block,
-                            grid=self._grid,
-                            stream=self._stream)
+                x_array=self,
+                y_array=other,
+                z_array=dst,
+                size=self._size,
+                block=self._block,
+                grid=self._grid,
+                stream=self._stream)
         else:
-            raise TypeError(f"unsupported operand type(s) for /: '{type(self)}' and '{type(other)}'")
+            raise TypeError(
+                f"unsupported operand type(s) for /: '{type(self)}' \
+                    and '{type(other)}'")
         return dst
+
+    rdiv = reversed_divide
 
     def __rdiv__(self, other: object) -> 'darray':  # object / array
         """Non-Efficient reverse division of an object by darray.
@@ -1137,42 +1064,43 @@ class darray(dolphin.CudaBase):
         :rtype: darray
         """
 
-        if isinstance(other, int) or isinstance(other, float) or \
-           (isinstance(other, numpy.ndarray) and
-           other.shape == () and
-           numpy.issubdtype(other.dtype, numpy.number)):
+        if isinstance(other, (numpy.number, int, float)):
 
             result = self.copy()
             self._cu_invscal_div(
-                        x_array=self,
-                        z_array=result,
-                        a_scalar=other,
-                        size=self._size,
-                        block=self._block,
-                        grid=self._grid,
-                        stream=self._stream)
+                x_array=self,
+                z_array=result,
+                a_scalar=other,
+                size=self._size,
+                block=self._block,
+                grid=self._grid,
+                stream=self._stream)
             return result
 
-        elif type(other) == type(self):
+        if isinstance(other, type(self)):
 
             if other.shape != self._shape:
-                raise ValueError(f"Shape mismatch : {other.shape} != {self.shape}")
+                raise ValueError(
+                    f"Shape mismatch : {other.shape} != {self.shape}")
             if other.dtype != self._dtype:
-                raise ValueError(f"Type mismatch : {other.dtype} != {self.dtype}")
+                raise ValueError(
+                    f"Type mismatch : {other.dtype} != {self.dtype}")
 
             result = self.copy()
             self._cu_eltwise_div(
-                            x_array=self,
-                            y_array=other,
-                            z_array=result,
-                            size=self._size,
-                            block=self._block,
-                            grid=self._grid,
-                            stream=self._stream)
+                x_array=self,
+                y_array=other,
+                z_array=result,
+                size=self._size,
+                block=self._block,
+                grid=self._grid,
+                stream=self._stream)
             return result
 
         else:
-            raise TypeError(f"unsupported operand type(s) for /: '{type(self)}' and '{type(other)}'")
+            raise TypeError(
+                f"unsupported operand type(s) for /: '{type(self)}' \
+                    and '{type(other)}'")
 
     def __idiv__(self, other: object) -> 'darray':
         """Non-Efficient division of a darray with another object.
@@ -1187,46 +1115,7 @@ class darray(dolphin.CudaBase):
         :return: The darray where the result is written
         :rtype: darray
         """
-        if isinstance(other, int) or isinstance(other, float) or \
-           (isinstance(other, numpy.ndarray) and
-           other.shape == () and
-           numpy.issubdtype(other.dtype, numpy.number)):
-
-            if other == 1:
-                return self
-            elif other == 0:
-                raise ZeroDivisionError("Division by zero")
-            else:
-
-                self._cu_scal_div(
-                            x_array=self,
-                            z_array=self,
-                            a_scalar=numpy.float32(other),
-                            size=self._size,
-                            block=self._block,
-                            grid=self._grid,
-                            stream=self._stream)
-            return self
-
-        elif type(other) == type(self):
-
-            if other.shape != self._shape:
-                raise ValueError(f"Shape mismatch : {other.shape} != {self.shape}")
-            if other.dtype != self._dtype:
-                raise ValueError(f"Type mismatch : {other.dtype} != {self.dtype}")
-
-            self._cu_eltwise_div(
-                            x_array=self,
-                            y_array=other,
-                            z_array=self,
-                            size=self._size,
-                            block=self._block,
-                            grid=self._grid,
-                            stream=self._stream)
-            return self
-
-        else:
-            raise TypeError(f"unsupported operand type(s) for /: '{type(self)}' and '{type(other)}'")
+        return self.divide(other, dst=self)
 
     __truediv__ = __div__
     __itruediv__ = __idiv__
@@ -1251,118 +1140,171 @@ class darray(dolphin.CudaBase):
         :rtype: darray
         """
 
-        self._cu_eltwise_abs(
-                    x_array=self,
-                    size=self._size,
-                    block=self._block,
-                    grid=self._grid,
-                    stream=self._stream)
+        return self.absolute()
 
-        return self
+    def absolute(self, dst: 'darray' = None) -> 'darray':
+        """Returns the absolute value of the array.
+
+        :return: Absolute value of the array
+        :rtype: darray
+        """
+
+        if dst is None:
+            dst = self.copy()
+        else:
+            if dst.shape != self.shape:
+                raise ValueError(
+                    f"Shape mismatch : {dst.shape} != {self.shape}")
+            if dst.dtype != self.dtype:
+                raise ValueError(
+                    f"Type mismatch : {dst.dtype} != {self.dtype}")
+
+        self._cu_eltwise_abs(
+            x_array=self,
+            z_array=dst,
+            size=self._size,
+            block=self._block,
+            grid=self._grid,
+            stream=self._stream)
+
+        return dst
 
     def __pow__(self, other: object) -> 'darray':
         raise NotImplementedError("Power operator not implemented")
 
-    def __del__(self):
-        try:
-            self._allocation.free()
-        except AttributeError:
-            pass
 
-
-def transpose(axes: tuple, array: darray, dst: darray = None) -> darray:
+def transpose(axes: tuple,
+              src: darray,
+              dst: darray = None) -> darray:
     """Returns a darray with the axes transposed.
 
     :param axes: Axes to transpose
     :type axes: tuple
-    :param array: darray to transpose
-    :type array: darray
+    :param src: darray to transpose
+    :type src: darray
     :return: Transposed darray
     :rtype: darray
     """
-    return array.transpose(*axes, dst=dst)
+    return src.transpose(*axes, dst=dst)
 
 
-def multiply(array1: darray, other: object, dst: darray = None) -> darray:
+def multiply(src: darray,
+             other: object,
+             dst: darray = None) -> darray:
     """Returns the multiplication of two darrays.
+    It works that way::
 
-    :param array1: First darray
-    :type array1: darray
+        result = src * other
+
+    :param src: First darray
+    :type src: darray
     :param other: Second darray or scalar
     :type other: [darray, scalar]
     :return: Multiplication of the two darrays
     :rtype: darray
     """
-    return array1.multiply(other, dst)
+    return src.multiply(other, dst)
 
 
-def add(array1: darray, other: object, dst: darray = None) -> darray:
+def add(src: darray,
+        other: object,
+        dst: darray = None) -> darray:
     """Returns the addition of two darrays.
+    It works that way::
 
-    :param array1: First darray
-    :type array1: darray
+        result = src + other
+
+    :param src: First darray
+    :type src: darray
     :param other: Second darray or scalar
     :type other: [darray, scalar]
     :return: Addition of the two darrays
     :rtype: darray
     """
-    return array1.add(other, dst)
+    return src.add(other, dst)
 
 
-def substract(array1: darray, other: object, dst: darray = None) -> darray:
+def substract(src: darray,
+              other: object,
+              dst: darray = None) -> darray:
     """Returns the substraction of two darrays.
+    It works that way::
 
-    :param array1: First darray
-    :type array1: darray
+        result = src - other
+
+    :param src: First darray
+    :type src: darray
     :param other: Second darray or scalar
     :type other: [darray, scalar]
     :return: Substraction of the two darrays
     :rtype: darray
     """
-    return array1.substract(other, dst)
+    return src.substract(other, dst)
 
 
-def divide(array1: darray, other: object, dst: darray = None) -> darray:
-    """Returns the division of two darrays.
+def divide(src: darray,
+           other: object,
+           dst: darray = None) -> darray:
+    """Returns the division of a darray by an object.
+    It works that way::
 
-    :param array1: First darray
-    :type array1: darray
+        result = src / other
+
+    :param src: First darray
+    :type src: darray
     :param other: Second darray or scalar
     :type other: [darray, scalar]
     :return: Division of the two darrays
     :rtype: darray
     """
-    return array1.divide(other, dst)
+    return src.divide(other, dst)
 
 
-def reversed_divide(array1: darray, other: object, dst: darray = None) -> darray:
-    """Returns the division of two darrays.
+def reversed_divide(
+        src: darray,
+        other: object,
+        dst: darray = None) -> darray:
+    """Returns the division of a darray and an object.
+    It works that way::
 
-    :param array1: First darray
-    :type array1: darray
+        result = other / src
+
+    :param src: First darray
+    :type src: darray
     :param other: Second darray or scalar
     :type other: [darray, scalar]
     :return: Division of the two darrays
     :rtype: darray
     """
-    return array1.reversed_divide(other, dst)
+    return src.reversed_divide(other, dst)
 
 
-def reversed_substract(array1: darray, other: object, dst: darray = None) -> darray:
-    """Returns the substraction of two darrays.
+def reversed_substract(
+        src: darray,
+        other: object,
+        dst: darray = None) -> darray:
+    """Returns the substraction of a darray and an object.
+    It works that way::
 
-    :param array1: First darray
-    :type array1: darray
+        result = other - src
+
+    :param src: First darray
+    :type src: darray
     :param other: Second darray or scalar
     :type other: [darray, scalar]
     :return: Substraction of the two darrays
     :rtype: darray
     """
-    return array1.reversed_substract(other, dst)
+    return src.reversed_substract(other, dst)
 
 
-def zeros(shape: tuple, dtype: dolphin.dtype = dolphin.dtype.float32) -> darray:
-    """Returns a darray filled with zeros.
+def zeros(
+        shape: tuple,
+        dtype: dolphin.dtype = dolphin.dtype.float32) -> darray:
+    """Returns a darray for a given shape and dtype filled with zeros.
+
+    This function is a creation function, thus, it does not take an optional
+    destination `darray` as argument.
 
     :param shape: Shape of the array
     :type shape: tuple
@@ -1375,20 +1317,29 @@ def zeros(shape: tuple, dtype: dolphin.dtype = dolphin.dtype.float32) -> darray:
     return darray(numpy.zeros(shape, dtype=dtype.numpy_dtype))
 
 
-def zeros_like(other: darray) -> darray:
-    """Returns a darray filled with zeros.
+def zeros_like(other: Union[darray, numpy.array]) -> darray:
+    """Returns a darray filled with zeros with the same shape and dtype as
+    another darray.
+
+    This function is a creation function, thus, it does not take an optional
+    destination `darray` as argument.
 
     :param other: darray to copy the shape and type from
     :type other: darray
     :return: darray filled with zeros
     :rtype: darray
     """
-
-    return zeros(shape=other.shape, dtype=other.dtype)
+    if isinstance(other, darray):
+        return zeros(shape=other.shape, dtype=other.dtype)
+    return zeros(shape=other.shape,
+                 dtype=dolphin.dtype.from_numpy_dtype(other.dtype))
 
 
 def ones(shape: tuple, dtype: dolphin.dtype = dolphin.dtype.float32) -> darray:
-    """Returns a darray filled with ones.
+    """Returns a darray for a given shape and dtype filled with ones.
+
+    This function is a creation function, thus, it does not take an optional
+    destination `darray` as argument.
 
     :param shape: Shape of the array
     :type shape: tuple
@@ -1401,8 +1352,33 @@ def ones(shape: tuple, dtype: dolphin.dtype = dolphin.dtype.float32) -> darray:
     return darray(numpy.ones(shape, dtype=dtype.numpy_dtype))
 
 
-def empty(shape: tuple, dtype: dolphin.dtype = dolphin.dtype.float32) -> darray:
-    """Returns a darray filled with random values.
+def ones_like(other: Union[darray, numpy.array]) -> darray:
+    """Returns a darray filled with ones with the same shape and dtype as
+    another darray.
+
+    This function is a creation function, thus, it does not take an optional
+    destination `darray` as argument.
+
+    :param other: darray to copy the shape and type from
+    :type other: darray
+    :return: darray filled with ones
+    :rtype: darray
+    """
+
+    if isinstance(other, darray):
+        return ones(shape=other.shape, dtype=other.dtype)
+    return ones(shape=other.shape,
+                dtype=dolphin.dtype.from_numpy_dtype(other.dtype))
+
+
+def empty(
+        shape: tuple,
+        dtype: dolphin.dtype = dolphin.dtype.float32) -> darray:
+    """Returns a darray of a given shape and dtype without
+    initializing entries.
+
+    This function is a creation function, thus, it does not take an optional
+    destination `darray` as argument.
 
     :param shape: Shape of the array
     :type shape: tuple
@@ -1415,526 +1391,35 @@ def empty(shape: tuple, dtype: dolphin.dtype = dolphin.dtype.float32) -> darray:
     return darray(numpy.empty(shape, dtype=dtype.numpy_dtype))
 
 
-def test(dolphin_dtype: dolphin.dtype = dolphin.dtype.float32,
-         shape: tuple = (1000, 1000), n_iter: int = 1000):
+def empty_like(other: Union[darray, numpy.array]) -> darray:
+    """Returns a darray without initializing entries with the same shape
+    and dtype as another darray.
 
-    print(f"\nRunning tests for {dolphin_dtype}...\n")
+    This function is a creation function, thus, it does not take an optional
+    destination `darray` as argument.
 
-    N_ITER = int(n_iter)
+    :param other: darray to copy the shape and type from
+    :type other: darray
+    :return: darray filled with random values
+    :rtype: darray
+    """
 
-    #######################
-    #    CREATION TEST    #
-    #######################
+    if isinstance(other, darray):
+        return empty(shape=other.shape, dtype=other.dtype)
+    return empty(shape=other.shape,
+                 dtype=dolphin.dtype.from_numpy_dtype(other.dtype))
 
-    dummy = numpy.random.rand(*shape).astype(dolphin_dtype.numpy_dtype)
-    cuda_array = darray(dummy)
-    diff = numpy.linalg.norm(cuda_array.ndarray - dummy)
 
-    assert diff < 1e-5, "Creation test 1 failed"
+def absolute(array: darray, dst: darray = None) -> darray:
+    """Returns the absolute value of a darray.
 
-    print(f"Creation test 1 : {diff} | first number : \
-{cuda_array.ndarray[0, 0]} == {dummy[0, 0]}")
+    :param array: darray to take the absolute value of
+    :type array: darray
+    :return: Absolute value of the darray
+    :rtype: darray
+    """
 
-    cuda_array = darray(shape=shape, dtype=dolphin_dtype)
-    cuda_array.from_ndarray(dummy)
-    diff = numpy.linalg.norm(cuda_array.ndarray - dummy)
+    return array.absolute(dst)
 
-    assert diff < 1e-5, "Creation test 2 failed"
 
-    print(f"Creation test 2 : {diff} | first number : \
-{cuda_array.ndarray[0, 0]} == {dummy[0, 0]}")
-
-    # zeros
-
-    dummy = numpy.zeros(shape=shape, dtype=dolphin_dtype.numpy_dtype)
-    cuda_array = zeros(shape=shape, dtype=dolphin_dtype)
-
-    diff = numpy.linalg.norm(cuda_array.ndarray - dummy)
-
-    assert diff < 1e-5, "Creation test 3 failed"
-
-    print(f"Creation test 3 : {diff} | first number : \
-{cuda_array.ndarray[0, 0]} == {dummy[0, 0]}")
-
-    # zeros_like
-
-    dummy = numpy.zeros(shape=shape, dtype=dolphin_dtype.numpy_dtype)
-    cuda_array_empty = darray(shape=shape, dtype=dolphin_dtype)
-    cuda_array = zeros_like(cuda_array_empty)
-
-    assert diff < 1e-5, "Creation test 4 failed"
-
-    print(f"Creation test 4 : {diff} | first number : \
-{cuda_array.ndarray[0, 0]} == {dummy[0, 0]}")
-
-    #######################
-    #    ADD SCAL TEST    #
-    #######################
-
-    # array + scal
-    dummy = dummy + 8
-    cuda_array = cuda_array + 8
-    diff = numpy.linalg.norm(cuda_array.ndarray - dummy)
-
-    assert diff < 1e-5, "Add scalar test 1 failed"
-
-    print(f"Addscal  test 1 : {diff} | first number : \
-{cuda_array.ndarray[0, 0]} == {dummy[0, 0]}")
-
-    # scal + array
-    dummy = 8 + dummy
-    cuda_array = 8 + cuda_array
-    diff = numpy.linalg.norm(cuda_array.ndarray - dummy)
-
-    assert diff < 1e-5, "Add scalar test 2 failed"
-
-    print(f"Addscal  test 2 : {diff} | first number : \
-{cuda_array.ndarray[0, 0]} == {dummy[0, 0]}")
-
-    # array += scal
-    dummy += 8
-    cuda_array += 8
-    diff = numpy.linalg.norm(cuda_array.ndarray - dummy)
-
-    assert diff < 1e-5, "Add scalar test 3 failed"
-
-    print(f"Addscal  test 3 : {diff} | first number : \
-{cuda_array.ndarray[0, 0]} == {dummy[0, 0]}")
-
-    # array.add(scal)
-    dummy += 8
-    cuda_array = cuda_array.add(8)
-    diff = numpy.linalg.norm(cuda_array.ndarray - dummy)
-
-    assert diff < 1e-5, "Add scalar test 4 failed"
-
-    print(f"Addscal  test 4 : {diff} | first number : \
-{cuda_array.ndarray[0, 0]} == {dummy[0, 0]}")
-
-    # array.add(scal, dst)
-    dummy += 8
-    cuda_array = cuda_array.add(8)
-    diff = numpy.linalg.norm(cuda_array.ndarray - dummy)
-
-    assert diff < 1e-5, "Add scalar test 5 failed"
-
-    print(f"Addscal  test 5 : {diff} | first number : \
-{cuda_array.ndarray[0, 0]} == {dummy[0, 0]}")
-
-    #######################
-    #    ADD ARRA TEST    #
-    #######################
-
-    # array + array
-    dummy = dummy + dummy
-    cuda_array = cuda_array + cuda_array
-    diff = numpy.linalg.norm(cuda_array.ndarray - dummy)
-
-    assert diff < 1e-5, "Add array test 1 failed"
-
-    print(f"Addarra  test 1 : {diff} | first number : \
-{cuda_array.ndarray[0, 0]} == {dummy[0, 0]}")
-
-    # scal + array
-    dummy = dummy + dummy
-    cuda_array = cuda_array + cuda_array
-    diff = numpy.linalg.norm(cuda_array.ndarray - dummy)
-
-    assert diff < 1e-5, "Add array test 2 failed"
-
-    print(f"Addarra  test 2 : {diff} | first number : \
-{cuda_array.ndarray[0, 0]} == {dummy[0, 0]}")
-
-    # array += scal
-    dummy += dummy
-    cuda_array += cuda_array
-    diff = numpy.linalg.norm(cuda_array.ndarray - dummy)
-
-    assert diff < 1e-5, "Add array test 3 failed"
-
-    print(f"Addarra  test 3 : {diff} | first number : \
-{cuda_array.ndarray[0, 0]} == {dummy[0, 0]}")
-
-    #######################
-    #    ADD FAIL TEST    #
-    #######################
-
-    try:
-        cuda_array = cuda_array + "test"
-        raise AssertionError("Addfail test 1 failed")
-    except TypeError:
-        print(f"Addfail  test 1 : {diff} | first number : \
-{cuda_array.ndarray[0, 0]} == {dummy[0, 0]}")
-
-    #######################
-    #    SUB SCAL TEST    #
-    #######################
-
-    # array - scal
-    dummy = dummy - 8
-    cuda_array = cuda_array - 8
-    diff = numpy.linalg.norm(cuda_array.ndarray - dummy)
-
-    assert diff < 1e-5, "Sub scalar test 1 failed"
-
-    print(f"Subscal  test 1 : {diff} | first number : \
-{cuda_array.ndarray[0, 0]} == {dummy[0, 0]}")
-
-    # scal - array
-    dummy = 8 - dummy
-    cuda_array = 8 - cuda_array
-    diff = numpy.linalg.norm(cuda_array.ndarray - dummy)
-
-    assert diff < 1e-5, "Sub scalar test 2 failed"
-
-    print(f"Subscal  test 2 : {diff} | first number : \
-{cuda_array.ndarray[0, 0]} == {dummy[0, 0]}")
-
-    # array - scal
-    dummy -= 8
-    cuda_array -= 8
-    diff = numpy.linalg.norm(cuda_array.ndarray - dummy)
-
-    assert diff < 1e-5, "Sub scalar test 3 failed"
-
-    print(f"Subscal  test 3 : {diff} | first number : \
-{cuda_array.ndarray[0, 0]} == {dummy[0, 0]}")
-
-    #######################
-    #    SUB ARRA TEST    #
-    #######################
-
-    # array - other
-    other = numpy.ones(shape, dtype=dolphin_dtype.numpy_dtype)
-    dother = darray(other)
-
-    dummy = dummy - other
-    cuda_array = cuda_array - dother
-    diff = numpy.linalg.norm(cuda_array.ndarray - dummy)
-
-    assert diff < 1e-5, "Sub array test 1 failed"
-
-    print(f"Subarra  test 1 : {diff} | first number : \
-{cuda_array.ndarray[0, 0]} == {dummy[0, 0]}")
-
-    # other - array
-    other = numpy.ones(shape, dtype=dolphin_dtype.numpy_dtype)
-    dother = darray(other)
-
-    dummy = other - dummy
-    cuda_array = dother - cuda_array
-    diff = numpy.linalg.norm(cuda_array.ndarray - dummy)
-
-    assert diff < 1e-5, "Sub array test 2 failed"
-
-    print(f"Subarra  test 2 : {diff} | first number : \
-{cuda_array.ndarray[0, 0]} == {dummy[0, 0]}")
-
-    # array -= other
-    other = numpy.ones(shape, dtype=dolphin_dtype.numpy_dtype)
-    dother = darray(other)
-
-    dummy -= other
-    cuda_array -= dother
-    diff = numpy.linalg.norm(cuda_array.ndarray - dummy)
-
-    assert diff < 1e-5, "Sub array test 3 failed"
-
-    print(f"Subarra  test 3 : {diff} | first number : \
-{cuda_array.ndarray[0, 0]} == {dummy[0, 0]}")
-
-    #######################
-    #    MUL SCAL TEST    #
-    #######################
-
-    # array * scal
-    dummy = dummy * 8
-    cuda_array = cuda_array * 8
-    diff = numpy.linalg.norm(cuda_array.ndarray - dummy)
-
-    assert diff < 1e-5, "Mul scalar test 1 failed"
-
-    print(f"Mulscal  test 1 : {diff} | first number : \
-{cuda_array.ndarray[0, 0]} == {dummy[0, 0]}")
-
-    # scal * array
-    dummy = 8 * dummy
-    cuda_array = 8 * cuda_array
-    diff = numpy.linalg.norm(cuda_array.ndarray - dummy)
-
-    assert diff < 1e-5, "Mul scalar test 2 failed"
-
-    print(f"Mulscal  test 2 : {diff} | first number : \
-{cuda_array.ndarray[0, 0]} == {dummy[0, 0]}")
-
-    # array *= scal
-    dummy *= 8
-    cuda_array *= 8
-    diff = numpy.linalg.norm(cuda_array.ndarray - dummy)
-
-    assert diff < 1e-5, "Mul scalar test 3 failed"
-
-    print(f"Mulscal  test 3 : {diff} | first number : \
-{cuda_array.ndarray[0, 0]} == {dummy[0, 0]}")
-
-    #######################
-    #    MUL ARRA TEST    #
-    #######################
-
-    # array * other
-    other = numpy.ones(shape, dtype=dolphin_dtype.numpy_dtype)*2
-    dother = darray(other)
-
-    dummy = dummy * other
-    cuda_array = cuda_array * dother
-    diff = numpy.linalg.norm(cuda_array.ndarray - dummy)
-
-    assert diff < 1e-5, "Mul array test 1 failed"
-
-    print(f"Mularra  test 1 : {diff} | first number : \
-{cuda_array.ndarray[0, 0]} == {dummy[0, 0]}")
-
-    # other * array
-    other = numpy.ones(shape, dtype=dolphin_dtype.numpy_dtype)*2
-    dother = darray(other)
-
-    dummy = other * dummy
-    cuda_array = dother * cuda_array
-    diff = numpy.linalg.norm(cuda_array.ndarray - dummy)
-
-    assert diff < 1e-5, "Mul array test 2 failed"
-
-    print(f"Mularra  test 2 : {diff} | first number : \
-{cuda_array.ndarray[0, 0]} == {dummy[0, 0]}")
-
-    # array *= other
-    other = numpy.ones(shape, dtype=dolphin_dtype.numpy_dtype)*2
-    dother = darray(other)
-
-    dummy *= other
-    cuda_array *= dother
-    diff = numpy.linalg.norm(cuda_array.ndarray - dummy)
-
-    assert diff < 1e-5, "Mul array test 3 failed"
-
-    print(f"Mularra  test 3 : {diff} | first number : \
-{cuda_array.ndarray[0, 0]} == {dummy[0, 0]}")
-
-    #######################
-    #    DIV SCAL TEST    #
-    #######################
-
-    # array / scal
-    dummy = dummy / 8
-    cuda_array = cuda_array / 8
-    diff = numpy.linalg.norm(cuda_array.ndarray - dummy.astype(dolphin_dtype.numpy_dtype))
-
-    assert diff < 1e-5, "Div scalar test 1 failed"
-
-    print(f"Divscal  test 1 : {diff} | first number : \
-{cuda_array.ndarray[0, 0]} == {dummy[0, 0].astype(dolphin_dtype.numpy_dtype)}")
-
-    # scal / array
-    dummy = 8 / (dummy+1)
-    cuda_array = 8 / (cuda_array+1)
-    diff = numpy.linalg.norm(cuda_array.ndarray - dummy.astype(dolphin_dtype.numpy_dtype))
-
-    assert diff < 1e-5, "Div scalar test 2 failed"
-
-    print(f"Divscal  test 2 : {diff} | first number : \
-{cuda_array.ndarray[0, 0]} == {dummy[0, 0].astype(dolphin_dtype.numpy_dtype)}")
-
-    # array /= scal
-    dummy /= 8
-    cuda_array /= 8
-    diff = numpy.linalg.norm(cuda_array.ndarray - dummy.astype(dolphin_dtype.numpy_dtype))
-
-    assert diff < 1e-5, "Div scalar test 3 failed"
-
-    print(f"Divscal  test 3 : {diff} | first number : \
-{cuda_array.ndarray[0, 0]} == {dummy[0, 0].astype(dolphin_dtype.numpy_dtype)}")
-
-    #######################
-    #    DIV ARRA TEST    #
-    #######################
-
-    dummy = numpy.ones(shape, dtype=dolphin_dtype.numpy_dtype)*64
-    cuda_array = darray(dummy)
-
-    # array / other
-    other = numpy.ones(shape, dtype=dolphin_dtype.numpy_dtype)*2
-    dother = darray(other)
-
-    #print(f"other : {other} | dother : {dother}")
-
-    dummy = dummy / other
-    cuda_array = cuda_array / dother
-    diff = numpy.linalg.norm(cuda_array.ndarray - dummy.astype(dolphin_dtype.numpy_dtype))
-
-    assert diff < 1e-5, "Div array test 1 failed"
-
-    print(f"Divarra  test 1 : {diff} | first number : \
-{cuda_array.ndarray[0, 0]} == {dummy[0, 0].astype(dolphin_dtype.numpy_dtype)}")
-
-    dummy = numpy.ones(shape, dtype=dolphin_dtype.numpy_dtype)*2
-    cuda_array = darray(dummy)
-
-    # other / array
-    other = numpy.ones(shape, dtype=dolphin_dtype.numpy_dtype)*8
-    dother = darray(other)
-
-    dummy = other / dummy
-    cuda_array = dother / cuda_array
-    diff = numpy.linalg.norm(cuda_array.ndarray - dummy.astype(dolphin_dtype.numpy_dtype))
-
-    assert diff < 1e-5, "Div array test 2 failed"
-
-    print(f"Divarra  test 2 : {diff} | first number : \
-{cuda_array.ndarray[0, 0]} == {dummy[0, 0].astype(dolphin_dtype.numpy_dtype)}")
-
-    # array /= other
-    other = numpy.ones(shape, dtype=dolphin_dtype.numpy_dtype)*2
-    dother = darray(other)
-
-    dummy /= other
-    cuda_array /= dother
-    diff = numpy.linalg.norm(cuda_array.ndarray - dummy.astype(dolphin_dtype.numpy_dtype))
-
-    print(f"Divarra  test 3 : {diff} | first number : \
-{cuda_array.ndarray[0, 0]} == {dummy[0, 0].astype(dolphin_dtype.numpy_dtype)}")
-
-    assert diff < 1e-5, "Div array test 3 failed"
-
-    dummy = numpy.ones(shape, dtype=dolphin_dtype.numpy_dtype)
-    cuda_array = darray(dummy)
-
-    other = numpy.zeros(shape, dtype=dolphin_dtype.numpy_dtype)
-    dother = darray(other)
-
-    try:
-        dummy /= other
-        cuda_array /= dother
-        diff = numpy.linalg.norm(cuda_array.ndarray - dummy.astype(dolphin_dtype.numpy_dtype))
-    except ZeroDivisionError:
-        print(f"Divarra  test 4 : {diff} | Division by zero test passed")
-    except Exception as e:
-        pass
-
-    #######################
-    #      CAST TEST      #
-    #######################
-
-    dummy = numpy.ones(shape, dtype=dolphin_dtype.numpy_dtype)
-    cuda_array = darray(dummy)
-
-    for dtype in dolphin.dtype:
-        dummy = dummy.astype(dtype.numpy_dtype)
-        cuda_array = cuda_array.astype(dtype)
-        diff = numpy.linalg.norm(cuda_array.ndarray - dummy.astype(dtype.numpy_dtype))
-
-        assert diff < 1e-5, f"Cast test failed for {dtype}"
-
-        print(f"Cast  test : {diff} | {dolphin_dtype} -> {dtype} test passed")
-
-    #######################
-    #      ABS TEST       #
-    #######################
-
-    dummy = numpy.random.rand(*shape)*10
-    dummy = dummy.astype(dolphin_dtype.numpy_dtype)
-    cuda_array = darray(dummy)
-
-    dummy = numpy.abs(dummy)
-    cuda_array = abs(cuda_array)
-    diff = numpy.linalg.norm(cuda_array.ndarray - dummy.astype(dtype.numpy_dtype))
-
-    print(f"Absolute test 1 : {diff} | first number : \
-{cuda_array.ndarray[0, 0]} == {dummy[0, 0].astype(dolphin_dtype.numpy_dtype)}")
-
-    assert diff < 1e-5, "Absolute test 1 failed"
-
-    #######################
-    #    TRANSPOSE TEST   #
-    #######################
-
-    dummy = numpy.random.rand(*shape)*10
-    dummy = dummy.astype(dolphin_dtype.numpy_dtype)
-    perm = tuple([i for i in range(len(shape))][::-1])
-
-    transposed_dummy = dummy.transpose(*perm)
-
-    cuda_array = darray(dummy)
-    transposed_cuda_array = cuda_array.transpose(*perm)
-
-    diff = numpy.linalg.norm(transposed_cuda_array.ndarray - transposed_dummy.astype(dtype.numpy_dtype))
-
-    print(f"Transpose test 1 : {diff} | first number : \
-{transposed_cuda_array.ndarray[0, 0]} == {transposed_dummy[0, 0].astype(dolphin_dtype.numpy_dtype)}")
-
-    assert diff < 1e-5, "Transpose test 1 failed"
-
-    #######################
-    #       SUCCESS       #
-    #######################
-
-    print(f"All tests passed for {dolphin_dtype}")
-
-    #######################
-    #     TIME  TESTS     #
-    #######################
-
-    dummy = numpy.random.rand(*shape)*10
-    cuda_array = darray(dummy)
-
-    t1 = time.time()
-    for _ in range(N_ITER):
-        dummy_res = 15*dummy.transpose(1, 0)/2 + 5*dummy.transpose(1, 0)/3
-    numpy_time = 1000*(time.time() - t1)/N_ITER
-
-    print(f"numpy time              : {numpy_time}")
-
-    t1 = time.time()
-    for _ in range(N_ITER):
-        cuda_res = 15*cuda_array.transpose(1, 0)/2 + 5*cuda_array.transpose(1, 0)/3
-    cuda_time = 1000*(time.time() - t1)/N_ITER
-
-    print(f"Non efficient cuda time : {cuda_time}")
-
-    res_cuda_array_1 = darray(dummy.transpose(1, 0))
-    res_cuda_array_2 = darray(dummy.transpose(1, 0))
-    res_cuda_array_3 = darray(dummy.transpose(1, 0))
-
-    t1 = time.time()
-    for _ in range(N_ITER):
-        transpose((1, 0), cuda_array, res_cuda_array_1)
-        divide(res_cuda_array_1, 2, res_cuda_array_1)
-        multiply(res_cuda_array_1, 15, res_cuda_array_1)
-
-        transpose((1, 0), cuda_array, res_cuda_array_2)
-        divide(res_cuda_array_2, 3, res_cuda_array_2)
-        multiply(res_cuda_array_2, 5, res_cuda_array_2)
-
-        add(res_cuda_array_1, res_cuda_array_2, res_cuda_array_3)
-    cuda_time = 1000*(time.time() - t1)/N_ITER
-
-    print(f"efficient cuda time     : {cuda_time}")
-
-    diff1 = numpy.linalg.norm(cuda_res.ndarray - dummy_res)
-    diff2 = numpy.linalg.norm(res_cuda_array_3.ndarray - dummy_res)
-
-    assert diff1 < 1e-5, "Time test 1 failed"
-    assert diff2 < 1e-5, "Time test 2 failed"
-
-if __name__ == "__main__":
-
-    shape = (640, 640)
-    n_iter = int(1e2)
-
-    test(dolphin.dtype.float32, shape=shape, n_iter=n_iter)
-    test(dolphin.dtype.float64, shape=shape, n_iter=n_iter)
-    test(dolphin.dtype.uint8, shape=shape, n_iter=n_iter)
-    test(dolphin.dtype.uint16, shape=shape, n_iter=n_iter)
-    test(dolphin.dtype.uint32, shape=shape, n_iter=n_iter)
-    test(dolphin.dtype.int8, shape=shape, n_iter=n_iter)
-    test(dolphin.dtype.int16, shape=shape, n_iter=n_iter)
-    test(dolphin.dtype.int32, shape=shape, n_iter=n_iter)
+abs = absolute
