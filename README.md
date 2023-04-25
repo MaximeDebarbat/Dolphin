@@ -42,7 +42,7 @@ docker run \
         -it \
         --rm \
         --gpus all \
-        -v "$(cd `dirname $0` && pwd)":"/app" \
+        -v "$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )":"/app" \
         dolphin:latest \
         bash
 ```
