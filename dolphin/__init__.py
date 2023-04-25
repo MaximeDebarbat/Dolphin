@@ -90,8 +90,8 @@ from .core.darray import (
     ones_like,
     empty_like,
     absolute,
-    abs
 )
+from .core.darray import absolute as abs
 from .core.dimage import (dimage,
                           dimage_dim_format,
                           dimage_channel_format,

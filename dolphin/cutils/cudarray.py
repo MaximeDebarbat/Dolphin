@@ -470,6 +470,53 @@ class Transpose(dolphin.CudaBase):
             numpy.uint32(size))
 
 
+class Indexer(dolphin.CudaBase):
+    __CU_FILENAME: str = "indexer.cu"
+    __CU_FUNC_NAME: str = "indexer_"
+
+    def __init__(self):
+
+        super(Indexer, self).__init__()
+        self._cuda_source: str = open(os.path.join(os.path.split(
+            os.path.abspath(__file__))[0], "cuda",
+            self.__CU_FILENAME), "rt", encoding="utf-8").read()
+        self._func = {}
+
+        source = ""
+        for dtype in dolphin.dtype:
+            source += Template(self._cuda_source).render(
+                dtype=dtype.cuda_dtype)
+
+        compiled_source = SourceModule(source)
+
+        for dtype in dolphin.dtype:
+            self._func[dtype.cuda_dtype] = compiled_source.get_function(
+                self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare("PPPPII")
+
+    def __call__(self,
+                 src: dolphin.darray,
+                 dst: dolphin.darray,
+                 offset: int,
+                 shape: cuda.DeviceAllocation,
+                 strides: cuda.DeviceAllocation,
+                 ndim: numpy.uint32,
+                 size: numpy.uint32,
+                 block: tuple,
+                 grid: tuple,
+                 stream: cuda.Stream = None) -> None:
+
+        self._func[src.dtype.cuda_dtype].prepared_async_call(
+            grid,
+            block,
+            stream,
+            int(src.allocation) + offset * src.dtype.itemsize,
+            dst.allocation,
+            shape,
+            strides,
+            numpy.uint32(ndim),
+            size)
+
+
 CU_AXPBZ = AXpBZ()
 CU_AXPBYZ = AXpBYZ()
 CU_ELTWISE_MULT = EltwiseMult()
@@ -480,3 +527,4 @@ CU_ELTWISE_CAST = EltWiseCast()
 CU_ELTWISE_ABS = EltwiseAbs()
 CU_TRANSPOSE = Transpose()
 CU_FILL = CuFill()
+CU_INDEXER = Indexer()

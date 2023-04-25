@@ -137,10 +137,10 @@ class darray(dolphin.CudaBaseNew):
     """
 
     def __init__(self,
-                 array: numpy.ndarray = None,
                  shape: tuple = None,
-                 dtype: dolphin.dtype = None,
+                 dtype: dolphin.dtype = dolphin.dtype.float32,
                  stream: cuda.Stream = None,
+                 array: numpy.ndarray = None,
                  allocation: cuda.DeviceAllocation = None
                  ) -> None:
 
@@ -181,6 +181,7 @@ class darray(dolphin.CudaBaseNew):
         self._cu_eltwise_abs = dolphin.cudarray.CU_ELTWISE_ABS
         self._cu_transpose = dolphin.cudarray.CU_TRANSPOSE
         self._cu_fill = dolphin.cudarray.CU_FILL
+        self._cu_indexer = dolphin.cudarray.CU_INDEXER
 
     @staticmethod
     def compute_strides(shape: tuple) -> tuple:
@@ -467,6 +468,115 @@ class darray(dolphin.CudaBaseNew):
         :type array: numpy.ndarray
         """
         self.from_ndarray(array)
+
+    def __getitem__(self, index: Union[object, tuple]):
+        """Indexing operator of the darray.
+        This function is used to access elements of the darray.
+        WARNING : This function is not efficient as it performs a copy of the
+        darray.
+
+        :param index: Index of the darray
+        :type index: Union[object, tuple]
+        """
+
+        if not isinstance(index, tuple):
+            index = (index,)
+
+        new_shape = []
+        new_offset = 0
+        new_strides = []
+
+        seen_ellipsis = False
+
+        index_axis = 0
+        array_axis = 0
+        while index_axis < len(index):
+            index_entry = index[index_axis]
+
+            if array_axis > len(self.shape):
+                raise IndexError("too many axes in index")
+
+            if isinstance(index_entry, slice):
+                start, stop, idx_stride = index_entry.indices(self.shape[array_axis])
+
+                array_stride = self.strides[array_axis]
+
+                new_shape.append((abs(stop - start) - 1) // abs(idx_stride) + 1)
+                new_strides.append(idx_stride * array_stride)
+                new_offset += array_stride * start
+
+                index_axis += 1
+                array_axis += 1
+
+            elif isinstance(index_entry, (int, numpy.integer)):
+                array_shape = self.shape[array_axis]
+                if index_entry < 0:
+                    index_entry += array_shape
+
+                if not (0 <= index_entry < array_shape):
+                    raise IndexError("subindex in axis %d out of range" % index_axis)
+
+                new_offset += self.strides[array_axis] * index_entry
+
+                index_axis += 1
+                array_axis += 1
+
+            elif index_entry is Ellipsis:
+                index_axis += 1
+
+                remaining_index_count = len(index) - index_axis
+                new_array_axis = len(self.shape) - remaining_index_count
+                if new_array_axis < array_axis:
+                    raise IndexError("invalid use of ellipsis in index")
+                while array_axis < new_array_axis:
+                    new_shape.append(self.shape[array_axis])
+                    new_strides.append(self.strides[array_axis])
+                    array_axis += 1
+
+                if seen_ellipsis:
+                    raise IndexError("more than one ellipsis not allowed in index")
+                seen_ellipsis = True
+
+            elif index_entry is numpy.newaxis:
+                new_shape.append(1)
+                new_strides.append(0)
+                index_axis += 1
+
+            else:
+                raise IndexError("invalid subindex in axis %d" % index_axis)
+
+        while array_axis < len(self.shape):
+            new_shape.append(self.shape[array_axis])
+            new_strides.append(self.strides[array_axis])
+
+            array_axis += 1
+
+        res = darray(shape=new_shape, dtype=self.dtype, stream=self.stream)
+
+        new_shape_alloc = cuda.mem_alloc(len(new_shape) * 4)
+        new_strides_alloc = cuda.mem_alloc(len(new_strides) * 4)
+
+        cuda.memcpy_htod_async(new_shape_alloc,
+                               numpy.array(new_shape, dtype=numpy.uint32),
+                               stream=self.stream)
+        cuda.memcpy_htod_async(new_strides_alloc,
+                               numpy.array(new_strides, dtype=numpy.uint32),
+                               stream=self.stream)
+
+        self._cu_indexer(
+            src=self,
+            dst=res,
+            offset=new_offset,
+            shape=new_shape_alloc,
+            strides=new_strides_alloc,
+            ndim=len(new_shape),
+            size=res.size,
+            block=self._block,
+            grid=self._grid,
+            stream=self.stream,
+        )
+
+        return res
 
     def __str__(self) -> str:
         """Returns the string representation of the numpy array.
@@ -1422,4 +1532,13 @@ def absolute(array: darray, dst: darray = None) -> darray:
     return array.absolute(dst)
 
 
-abs = absolute
+if __name__ == "__main__":
+
+    np_array = numpy.arange(0,18).reshape(2,3,3).astype(numpy.float32)
+
+    array = darray(array=np_array)
+
+    a = array[0, :, 0]
+    a += 1
+
+    # array would be updated
