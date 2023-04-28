@@ -1,5 +1,7 @@
 # Dolphin
 
+![Banner](misc/banner.png)
+
 General python package for CUDA accelerated deep learning inference.
 
 - **Documentation** : [coming soon]()
