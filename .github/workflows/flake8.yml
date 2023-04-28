@@ -6,8 +6,8 @@ jobs:
   flake8_py3:
     runs-on: ubuntu-latest
     strategy:
-    matrix:
-      python-version: ["3.8", "3.9", "3.10"]
+      matrix:
+        python-version: ["3.8", "3.9", "3.10"]
     steps:
       - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v1
