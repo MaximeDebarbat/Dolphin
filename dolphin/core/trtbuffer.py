@@ -2,9 +2,9 @@
 _summary_
 """
 
+from typing import Any, Dict, List
 import pycuda.driver as cuda  # pylint: disable=import-error
 
-from typing import Any, Dict, List
 import dolphin
 
 
@@ -215,8 +215,8 @@ class CudaTrtBuffers:
         :rtype: bool
         """
 
-        for binding_name in self._inputs.keys():
-            if self._inputs[binding_name].full:
+        for buffer in self._inputs:
+            if buffer.full:
                 return True
 
         return False
@@ -232,7 +232,7 @@ class CudaTrtBuffers:
         :rtype: Dict[str, dolphin.darray]
         """
 
-        return {key: out for key, out in self._outputs.items()}
+        return self._outputs.items()
 
     @property
     def input_bindings(self) -> List[dolphin.darray]:

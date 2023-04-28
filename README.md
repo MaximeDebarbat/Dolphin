@@ -1,5 +1,7 @@
 # Dolphin
 
+![Banner](misc/banner.png)
+
 General python package for CUDA accelerated deep learning inference.
 
 - **Documentation** : [coming soon]()
@@ -42,7 +44,7 @@ docker run \
         -it \
         --rm \
         --gpus all \
-        -v "$(cd `dirname $0` && pwd)":"/app" \
+        -v "$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )":"/app" \
         dolphin:latest \
         bash
 ```

@@ -58,8 +58,8 @@ as the following code::
 It is more memory consuming but it is way more efficient in terms of
 latency.
 
-For questions, suggestions, bug reports you can contribute directly on Dolphin's
-github repository:
+For questions, suggestions, bug reports you can contribute directly
+on Dolphin github repository:
 https://github.com/MaximeDebarbat/Dolphin
 
 Or reach me at:
@@ -72,7 +72,25 @@ import pycuda.autoinit
 import pycuda.driver as cuda  # pylint: disable=import-error
 
 from .cutils.cuda_base import CudaBase
-from .cutils.cuda_base_new import CudaBaseNew
+from .cutils.cudarray import (
+  CuFillCompiler,
+  AXpBZCompiler,
+  AXpBYZCompiler,
+  EltwiseMultCompiler,
+  EltwiseDivCompiler,
+  ScalDivCompiler,
+  InvScalDivCompiler,
+  EltWiseCastCompiler,
+  EltwiseAbsCompiler,
+  TransposeCompiler,
+  IndexerCompiler
+)
+from .cutils.cudimage import (
+  CuResizeCompiler,
+  CuNormalizeCompiler,
+  CuCvtColorCompiler
+)
+
 from .core.dtype import dtype
 from .core.darray import (
     darray,
@@ -90,7 +108,6 @@ from .core.darray import (
     ones_like,
     empty_like,
     absolute,
-    abs
 )
 from .core.dimage import (dimage,
                           dimage_dim_format,
@@ -101,10 +118,8 @@ from .core.dimage import (dimage,
                           resize_padding,
                           cvtColor,
                           normalize)
-from .cutils import cudarray, cudimage
 from .core.bufferizer import Bufferizer
 from .core.trtbuffer import CudaTrtBuffers
-from .cutils.bindings import CudaBinding
 from .TrtWrapper.Engine import Engine
 
 globals().update(dimage_dim_format.__members__)

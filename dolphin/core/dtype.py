@@ -130,10 +130,13 @@ class dtype(Enum):  # pylint: disable=invalid-name
                 return d
         raise ValueError("Invalid numpy data type")
 
-    def __repr__(self) -> str:
-        return self.cuda_dtype
-
     def __str__(self) -> str:
+        """Triggered when casting into str::
+            str(dp.uint8) -> dp.uint8.__str__()
+
+        :return: representation of the data type
+        :rtype: str
+        """
         return self.cuda_dtype
 
     def __getitem__(self,
@@ -169,6 +172,5 @@ class dtype(Enum):  # pylint: disable=invalid-name
                 return self.numpy_dtype
             elif key == "cuda_dtype":
                 return self.cuda_dtype
-            else:
-                raise KeyError("Key must be either 'numpy_dtype' \
+        raise KeyError("Key must be either 'numpy_dtype' \
 or 'cuda_dtype'")

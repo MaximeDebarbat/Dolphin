@@ -4,21 +4,21 @@
 import sys
 from datetime import datetime
 
-import tensorrt as trt  # pylint: disable=import-error
+import tensorrt as trt  # noqa
 
 TRT_LOGGER = None
 
 if int(trt.__version__[2]) == 0:
-    TRT_LOGGER = trt.Logger  # pylint: disable=no-member
+    TRT_LOGGER = trt.Logger  # noqa
 else:
-    TRT_LOGGER = trt.ILogger  # pylint: disable=no-member
+    TRT_LOGGER = trt.ILogger  # noqa
 
 
 class TrtLogger(TRT_LOGGER):
-    """_summary_
+    """
+    TensorRT Logger, used to print TensorRT's internal log messages to stdout.
 
-    :param TRT_LOGGER: _description_
-    :type TRT_LOGGER: _type_
+    It is recommended to use this logger to print TensorRT's internal log.
     """
 
     def __init__(self,
@@ -35,29 +35,37 @@ class TrtLogger(TRT_LOGGER):
         self.stdout = stdout
         self.stderr = stderr
 
-    def log(self, severity, msg):
-        """_summary_
+    def now(self) -> str:
+        """Helping function that returns the current date
+        in format %d/%m/%Y-%H:%M:%S
 
-        :param severity: _description_
-        :type severity: _type_
-        :param msg: _description_
-        :type msg: _type_
+        :return: Current time
+        :rtype: str
+        """
+        return f'[{datetime.now().strftime("%d/%m/%Y-%H:%M:%S")}]'
+
+    def log(self, severity: TRT_LOGGER.Severity,
+            msg: str) -> None:
+        """Main logging function.
+
+        :param severity: Severity of the message.
+        :type severity: trt.tensorrt.ILogger.Severity
+        :param msg: Message to be printed.
+        :type msg: str
         """
 
-        current_date = f'[{datetime.now().strftime("%d/%m/%Y-%H:%M:%S")}]'
-
         if severity == TRT_LOGGER.Severity.ERROR:
-            print(current_date + "[E] " + msg, file=self.stderr)
+            print(self.now() + "[E] " + msg, file=self.stderr)
 
         if severity == TRT_LOGGER.Severity.INTERNAL_ERROR:
-            print(current_date + "[INTERNAL ERROR] " + msg, file=self.stderr)
+            print(self.now() + "[INTERNAL ERROR] " + msg, file=self.stderr)
 
         if severity == TRT_LOGGER.Severity.WARNING:
-            print(current_date + "[W] " + msg, file=self.stdout)
+            print(self.now() + "[W] " + msg, file=self.stdout)
 
         if (self.min_severity == TRT_LOGGER.Severity.VERBOSE
            and severity == TRT_LOGGER.Severity.VERBOSE):
-            print(current_date + "[V] " + msg, file=self.stdout)
+            print(self.now() + "[V] " + msg, file=self.stdout)
 
         if severity == TRT_LOGGER.Severity.INFO:
-            print(current_date + "[I] " + msg, file=self.stdout)
+            print(self.now() + "[I] " + msg, file=self.stdout)

@@ -38,8 +38,8 @@ class test_dimage:
         Test the creation of a dimage from a numpy array
         """
         shape, format = shape_format
-        numpy_array = numpy.random.random(shape).astype(dtype.numpy_dtype)
-        dimage = dp.dimage(numpy_array)
+        numpy_array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
+        dimage = dp.dimage(array=numpy_array)
 
         assert isinstance(dimage, dp.dimage)
         assert dimage.image_dim_format == format
@@ -50,8 +50,8 @@ class test_dimage:
         Test the creation of a dimage from a numpy array
         """
         shape, format = shape_format
-        numpy_array = numpy.random.random(shape).astype(dtype.numpy_dtype)
-        dimage = dp.dimage(numpy_array, format)
+        numpy_array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
+        dimage = dp.dimage(array=numpy_array)
 
         assert isinstance(dimage, dp.dimage)
         assert dimage.image_dim_format == format
@@ -66,11 +66,11 @@ class test_dimage:
         Test the creation of a dimage from a numpy array
         """
         shape, format = shape_format
-        numpy_array = numpy.random.random(shape).astype(dtype.numpy_dtype)
-        dimage = dp.dimage(numpy_array)
+        numpy_array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
+        dimage = dp.dimage(array=numpy_array)
         dimage_copy = dimage.copy()
 
-        diff = numpy.linalg.norm(dimage.ndarray - dimage_copy.ndarray)
+        diff = numpy.linalg.norm(dimage.to_numpy() - dimage_copy.to_numpy())
 
         assert isinstance(dimage_copy, dp.dimage)
         assert dimage_copy.image_dim_format == format
@@ -82,11 +82,11 @@ class test_dimage:
         Test the creation of a dimage from a numpy array
         """
         shape, format = shape_format
-        numpy_array = numpy.random.random(shape).astype(dtype.numpy_dtype)
-        dimage = dp.dimage(numpy_array)
+        numpy_array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
+        dimage = dp.dimage(array=numpy_array)
         dimage_copy = dimage.copy()
 
-        diff = numpy.linalg.norm(dimage.ndarray - dimage_copy.ndarray)
+        diff = numpy.linalg.norm(dimage.to_numpy() - dimage_copy.to_numpy())
 
         assert isinstance(dimage_copy, dp.dimage)
         assert dimage_copy.image_dim_format == format
@@ -102,14 +102,14 @@ class test_dimage:
         Test the transpose of a dimage
         """
         shape, format = shape_format
-        numpy_array = numpy.random.random(shape).astype(dtype.numpy_dtype)
-        dimage = dp.dimage(numpy_array)
+        numpy_array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
+        dimage = dp.dimage(array=numpy_array)
 
         perms_dp = tuple([i for i in range(len(dimage.shape))[::-1]])
 
         dimage_transpose = dimage.transpose(*perms_dp)
 
-        diff = numpy.linalg.norm(dimage.ndarray.transpose(*perms_dp) - dimage_transpose.ndarray)
+        diff = numpy.linalg.norm(dimage.to_numpy().transpose(*perms_dp) - dimage_transpose.to_numpy())
 
         assert isinstance(dimage_transpose, dp.dimage)
         assert dimage_transpose.dtype == dtype
@@ -134,7 +134,7 @@ class test_dimage_transpose:
         Test the transpose of a dimage
         """
         array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        dimage = dp.dimage(array)
+        dimage = dp.dimage(array=array)
         shape = dimage.shape
 
         perms = (1, 0)
@@ -157,7 +157,7 @@ class test_dimage_transpose:
         Test the transpose of a dimage
         """
         array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        dimage = dp.dimage(array, channel_format=format)
+        dimage = dp.dimage(array=array, channel_format=format)
         shape = dimage.shape
 
         perms = (2, 1, 0)
@@ -180,7 +180,7 @@ class test_dimage_transpose:
         Test the transpose of a dimage
         """
         array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        dimage = dp.dimage(array, channel_format=format)
+        dimage = dp.dimage(array=array, channel_format=format)
         shape = dimage.shape
 
         perms = (1, 2, 0)
@@ -200,7 +200,7 @@ class test_dimage_transpose:
         Test the transpose of a dimage
         """
         array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        dimage = dp.dimage(array)
+        dimage = dp.dimage(array=array)
         shape = dimage.shape
 
         perms = (1, 0)
@@ -224,7 +224,7 @@ class test_dimage_transpose:
         Test the transpose of a dimage
         """
         array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        dimage = dp.dimage(array, channel_format=format)
+        dimage = dp.dimage(array=array, channel_format=format)
         shape = dimage.shape
 
         perms = (2, 1, 0)
@@ -247,7 +247,7 @@ class test_dimage_transpose:
         Test the transpose of a dimage
         """
         array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        dimage = dp.dimage(array, channel_format=format)
+        dimage = dp.dimage(array=array, channel_format=format)
         shape = dimage.shape
 
         perms = (1, 2, 0)
@@ -313,7 +313,7 @@ class test_dimage_resize:
         Test resize of a HW (grayscale) dimage
         """
         array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        dimage = dp.dimage(array)
+        dimage = dp.dimage(array=array)
         shape = dimage.shape
 
         dimage_resize = dimage.resize(new_shape)
@@ -329,9 +329,9 @@ class test_dimage_resize:
                 numpy.float64]:
             s_dtype = numpy.float32
 
-        cv_resize = cv2.resize(dimage.ndarray.astype(s_dtype), new_shape, interpolation=cv2.INTER_NEAREST)
+        cv_resize = cv2.resize(dimage.to_numpy().astype(s_dtype), new_shape, interpolation=cv2.INTER_NEAREST)
 
-        diff = numpy.linalg.norm(dimage_resize.ndarray - cv_resize)
+        diff = numpy.linalg.norm(dimage_resize.to_numpy() - cv_resize)
 
         assert isinstance(dimage_resize, dp.dimage)
         assert dimage_resize.width == new_shape[0]
@@ -352,7 +352,7 @@ class test_dimage_resize:
         Test resize of a HW (grayscale) dimage
         """
         array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        dimage = dp.dimage(array)
+        dimage = dp.dimage(array=array)
         shape = dimage.shape
 
         dimage_resize, _, _ = dimage.resize_padding(new_shape)
@@ -368,9 +368,9 @@ class test_dimage_resize:
                 numpy.float64]:
             s_dtype = numpy.float32
 
-        cv_resize = letterbox(dimage.ndarray.astype(s_dtype), new_shape)
+        cv_resize = letterbox(dimage.to_numpy().astype(s_dtype), new_shape)
 
-        diff = numpy.linalg.norm(dimage_resize.ndarray - cv_resize)
+        diff = numpy.linalg.norm(dimage_resize.to_numpy() - cv_resize)
 
         assert isinstance(dimage_resize, dp.dimage)
         assert dimage_resize.width == new_shape[0]
@@ -394,7 +394,7 @@ class test_dimage_resize:
         Test the transpose of a dimage
         """
         array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        dimage = dp.dimage(array, channel_format=format)
+        dimage = dp.dimage(array=array, channel_format=format)
         shape = dimage.shape
 
         dimage_resize = dimage.resize(new_shape)
@@ -410,9 +410,9 @@ class test_dimage_resize:
                 numpy.float64]:
             s_dtype = numpy.float32
 
-        cv_resize = cv2.resize(dimage.ndarray.astype(s_dtype), new_shape, interpolation=cv2.INTER_NEAREST)
+        cv_resize = cv2.resize(dimage.to_numpy().astype(s_dtype), new_shape, interpolation=cv2.INTER_NEAREST)
 
-        diff = numpy.linalg.norm(dimage_resize.ndarray - cv_resize)
+        diff = numpy.linalg.norm(dimage_resize.to_numpy() - cv_resize)
 
         assert isinstance(dimage_resize, dp.dimage)
         assert dimage_resize.width == new_shape[0]
@@ -436,9 +436,8 @@ class test_dimage_resize:
         Test the transpose of a dimage
         """
         array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        dimage = dp.dimage(array, channel_format=format)
+        dimage = dp.dimage(array=array, channel_format=format)
         shape = dimage.shape
-        print(f"shape: {shape} new_shape: {new_shape}")
         dimage_resize, _, _ = dimage.resize_padding(new_shape)
 
         s_dtype = dtype.numpy_dtype
@@ -452,9 +451,9 @@ class test_dimage_resize:
                 numpy.float64]:
             s_dtype = numpy.float32
 
-        cv_resize = letterbox(dimage.ndarray.astype(s_dtype), new_shape)
+        cv_resize = letterbox(dimage.to_numpy().astype(s_dtype), new_shape)
 
-        diff = numpy.linalg.norm(dimage_resize.ndarray - cv_resize)
+        diff = numpy.linalg.norm(dimage_resize.to_numpy() - cv_resize)
 
         assert isinstance(dimage_resize, dp.dimage)
         assert dimage_resize.width == new_shape[0]
@@ -477,7 +476,7 @@ class test_dimage_resize:
         Test the transpose of a dimage
         """
         array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        dimage = dp.dimage(array, channel_format=format)
+        dimage = dp.dimage(array=array, channel_format=format)
         shape = dimage.shape
 
         dimage_resize = dimage.resize(new_shape)
@@ -493,9 +492,9 @@ class test_dimage_resize:
                 numpy.float64]:
             s_dtype = numpy.float32
 
-        cv_resize = cv2.resize(dimage.ndarray.transpose(1, 2, 0).astype(s_dtype), new_shape, interpolation=cv2.INTER_NEAREST)
+        cv_resize = cv2.resize(dimage.to_numpy().transpose(1, 2, 0).astype(s_dtype), new_shape, interpolation=cv2.INTER_NEAREST)
 
-        diff = numpy.linalg.norm(dimage_resize.ndarray - cv_resize.transpose(2, 0, 1))
+        diff = numpy.linalg.norm(dimage_resize.to_numpy() - cv_resize.transpose(2, 0, 1))
 
         assert isinstance(dimage_resize, dp.dimage)
         assert dimage_resize.width == new_shape[0]
@@ -518,7 +517,7 @@ class test_dimage_resize:
         Test the transpose of a dimage
         """
         array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        dimage = dp.dimage(array, channel_format=format)
+        dimage = dp.dimage(array=array, channel_format=format)
         shape = dimage.shape
 
         dimage_resize, _, _ = dimage.resize_padding(new_shape)
@@ -534,9 +533,9 @@ class test_dimage_resize:
                 numpy.float64]:
             s_dtype = numpy.float32
 
-        cv_resize = letterbox(dimage.ndarray.transpose(1, 2, 0).astype(s_dtype), new_shape)
+        cv_resize = letterbox(dimage.to_numpy().transpose(1, 2, 0).astype(s_dtype), new_shape)
 
-        diff = numpy.linalg.norm(dimage_resize.ndarray - cv_resize.transpose(2, 0, 1))
+        diff = numpy.linalg.norm(dimage_resize.to_numpy() - cv_resize.transpose(2, 0, 1))
 
         assert isinstance(dimage_resize, dp.dimage)
         assert dimage_resize.width == new_shape[0]
@@ -564,13 +563,13 @@ class test_dimage_normalization:
         Test resize of a HW (grayscale) dimage
         """
         array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        dimage = dp.dimage(array)
+        dimage = dp.dimage(array=array)
         shape = dimage.shape
 
         dimage_normalized = dimage.normalize(normalize_type=dp.dimage_normalize_type.DOLPHIN_255, dtype=dtype)
-        result = (dimage.ndarray/255).astype(dimage_normalized.dtype.numpy_dtype)
+        result = (dimage.to_numpy()/255).astype(dimage_normalized.dtype.numpy_dtype)
 
-        diff = numpy.linalg.norm(dimage_normalized.ndarray - result)
+        diff = numpy.linalg.norm(dimage_normalized.to_numpy() - result)
 
         assert isinstance(dimage_normalized, dp.dimage)
         assert diff < 1e-5
@@ -588,13 +587,13 @@ class test_dimage_normalization:
         Test resize of a HW (grayscale) dimage
         """
         array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        dimage = dp.dimage(array, channel_format=format)
+        dimage = dp.dimage(array=array, channel_format=format)
         shape = dimage.shape
 
         dimage_normalized = dimage.normalize(normalize_type=dp.dimage_normalize_type.DOLPHIN_255, dtype=dtype)
-        result = (dimage.ndarray/255).astype(dimage_normalized.dtype.numpy_dtype)
+        result = (dimage.to_numpy()/255).astype(dimage_normalized.dtype.numpy_dtype)
 
-        diff = numpy.linalg.norm(dimage_normalized.ndarray - result)
+        diff = numpy.linalg.norm(dimage_normalized.to_numpy() - result)
 
         assert isinstance(dimage_normalized, dp.dimage)
         assert diff < 1e-5
@@ -612,13 +611,13 @@ class test_dimage_normalization:
         Test resize of a HW (grayscale) dimage
         """
         array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        dimage = dp.dimage(array, channel_format=format)
+        dimage = dp.dimage(array=array, channel_format=format)
         shape = dimage.shape
 
         dimage_normalized = dimage.normalize(normalize_type=dp.dimage_normalize_type.DOLPHIN_255, dtype=dtype)
-        result = (dimage.ndarray/255).astype(dimage_normalized.dtype.numpy_dtype)
+        result = (dimage.to_numpy()/255).astype(dimage_normalized.dtype.numpy_dtype)
 
-        diff = numpy.linalg.norm(dimage_normalized.ndarray - result)
+        diff = numpy.linalg.norm(dimage_normalized.to_numpy() - result)
 
         assert isinstance(dimage_normalized, dp.dimage)
         assert diff < 1e-5
@@ -635,16 +634,16 @@ class test_dimage_normalization:
         Test resize of a HW (grayscale) dimage
         """
         array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        dimage = dp.dimage(array)
+        dimage = dp.dimage(array=array)
         shape = dimage.shape
 
         dimage_normalized = dimage.normalize(normalize_type=dp.dimage_normalize_type.DOLPHIN_TF)
-        result = (dimage.ndarray / 127.5 - 1.0)
+        result = (dimage.to_numpy() / 127.5 - 1.0)
 
-        diff = numpy.linalg.norm(dimage_normalized.ndarray - result.astype(dtype=numpy.float32))
+        diff = numpy.linalg.norm(dimage_normalized.to_numpy() - result.astype(dtype=numpy.float32))
 
         assert isinstance(dimage_normalized, dp.dimage)
-        assert diff < 1e-5, f"diff: {diff} | {dimage_normalized.ndarray[0][0]} | {result[0][0]}"
+        assert diff < 1e-5, f"diff: {diff} | {dimage_normalized.to_numpy()[0][0]} | {result[0][0]}"
         assert dimage_normalized.image_dim_format == dp.dimage_dim_format.DOLPHIN_HW
         assert dimage_normalized.image_channel_format == dp.DOLPHIN_GRAY_SCALE
 
@@ -658,13 +657,13 @@ class test_dimage_normalization:
         Test resize of a HW (grayscale) dimage
         """
         array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        dimage = dp.dimage(array, channel_format=format)
+        dimage = dp.dimage(array=array, channel_format=format)
         shape = dimage.shape
 
         dimage_normalized = dimage.normalize(normalize_type=dp.dimage_normalize_type.DOLPHIN_TF)
-        result = (dimage.ndarray / 127.5 - 1.0)
+        result = (dimage.to_numpy() / 127.5 - 1.0)
 
-        diff = numpy.linalg.norm(dimage_normalized.ndarray - result.astype(dtype=numpy.float32))
+        diff = numpy.linalg.norm(dimage_normalized.to_numpy() - result.astype(dtype=numpy.float32))
 
         assert isinstance(dimage_normalized, dp.dimage)
         assert diff < 1e-5
@@ -681,13 +680,13 @@ class test_dimage_normalization:
         Test resize of a HW (grayscale) dimage
         """
         array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        dimage = dp.dimage(array, channel_format=format)
+        dimage = dp.dimage(array=array, channel_format=format)
         shape = dimage.shape
 
         dimage_normalized = dimage.normalize(normalize_type=dp.dimage_normalize_type.DOLPHIN_TF)
-        result = (dimage.ndarray / 127.5 - 1.0)
+        result = (dimage.to_numpy() / 127.5 - 1.0)
 
-        diff = numpy.linalg.norm(dimage_normalized.ndarray - result.astype(dtype=numpy.float32))
+        diff = numpy.linalg.norm(dimage_normalized.to_numpy() - result.astype(dtype=numpy.float32))
 
         assert isinstance(dimage_normalized, dp.dimage)
         assert diff < 1e-5
@@ -704,16 +703,16 @@ class test_dimage_normalization:
         array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
         mean = numpy.random.rand(1).astype(dtype.numpy_dtype)+1
         std = numpy.random.rand(1).astype(dtype.numpy_dtype)+1
-        dimage = dp.dimage(array)
+        dimage = dp.dimage(array=array)
         shape = dimage.shape
 
         dimage_normalized = dimage.normalize(normalize_type=dp.dimage_normalize_type.DOLPHIN_MEAN_STD, mean=mean, std=std)
-        result = ((dimage.ndarray/255) - mean) / std
+        result = ((dimage.to_numpy()/255) - mean) / std
 
-        diff = numpy.linalg.norm(dimage_normalized.ndarray - result.astype(dtype=numpy.float32))
+        diff = numpy.linalg.norm(dimage_normalized.to_numpy() - result.astype(dtype=numpy.float32))
 
         assert isinstance(dimage_normalized, dp.dimage)
-        assert diff < 1e-4, f"diff: {diff} | {dimage_normalized.ndarray[0][0]} | {result[0][0]}"
+        assert diff < 1e-4, f"diff: {diff} | {dimage_normalized.to_numpy()[0][0]} | {result[0][0]}"
         assert dimage_normalized.image_dim_format == dp.dimage_dim_format.DOLPHIN_HW
         assert dimage_normalized.image_channel_format == dp.DOLPHIN_GRAY_SCALE
 
@@ -726,19 +725,19 @@ class test_dimage_normalization:
         array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
         mean = numpy.random.rand(3).astype(dtype.numpy_dtype)+1
         std = numpy.random.rand(3).astype(dtype.numpy_dtype)+1
-        dimage = dp.dimage(array)
+        dimage = dp.dimage(array=array)
         shape = dimage.shape
 
         dimage_normalized = dimage.normalize(normalize_type=dp.dimage_normalize_type.DOLPHIN_MEAN_STD, mean=mean, std=std, dtype=dp.dtype.float64)
-        result = dimage.ndarray/255
+        result = dimage.to_numpy()/255
         result[0, :, :] = (result[0, :, :] - mean[0]) / std[0]
         result[1, :, :] = (result[1, :, :] - mean[1]) / std[1]
         result[2, :, :] = (result[2, :, :] - mean[2]) / std[2]
 
-        diff = numpy.linalg.norm(dimage_normalized.ndarray - result.astype(dtype=numpy.double))
+        diff = numpy.linalg.norm(dimage_normalized.to_numpy() - result.astype(dtype=numpy.double))
 
         assert isinstance(dimage_normalized, dp.dimage)
-        assert diff < 1e-3, f"diff: {diff} | {dimage_normalized.ndarray[0][0][0]} | {result[0][0][0]}"
+        assert diff < 1e-3, f"diff: {diff} | {dimage_normalized.to_numpy()[0][0][0]} | {result[0][0][0]}"
         assert dimage_normalized.image_dim_format == dp.dimage_dim_format.DOLPHIN_CHW
         assert dimage_normalized.image_channel_format == dp.DOLPHIN_RGB
 
@@ -751,19 +750,19 @@ class test_dimage_normalization:
         array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
         mean = numpy.random.rand(3).astype(dtype.numpy_dtype)+1
         std = numpy.random.rand(3).astype(dtype.numpy_dtype)+1
-        dimage = dp.dimage(array)
+        dimage = dp.dimage(array=array)
         shape = dimage.shape
 
         dimage_normalized = dimage.normalize(normalize_type=dp.dimage_normalize_type.DOLPHIN_MEAN_STD, mean=mean, std=std, dtype=dp.dtype.float64)
-        result = dimage.ndarray/255
+        result = dimage.to_numpy()/255
         result[:, :, 0] = (result[:, :, 0] - mean[0]) / std[0]
         result[:, :, 1] = (result[:, :, 1] - mean[1]) / std[1]
         result[:, :, 2] = (result[:, :, 2] - mean[2]) / std[2]
 
-        diff = numpy.linalg.norm(dimage_normalized.ndarray - result.astype(dtype=numpy.double))
+        diff = numpy.linalg.norm(dimage_normalized.to_numpy() - result.astype(dtype=numpy.double))
 
         assert isinstance(dimage_normalized, dp.dimage)
-        assert diff < 1e-3, f"diff: {diff} | {dimage_normalized.ndarray[0][0][0]} | {result[0][0][0]}"
+        assert diff < 1e-3, f"diff: {diff} | {dimage_normalized.to_numpy()[0][0][0]} | {result[0][0][0]}"
         assert dimage_normalized.image_dim_format == dp.dimage_dim_format.DOLPHIN_HWC
         assert dimage_normalized.image_channel_format == dp.DOLPHIN_RGB
 
@@ -784,17 +783,17 @@ class test_dimage_cvtcolor:
         Test conversion of a dimage
         """
         array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        dimage = dp.dimage(array, channel_format=dp.DOLPHIN_BGR)
+        dimage = dp.dimage(array=array, channel_format=dp.DOLPHIN_BGR)
         result = numpy.zeros((dimage.shape[0], dimage.shape[1]), dtype=dtype.numpy_dtype)
 
         dimage_cvt = dimage.cvtColor(dp.DOLPHIN_GRAY_SCALE)
 
-        result = dimage.ndarray[:, :, 0]*0.114 + dimage.ndarray[:, :, 1]*0.587 + dimage.ndarray[:, :, 2]*0.299
+        result = dimage.to_numpy()[:, :, 0]*0.114 + dimage.to_numpy()[:, :, 1]*0.587 + dimage.to_numpy()[:, :, 2]*0.299
 
-        diff = numpy.linalg.norm(dimage_cvt.ndarray - result.astype(dtype=numpy.float32))
+        diff = numpy.linalg.norm(dimage_cvt.to_numpy() - result.astype(dtype=numpy.float32))
 
         assert isinstance(dimage_cvt, dp.dimage)
-        assert diff < 1e-4, f"diff: {diff} | {dimage_cvt.ndarray[0][0]} | {result[0][0]}"
+        assert diff < 1e-4, f"diff: {diff} | {dimage_cvt.to_numpy()[0][0]} | {result[0][0]}"
         assert dimage_cvt.image_dim_format == dp.dimage_dim_format.DOLPHIN_HW
         assert dimage_cvt.image_channel_format == dp.DOLPHIN_GRAY_SCALE
 
@@ -805,17 +804,17 @@ class test_dimage_cvtcolor:
         Test conversion of a dimage
         """
         array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        dimage = dp.dimage(array, channel_format=dp.DOLPHIN_BGR)
+        dimage = dp.dimage(array=array, channel_format=dp.DOLPHIN_BGR)
         result = numpy.zeros((dimage.shape[1], dimage.shape[2]), dtype=dtype.numpy_dtype)
 
         dimage_cvt = dimage.cvtColor(dp.DOLPHIN_GRAY_SCALE)
 
-        result = dimage.ndarray[0, :, :]*0.114 + dimage.ndarray[1, :, :]*0.587 + dimage.ndarray[2, :, :]*0.299
+        result = dimage.to_numpy()[0, :, :]*0.114 + dimage.to_numpy()[1, :, :]*0.587 + dimage.to_numpy()[2, :, :]*0.299
 
-        diff = numpy.linalg.norm(dimage_cvt.ndarray - result.astype(dtype=numpy.float32))
+        diff = numpy.linalg.norm(dimage_cvt.to_numpy() - result.astype(dtype=numpy.float32))
 
         assert isinstance(dimage_cvt, dp.dimage)
-        assert diff < 1e-4, f"diff: {diff} | {dimage_cvt.ndarray[0][0]} | {result[0][0]}"
+        assert diff < 1e-4, f"diff: {diff} | {dimage_cvt.to_numpy()[0][0]} | {result[0][0]}"
         assert dimage_cvt.image_dim_format == dp.dimage_dim_format.DOLPHIN_HW
         assert dimage_cvt.image_channel_format == dp.DOLPHIN_GRAY_SCALE
 
@@ -826,17 +825,17 @@ class test_dimage_cvtcolor:
         Test conversion of a dimage
         """
         array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        dimage = dp.dimage(array, channel_format=dp.DOLPHIN_RGB)
+        dimage = dp.dimage(array=array, channel_format=dp.DOLPHIN_RGB)
         result = numpy.zeros((dimage.shape[0], dimage.shape[1]), dtype=dtype.numpy_dtype)
 
         dimage_cvt = dimage.cvtColor(dp.DOLPHIN_GRAY_SCALE)
 
-        result = dimage.ndarray[:, :, 0]*0.299 + dimage.ndarray[:, :, 1]*0.587 + dimage.ndarray[:, :, 2]*0.114
+        result = dimage.to_numpy()[:, :, 0]*0.299 + dimage.to_numpy()[:, :, 1]*0.587 + dimage.to_numpy()[:, :, 2]*0.114
 
-        diff = numpy.linalg.norm(dimage_cvt.ndarray - result.astype(dtype=numpy.float32))
+        diff = numpy.linalg.norm(dimage_cvt.to_numpy() - result.astype(dtype=numpy.float32))
 
         assert isinstance(dimage_cvt, dp.dimage)
-        assert diff < 1e-4, f"diff: {diff} | {dimage_cvt.ndarray[0][0]} | {result[0][0]}"
+        assert diff < 1e-4, f"diff: {diff} | {dimage_cvt.to_numpy()[0][0]} | {result[0][0]}"
         assert dimage_cvt.image_dim_format == dp.dimage_dim_format.DOLPHIN_HW
         assert dimage_cvt.image_channel_format == dp.DOLPHIN_GRAY_SCALE
 
@@ -847,17 +846,17 @@ class test_dimage_cvtcolor:
         Test conversion of a dimage
         """
         array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        dimage = dp.dimage(array, channel_format=dp.DOLPHIN_RGB)
+        dimage = dp.dimage(array=array, channel_format=dp.DOLPHIN_RGB)
         result = numpy.zeros((dimage.shape[1], dimage.shape[2]), dtype=dtype.numpy_dtype)
 
         dimage_cvt = dimage.cvtColor(dp.DOLPHIN_GRAY_SCALE)
 
-        result = dimage.ndarray[0, :, :]*0.299 + dimage.ndarray[1, :, :]*0.587 + dimage.ndarray[2, :, :]*0.114
+        result = dimage.to_numpy()[0, :, :]*0.299 + dimage.to_numpy()[1, :, :]*0.587 + dimage.to_numpy()[2, :, :]*0.114
 
-        diff = numpy.linalg.norm(dimage_cvt.ndarray - result.astype(dtype=numpy.float32))
+        diff = numpy.linalg.norm(dimage_cvt.to_numpy() - result.astype(dtype=numpy.float32))
 
         assert isinstance(dimage_cvt, dp.dimage)
-        assert diff < 1e-4, f"diff: {diff} | {dimage_cvt.ndarray[0][0]} | {result[0][0]}"
+        assert diff < 1e-4, f"diff: {diff} | {dimage_cvt.to_numpy()[0][0]} | {result[0][0]}"
         assert dimage_cvt.image_dim_format == dp.dimage_dim_format.DOLPHIN_HW
         assert dimage_cvt.image_channel_format == dp.DOLPHIN_GRAY_SCALE
 
@@ -868,19 +867,19 @@ class test_dimage_cvtcolor:
         Test conversion of a dimage
         """
         array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        dimage = dp.dimage(array, channel_format=dp.DOLPHIN_BGR)
+        dimage = dp.dimage(array=array, channel_format=dp.DOLPHIN_BGR)
         result = numpy.zeros((dimage.shape[0], dimage.shape[1], dimage.shape[2]), dtype=dtype.numpy_dtype)
 
         dimage_cvt = dimage.cvtColor(dp.DOLPHIN_RGB)
 
-        result[:, :, 0] = dimage.ndarray[:, :, 2]
-        result[:, :, 1] = dimage.ndarray[:, :, 1]
-        result[:, :, 2] = dimage.ndarray[:, :, 0]
+        result[:, :, 0] = dimage.to_numpy()[:, :, 2]
+        result[:, :, 1] = dimage.to_numpy()[:, :, 1]
+        result[:, :, 2] = dimage.to_numpy()[:, :, 0]
 
-        diff = numpy.linalg.norm(dimage_cvt.ndarray - result.astype(dtype=numpy.float32))
+        diff = numpy.linalg.norm(dimage_cvt.to_numpy() - result.astype(dtype=numpy.float32))
 
         assert isinstance(dimage_cvt, dp.dimage)
-        assert diff < 1e-4, f"diff: {diff} | {dimage_cvt.ndarray[0][0]} | {result[0][0]}"
+        assert diff < 1e-4, f"diff: {diff} | {dimage_cvt.to_numpy()[0][0]} | {result[0][0]}"
         assert dimage_cvt.image_dim_format == dp.dimage_dim_format.DOLPHIN_HWC
         assert dimage_cvt.image_channel_format == dp.DOLPHIN_RGB
 
@@ -891,19 +890,19 @@ class test_dimage_cvtcolor:
         Test conversion of a dimage
         """
         array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        dimage = dp.dimage(array, channel_format=dp.DOLPHIN_BGR)
+        dimage = dp.dimage(array=array, channel_format=dp.DOLPHIN_BGR)
         result = numpy.zeros((dimage.shape[0], dimage.shape[1], dimage.shape[2]), dtype=dtype.numpy_dtype)
 
         dimage_cvt = dimage.cvtColor(dp.DOLPHIN_RGB)
 
-        result[0, :, :] = dimage.ndarray[2, :, :]
-        result[1, :, :] = dimage.ndarray[1, :, :]
-        result[2, :, :] = dimage.ndarray[0, :, :]
+        result[0, :, :] = dimage.to_numpy()[2, :, :]
+        result[1, :, :] = dimage.to_numpy()[1, :, :]
+        result[2, :, :] = dimage.to_numpy()[0, :, :]
 
-        diff = numpy.linalg.norm(dimage_cvt.ndarray - result.astype(dtype=numpy.float32))
+        diff = numpy.linalg.norm(dimage_cvt.to_numpy() - result.astype(dtype=numpy.float32))
 
         assert isinstance(dimage_cvt, dp.dimage)
-        assert diff < 1e-4, f"diff: {diff} | {dimage_cvt.ndarray[0][0]} | {result[0][0]}"
+        assert diff < 1e-4, f"diff: {diff} | {dimage_cvt.to_numpy()[0][0]} | {result[0][0]}"
         assert dimage_cvt.image_dim_format == dp.dimage_dim_format.DOLPHIN_CHW
         assert dimage_cvt.image_channel_format == dp.DOLPHIN_RGB
 
@@ -914,19 +913,19 @@ class test_dimage_cvtcolor:
         Test conversion of a dimage
         """
         array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        dimage = dp.dimage(array, channel_format=dp.DOLPHIN_RGB)
+        dimage = dp.dimage(array=array, channel_format=dp.DOLPHIN_RGB)
         result = numpy.zeros((dimage.shape[0], dimage.shape[1], dimage.shape[2]), dtype=dtype.numpy_dtype)
 
         dimage_cvt = dimage.cvtColor(dp.DOLPHIN_BGR)
 
-        result[:, :, 0] = dimage.ndarray[:, :, 2]
-        result[:, :, 1] = dimage.ndarray[:, :, 1]
-        result[:, :, 2] = dimage.ndarray[:, :, 0]
+        result[:, :, 0] = dimage.to_numpy()[:, :, 2]
+        result[:, :, 1] = dimage.to_numpy()[:, :, 1]
+        result[:, :, 2] = dimage.to_numpy()[:, :, 0]
 
-        diff = numpy.linalg.norm(dimage_cvt.ndarray - result.astype(dtype=numpy.float32))
+        diff = numpy.linalg.norm(dimage_cvt.to_numpy() - result.astype(dtype=numpy.float32))
 
         assert isinstance(dimage_cvt, dp.dimage)
-        assert diff < 1e-4, f"diff: {diff} | {dimage_cvt.ndarray[0][0]} | {result[0][0]}"
+        assert diff < 1e-4, f"diff: {diff} | {dimage_cvt.to_numpy()[0][0]} | {result[0][0]}"
         assert dimage_cvt.image_dim_format == dp.dimage_dim_format.DOLPHIN_HWC
         assert dimage_cvt.image_channel_format == dp.DOLPHIN_BGR
 
@@ -937,19 +936,19 @@ class test_dimage_cvtcolor:
         Test conversion of a dimage
         """
         array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        dimage = dp.dimage(array, channel_format=dp.DOLPHIN_RGB)
+        dimage = dp.dimage(array=array, channel_format=dp.DOLPHIN_RGB)
         result = numpy.zeros((dimage.shape[0], dimage.shape[1], dimage.shape[2]), dtype=dtype.numpy_dtype)
 
         dimage_cvt = dimage.cvtColor(dp.DOLPHIN_BGR)
 
-        result[0, :, :] = dimage.ndarray[2, :, :]
-        result[1, :, :] = dimage.ndarray[1, :, :]
-        result[2, :, :] = dimage.ndarray[0, :, :]
+        result[0, :, :] = dimage.to_numpy()[2, :, :]
+        result[1, :, :] = dimage.to_numpy()[1, :, :]
+        result[2, :, :] = dimage.to_numpy()[0, :, :]
 
-        diff = numpy.linalg.norm(dimage_cvt.ndarray - result.astype(dtype=numpy.float32))
+        diff = numpy.linalg.norm(dimage_cvt.to_numpy() - result.astype(dtype=numpy.float32))
 
         assert isinstance(dimage_cvt, dp.dimage)
-        assert diff < 1e-4, f"diff: {diff} | {dimage_cvt.ndarray[0][0]} | {result[0][0]}"
+        assert diff < 1e-4, f"diff: {diff} | {dimage_cvt.to_numpy()[0][0]} | {result[0][0]}"
         assert dimage_cvt.image_dim_format == dp.dimage_dim_format.DOLPHIN_CHW
         assert dimage_cvt.image_channel_format == dp.DOLPHIN_BGR
 
@@ -961,7 +960,7 @@ class test_dimage_cvtcolor:
         """
         array = numpy.random.rand(*shape)*10
         array = array.astype(dtype.numpy_dtype)
-        dimage = dp.dimage(array, channel_format=dp.DOLPHIN_BGR)
+        dimage = dp.dimage(array=array, channel_format=dp.DOLPHIN_BGR)
         result = numpy.zeros((dimage.shape[0], dimage.shape[1], dimage.shape[2]), dtype=dtype.numpy_dtype)
 
         result[0, :, :] = array[2, :, :]
@@ -970,9 +969,9 @@ class test_dimage_cvtcolor:
 
         dp.cvtColor(src=dimage, color_format=dp.DOLPHIN_RGB, dst=dimage)
 
-        diff = numpy.linalg.norm(dimage.ndarray - result.astype(dtype=numpy.float32))
+        diff = numpy.linalg.norm(dimage.to_numpy() - result.astype(dtype=numpy.float32))
 
         assert isinstance(dimage, dp.dimage)
-        assert diff < 1e-4, f"diff: {diff} | \n {array} \n {dimage.ndarray} \n {result}"
+        assert diff < 1e-4, f"diff: {diff} | \n {array} \n {dimage.to_numpy()} \n {result}"
         assert dimage.image_dim_format == dp.dimage_dim_format.DOLPHIN_CHW
         assert dimage.image_channel_format == dp.DOLPHIN_RGB

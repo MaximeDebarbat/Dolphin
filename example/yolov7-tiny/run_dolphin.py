@@ -1,26 +1,26 @@
 
 import argparse
-import dolphin as dp
-import cv2
 import time
+import cv2
 from utils import prepare_classes, download_required_data, draw
+import dolphin as dp
 
 
-def run(args: argparse.Namespace):
+def run(opt: argparse.Namespace):
 
     # We create or load the engine here, activate verbose to see the logs
     # verbosity=True
-    engine = dp.Engine(args.onnx,
-                       args.engine,
+    engine = dp.Engine(opt.onnx,
+                       opt.engine,
                        mode="fp16",
                        verbosity=True)
 
     # We create the stream
-    cap = cv2.VideoCapture(args.video)
+    cap = cv2.VideoCapture(opt.video)
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     fps = int(cap.get(cv2.CAP_PROP_FPS))
-    video_output = cv2.VideoWriter(args.export,
+    video_output = cv2.VideoWriter(opt.export,
                                    fourcc=cv2.VideoWriter_fourcc(*"MJPG"),
                                    fps=fps,
                                    frameSize=(width, height))
