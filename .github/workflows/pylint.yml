@@ -1,9 +1,13 @@
-name: Pylint
+name: Lint
 
-on: [push]
+on:
+  push:
+    paths:
+      - 'dolphin/'
+
 
 jobs:
-  build:
+  flake8:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -14,10 +18,12 @@ jobs:
       uses: actions/setup-python@v3
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install pylint
-    - name: Analysing the code with pylint
-      run: |
-        pylint -d E1101,R1705,C0301,C0115,C0116,C0114,C0103,E0401 $(git ls-files '*.py')
+      - name: Install flake8
+        run: pip install flake8
+      - name: Run flake8
+        uses: suo/flake8-github-action@releases/v1
+        with:
+          checkName: 'flake8'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
