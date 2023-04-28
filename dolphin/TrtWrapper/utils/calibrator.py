@@ -69,7 +69,8 @@ class CalibratorBase:
                 self.image_batcher.dtype).itemsize *
             np.prod(
                 self.image_batcher.shape))
-        self._batch_allocation = cuda.mem_alloc(size)  # pylint: disable=no-member
+        self._batch_allocation = cuda.mem_alloc(
+            size)  # pylint: disable=no-member
         self._batch_generator = self.image_batcher.get_batch()
 
     def get_batch_size(self):

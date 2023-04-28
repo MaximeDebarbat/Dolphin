@@ -1,19 +1,14 @@
 """_summary_
 """
 import sys
-import os
 import tensorrt as trt
 
 from .logger import TrtLogger
-from dolphin import CudaTrtBuffers
 
 
 class EEngine:
     """_summary_
     """
-
-    def __init__(self):
-        pass
 
     def build_engine(self,
                      onnx_file_path: str,
@@ -50,15 +45,16 @@ class EEngine:
                     for _error_idx in range(parser.num_errors):
                         self.trt_logger.log(
                             TrtLogger.Severity.ERROR,
-                            f"trt.OnnxParser Error {_error_idx} : {parser.get_error(_error_idx)}")
-                    exit(1)
+                            f"trt.OnnxParser Error {_error_idx} : \
+{parser.get_error(_error_idx)}")
 
-                input_layer_name = network.get_input(0).name
+                    sys.exit(1)
 
-                last_layer = network.get_layer(network.num_layers - 1)
-
-                if not last_layer.get_output(0):
-                    network.mark_output(last_layer.get_output(0))
+                if not network.get_layer(network.num_layers - 1).get_output(0):
+                    network.mark_output(
+                        network.get_layer(
+                            network.num_layers -
+                            1).get_output(0))
             self.trt_logger.log(
                 TrtLogger.Severity.INFO,
                 'Completed parsing of ONNX file')
@@ -73,7 +69,7 @@ class EEngine:
                 raise RuntimeError("optimisation_profile is None")
 
             profile.set_shape(
-                input_layer_name,
+                network.get_input(0).name,
                 self.optimisation_profile,
                 self.optimisation_profile,
                 self.optimisation_profile)
@@ -87,46 +83,54 @@ class EEngine:
                 if not builder.platform_has_fast_fp16:
                     self.trt_logger.log(
                         TrtLogger.Severity.WARNING,
-                        "--fp16 is not supported. build.platform_has_fast_fp16 check failed.")
+                        "fast fp16 is not supported. \
+build.platform_has_fast_fp16 check failed.")
 
                 self.trt_logger.log(
                     TrtLogger.Severity.INFO,
                     "converting to fp16")
                 config.set_flag(trt.BuilderFlag.FP16)
 
-            elif mode == "int8":
-                if (not builder.platform_has_fast_int8):
-                    self.trt_logger.log(
-                        TrtLogger.Severity.WARNING,
-                        "--int8 is not supported. build.platform_has_fast_int8 check failed.")
+            #         INT8          #
+            # Needs to be implemented
 
-                self.trt_logger.log(
-                    TrtLogger.Severity.INFO,
-                    "converting to int8")
-                config.set_flag(trt.BuilderFlag.INT8)
-                config.int8_calibrator = EngineCalibrator(
-                    self.calib_cache, logger=self.trt_logger)
-                if (self.calib_cache is None or engine_file_path is None or not os.path.exists(
-                        self.calib_cache) or not os.path.exists(engine_file_path)):
-                    self.trt_logger.log(
-                        TrtLogger.Severity.INFO,
-                        "--int8 mode but no calibration file has been provided. The accuracy might drop.")
-                    inputs = [
-                        network.get_input(i) for i in range(
-                            network.num_inputs)]
+            # elif mode == "int8":
+            #     if not builder.platform_has_fast_int8:
+            #         self.trt_logger.log(
+            #             TrtLogger.Severity.WARNING,
+            #             "--int8 is not supported. \
+            # build.platform_has_fast_int8 check failed.")
 
-                    config.int8_calibrator.set_image_batcher(
-                        calib_shape=inputs[0].shape, calib_dtype=trt.nptype(
-                            inputs[0].dtype), numMaxBatch=self.numMaxBatch)
+            #     self.trt_logger.log(
+            #         TrtLogger.Severity.INFO,
+            #         "converting to int8")
+            #     config.set_flag(trt.BuilderFlag.INT8)
+            #     config.int8_calibrator = EngineCalibrator(
+            #         self.calib_cache, logger=self.trt_logger)
+            #     if (self.calib_cache is None or engine_file_path
+            # is None or not os.path.exists(
+            #             self.calib_cache) or
+            # not os.path.exists(engine_file_path)):
+            #         self.trt_logger.log(
+            #             TrtLogger.Severity.INFO,
+            #             "--int8 mode but no calibration
+            # file has been provided. The accuracy might drop.")
+            #         inputs = [
+            #             network.get_input(i) for i in range(
+            #                 network.num_inputs)]
+
+            #         config.int8_calibrator.set_image_batcher(
+            #             calib_shape=inputs[0].shape, calib_dtype=trt.nptype(
+            #                 inputs[0].dtype), numMaxBatch=self.numMaxBatch)
 
             self.trt_logger.log(
                 TrtLogger.Severity.INFO,
-                f'Building an Engine...')
+                'Building an Engine...')
             engine = builder.build_engine(network, config)
             if engine is not None and engine_file_path is not None:
                 self.trt_logger.log(
                     TrtLogger.Severity.INFO,
-                    f"Completed creating Engine")
+                    "Completed creating Engine")
                 with open(engine_file_path, "wb") as f:
                     f.write(engine.serialize())
             return engine

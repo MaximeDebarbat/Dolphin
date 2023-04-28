@@ -1,12 +1,11 @@
 
 import argparse
-import cv2
 import time
-import numpy as np
-from utils import prepare_classes, download_required_data, draw, letterbox
 from typing import List, Any
+from utils import prepare_classes, download_required_data, draw, letterbox
+import numpy as np
+import cv2
 import onnxruntime as ort
-import onnx
 
 
 def set_execution_provider() -> List[Any]:
@@ -27,19 +26,19 @@ def set_execution_provider() -> List[Any]:
     ]
 
 
-def run(args: argparse.Namespace):
+def run(opt: argparse.Namespace):
 
     # We create or load the engine here, activate verbose to see the logs
     # verbosity=True
-    ort_sess = ort.InferenceSession(args.onnx,
+    ort_sess = ort.InferenceSession(opt.onnx,
                                     providers=set_execution_provider())
 
     # We create the stream
-    cap = cv2.VideoCapture(args.video)
+    cap = cv2.VideoCapture(opt.video)
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     fps = int(cap.get(cv2.CAP_PROP_FPS))
-    video_output = cv2.VideoWriter(args.export,
+    video_output = cv2.VideoWriter(opt.export,
                                    fourcc=cv2.VideoWriter_fourcc(*"MJPG"),
                                    fps=fps,
                                    frameSize=(width, height))

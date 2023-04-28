@@ -3,16 +3,16 @@
 
 import os
 import sys
-import onnx
 from typing import Dict, Union
+import onnx
 import tensorrt as trt
 import pycuda.driver as cuda
 
-from .utils import TrtLogger
-from .utils import EEngine, IEngine
-
 from dolphin import CudaTrtBuffers, darray
 import dolphin
+
+from .utils import TrtLogger
+from .utils import EEngine, IEngine
 
 
 class Engine(EEngine, IEngine):
@@ -89,11 +89,13 @@ Check the logs for more details.")
                 buffer.allocate_input(name=binding,
                                       shape=shape[1:],
                                       buffer_size=shape[0],
-                                      dtype=dolphin.dtype.from_numpy_dtype(trt.nptype(dtype)))
+                                      dtype=dolphin.dtype.from_numpy_dtype(
+                                          trt.nptype(dtype)))
             else:
                 buffer.allocate_output(binding,
                                        shape,
-                                       dolphin.dtype.from_numpy_dtype(trt.nptype(dtype)))
+                                       dolphin.dtype.from_numpy_dtype(
+                                           trt.nptype(dtype)))
         return buffer
 
     def load_engine(self, engine_file_path: str,

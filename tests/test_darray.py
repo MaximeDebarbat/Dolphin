@@ -36,8 +36,8 @@ class test_darray:
         Test for creation of darray from numpy array
         """
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array = dp.darray(dummy)
-        diff = numpy.linalg.norm(cuda_array.ndarray - dummy)
+        cuda_array = dp.darray(array=dummy)
+        diff = numpy.linalg.norm(cuda_array.to_numpy() - dummy)
 
         assert diff < 1e-5
 
@@ -47,7 +47,7 @@ class test_darray:
         """
         dummy = numpy.zeros(shape, dtype=dtype.numpy_dtype)
         cuda_array = dp.zeros(shape, dtype)
-        diff = numpy.linalg.norm(cuda_array.ndarray - dummy)
+        diff = numpy.linalg.norm(cuda_array.to_numpy() - dummy)
 
         assert diff < 1e-5
 
@@ -57,7 +57,7 @@ class test_darray:
         """
         dummy = numpy.zeros(shape, dtype=dtype.numpy_dtype)
         cuda_array = dp.zeros_like(dummy)
-        diff = numpy.linalg.norm(cuda_array.ndarray - dummy)
+        diff = numpy.linalg.norm(cuda_array.to_numpy() - dummy)
 
         assert diff < 1e-5
 
@@ -67,7 +67,7 @@ class test_darray:
         """
         dummy = numpy.ones(shape, dtype=dtype.numpy_dtype)
         cuda_array = dp.ones(shape, dtype)
-        diff = numpy.linalg.norm(cuda_array.ndarray - dummy)
+        diff = numpy.linalg.norm(cuda_array.to_numpy() - dummy)
 
         assert diff < 1e-5
 
@@ -77,7 +77,7 @@ class test_darray:
         """
         dummy = numpy.ones(shape, dtype=dtype.numpy_dtype)
         cuda_array = dp.ones_like(dummy)
-        diff = numpy.linalg.norm(cuda_array.ndarray - dummy)
+        diff = numpy.linalg.norm(cuda_array.to_numpy() - dummy)
 
         assert diff < 1e-5
 
@@ -106,9 +106,9 @@ class test_darray:
         """
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
         cuda_array = dp.darray(shape=shape, dtype=dtype)
-        cuda_array.ndarray = dummy
+        cuda_array.np = dummy
 
-        diff = numpy.linalg.norm(cuda_array.ndarray - dummy)
+        diff = numpy.linalg.norm(cuda_array.to_numpy() - dummy)
 
         assert diff < 1e-5
 
@@ -117,7 +117,7 @@ class test_darray:
         Test for transpose of darray
         """
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array = dp.darray(dummy)
+        cuda_array = dp.darray(array=dummy)
 
         perms = [i for i in range(len(shape))[::-1]]
         new_shape = tuple([shape[i] for i in perms])
@@ -127,7 +127,7 @@ class test_darray:
         dp.transpose(perms, cuda_array, cuda_array_result)
         dummy_result = numpy.transpose(dummy, perms)
 
-        diff = numpy.linalg.norm(cuda_array_result.ndarray - dummy_result)
+        diff = numpy.linalg.norm(cuda_array_result.to_numpy() - dummy_result)
 
         assert diff < 1e-5
         assert cuda_array_result.shape == new_shape
@@ -138,7 +138,7 @@ class test_darray:
         Test for transpose of darray
         """
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array = dp.darray(dummy)
+        cuda_array = dp.darray(array=dummy)
 
         perms = [i for i in range(len(shape))[::-1]]
         new_shape = tuple([shape[i] for i in perms])
@@ -146,7 +146,7 @@ class test_darray:
         res = dp.transpose(perms, cuda_array)
         dummy_result = numpy.transpose(dummy, perms)
 
-        diff = numpy.linalg.norm(res.ndarray - dummy_result)
+        diff = numpy.linalg.norm(res.to_numpy() - dummy_result)
 
         assert diff < 1e-5
         assert res.shape == new_shape
@@ -157,7 +157,7 @@ class test_darray:
         Test for astype of darray
         """
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array = dp.darray(dummy)
+        cuda_array = dp.darray(array=dummy)
 
         for new_dtype in dp.dtype:
 
@@ -166,7 +166,8 @@ class test_darray:
             cuda_array.astype(new_dtype, cuda_array_result)
             dummy_result = dummy.astype(new_dtype.numpy_dtype)
 
-            diff = numpy.linalg.norm(cuda_array_result.ndarray - dummy_result)
+            diff = numpy.linalg.norm(cuda_array_result.to_numpy()
+                                     - dummy_result)
 
             assert diff < 1e-5, f"new_dtype: {new_dtype}, dtype: {dtype}"
             assert cuda_array_result.shape == shape
@@ -177,14 +178,14 @@ class test_darray:
         Test for astype of darray
         """
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array = dp.darray(dummy)
+        cuda_array = dp.darray(array=dummy)
 
         for new_dtype in dp.dtype:
 
             res = cuda_array.astype(new_dtype)
             dummy_result = dummy.astype(new_dtype.numpy_dtype)
 
-            diff = numpy.linalg.norm(res.ndarray - dummy_result)
+            diff = numpy.linalg.norm(res.to_numpy() - dummy_result)
 
             assert diff < 1e-5, f"new_dtype: {new_dtype}, dtype: {dtype}"
             assert res.shape == shape
@@ -195,12 +196,12 @@ class test_darray:
         Test for copy of darray
         """
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array = dp.darray(dummy)
+        cuda_array = dp.darray(array=dummy)
 
         cuda_array_result = cuda_array.copy()
         dummy_result = dummy.copy()
 
-        diff = numpy.linalg.norm(cuda_array_result.ndarray - dummy_result)
+        diff = numpy.linalg.norm(cuda_array_result.to_numpy() - dummy_result)
 
         assert diff < 1e-5
         assert cuda_array_result.shape == shape
@@ -211,14 +212,14 @@ class test_darray:
         Test for abs of darray
         """
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array = dp.darray(dummy)
+        cuda_array = dp.darray(array=dummy)
 
         cuda_array_result = dp.zeros(shape=shape, dtype=dtype)
-        dp.abs(cuda_array, cuda_array_result)
+        dp.absolute(cuda_array, cuda_array_result)
 
         dummy_result = numpy.abs(dummy)
 
-        diff = numpy.linalg.norm(cuda_array_result.ndarray - dummy_result)
+        diff = numpy.linalg.norm(cuda_array_result.to_numpy() - dummy_result)
 
         assert diff < 1e-5
         assert cuda_array_result.shape == shape
@@ -229,13 +230,13 @@ class test_darray:
         Test for abs of darray
         """
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array = dp.darray(dummy)
+        cuda_array = dp.darray(array=dummy)
 
-        res = dp.abs(cuda_array)
+        res = dp.absolute(cuda_array)
 
         dummy_result = numpy.abs(dummy)
 
-        diff = numpy.linalg.norm(res.ndarray - dummy_result)
+        diff = numpy.linalg.norm(res.to_numpy() - dummy_result)
 
         assert diff < 1e-5
         assert res.shape == shape
@@ -246,17 +247,17 @@ class test_darray:
         Test for add of darray
         """
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array = dp.darray(dummy)
+        cuda_array = dp.darray(array=dummy)
 
         dummy2 = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array2 = dp.darray(dummy2)
+        cuda_array2 = dp.darray(array=dummy2)
 
         cuda_array_result = dp.zeros(shape=shape, dtype=dtype)
         dp.add(cuda_array, cuda_array2, cuda_array_result)
 
         dummy_result = dummy + dummy2
 
-        diff = numpy.linalg.norm(cuda_array_result.ndarray - dummy_result)
+        diff = numpy.linalg.norm(cuda_array_result.to_numpy() - dummy_result)
 
         assert diff < 1e-5
         assert cuda_array_result.shape == shape
@@ -267,16 +268,16 @@ class test_darray:
         Test for add of darray
         """
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array = dp.darray(dummy)
+        cuda_array = dp.darray(array=dummy)
 
         dummy2 = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array2 = dp.darray(dummy2)
+        cuda_array2 = dp.darray(array=dummy2)
 
         res = dp.add(cuda_array, cuda_array2)
 
         dummy_result = dummy + dummy2
 
-        diff = numpy.linalg.norm(res.ndarray - dummy_result)
+        diff = numpy.linalg.norm(res.to_numpy() - dummy_result)
 
         assert diff < 1e-5
         assert res.shape == shape
@@ -287,7 +288,7 @@ class test_darray:
         Test for add of darray
         """
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array = dp.darray(dummy)
+        cuda_array = dp.darray(array=dummy)
 
         scalar = dtype.numpy_dtype(numpy.random.rand()*10)
 
@@ -296,7 +297,7 @@ class test_darray:
 
         dummy_result = dummy + scalar
 
-        diff = numpy.linalg.norm(cuda_array_result.ndarray - dummy_result)
+        diff = numpy.linalg.norm(cuda_array_result.to_numpy() - dummy_result)
 
         assert diff < 1e-5
         assert cuda_array_result.shape == shape
@@ -307,7 +308,7 @@ class test_darray:
         Test for add of darray
         """
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array = dp.darray(dummy)
+        cuda_array = dp.darray(array=dummy)
 
         scalar = dtype.numpy_dtype(numpy.random.rand()*10)
 
@@ -315,7 +316,7 @@ class test_darray:
 
         dummy_result = dummy + scalar
 
-        diff = numpy.linalg.norm(res.ndarray - dummy_result)
+        diff = numpy.linalg.norm(res.to_numpy() - dummy_result)
 
         assert diff < 1e-5
         assert res.shape == shape
@@ -326,16 +327,16 @@ class test_darray:
         Test for iadd of darray
         """
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array = dp.darray(dummy)
+        cuda_array = dp.darray(array=dummy)
 
         dummy2 = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array2 = dp.darray(dummy2)
+        cuda_array2 = dp.darray(array=dummy2)
 
         cuda_array += cuda_array2
 
         dummy_result = dummy + dummy2
 
-        diff = numpy.linalg.norm(cuda_array.ndarray - dummy_result)
+        diff = numpy.linalg.norm(cuda_array.to_numpy() - dummy_result)
 
         assert diff < 1e-5
         assert cuda_array.shape == shape
@@ -346,7 +347,7 @@ class test_darray:
         Test for iadd of darray
         """
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array = dp.darray(dummy)
+        cuda_array = dp.darray(array=dummy)
 
         scalar = dtype.numpy_dtype(numpy.random.rand()*10)
 
@@ -354,7 +355,7 @@ class test_darray:
 
         dummy_result = dummy + scalar
 
-        diff = numpy.linalg.norm(cuda_array.ndarray - dummy_result)
+        diff = numpy.linalg.norm(cuda_array.to_numpy() - dummy_result)
 
         assert diff < 1e-5
         assert cuda_array.shape == shape
@@ -365,7 +366,7 @@ class test_darray:
         Test for add of darray
         """
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array = dp.darray(dummy)
+        cuda_array = dp.darray(array=dummy)
 
         scalar = dtype.numpy_dtype(numpy.random.rand()*10)
 
@@ -374,7 +375,7 @@ class test_darray:
 
         dummy_result = scalar + dummy
 
-        diff = numpy.linalg.norm(cuda_array_result.ndarray - dummy_result)
+        diff = numpy.linalg.norm(cuda_array_result.to_numpy() - dummy_result)
 
         assert diff < 1e-5
         assert cuda_array_result.shape == shape
@@ -385,17 +386,17 @@ class test_darray:
         Test for sub of darray
         """
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array = dp.darray(dummy)
+        cuda_array = dp.darray(array=dummy)
 
         dummy2 = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array2 = dp.darray(dummy2)
+        cuda_array2 = dp.darray(array=dummy2)
 
         cuda_array_result = dp.zeros(shape=shape, dtype=dtype)
         cuda_array.sub(cuda_array2, cuda_array_result)
 
         dummy_result = dummy - dummy2
 
-        diff = numpy.linalg.norm(cuda_array_result.ndarray - dummy_result)
+        diff = numpy.linalg.norm(cuda_array_result.to_numpy() - dummy_result)
 
         assert diff < 1e-5
         assert cuda_array_result.shape == shape
@@ -406,16 +407,16 @@ class test_darray:
         Test for sub of darray
         """
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array = dp.darray(dummy)
+        cuda_array = dp.darray(array=dummy)
 
         dummy2 = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array2 = dp.darray(dummy2)
+        cuda_array2 = dp.darray(array=dummy2)
 
         res = cuda_array - cuda_array2
 
         dummy_result = dummy - dummy2
 
-        diff = numpy.linalg.norm(res.ndarray - dummy_result)
+        diff = numpy.linalg.norm(res.to_numpy() - dummy_result)
 
         assert diff < 1e-5
         assert res.shape == shape
@@ -426,7 +427,7 @@ class test_darray:
         Test for sub of darray
         """
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array = dp.darray(dummy)
+        cuda_array = dp.darray(array=dummy)
 
         scalar = dtype.numpy_dtype(numpy.random.rand()*10)
 
@@ -435,7 +436,7 @@ class test_darray:
 
         dummy_result = dummy - scalar
 
-        diff = numpy.linalg.norm(cuda_array_result.ndarray - dummy_result)
+        diff = numpy.linalg.norm(cuda_array_result.to_numpy() - dummy_result)
 
         assert diff < 1e-5
         assert cuda_array_result.shape == shape
@@ -446,7 +447,7 @@ class test_darray:
         Test for sub of darray
         """
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array = dp.darray(dummy)
+        cuda_array = dp.darray(array=dummy)
 
         scalar = dtype.numpy_dtype(numpy.random.rand()*10)
 
@@ -454,7 +455,7 @@ class test_darray:
 
         dummy_result = dummy - scalar
 
-        diff = numpy.linalg.norm(res.ndarray - dummy_result)
+        diff = numpy.linalg.norm(res.to_numpy() - dummy_result)
 
         assert diff < 1e-5
         assert res.shape == shape
@@ -465,16 +466,16 @@ class test_darray:
         Test for isub of darray
         """
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array = dp.darray(dummy)
+        cuda_array = dp.darray(array=dummy)
 
         dummy2 = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array2 = dp.darray(dummy2)
+        cuda_array2 = dp.darray(array=dummy2)
 
         cuda_array -= cuda_array2
 
         dummy_result = dummy - dummy2
 
-        diff = numpy.linalg.norm(cuda_array.ndarray - dummy_result)
+        diff = numpy.linalg.norm(cuda_array.to_numpy() - dummy_result)
 
         assert diff < 1e-5
         assert cuda_array.shape == shape
@@ -485,7 +486,7 @@ class test_darray:
         Test for isub of darray
         """
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array = dp.darray(dummy)
+        cuda_array = dp.darray(array=dummy)
 
         scalar = dtype.numpy_dtype(numpy.random.rand()*10)
 
@@ -493,7 +494,7 @@ class test_darray:
 
         dummy_result = dummy - scalar
 
-        diff = numpy.linalg.norm(cuda_array.ndarray - dummy_result)
+        diff = numpy.linalg.norm(cuda_array.to_numpy() - dummy_result)
 
         assert diff < 1e-5
         assert cuda_array.shape == shape
@@ -504,17 +505,17 @@ class test_darray:
         Test for rsub of darray
         """
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array = dp.darray(dummy)
+        cuda_array = dp.darray(array=dummy)
 
         dummy2 = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array2 = dp.darray(dummy2)
+        cuda_array2 = dp.darray(array=dummy2)
 
         cuda_array_result = dp.zeros(shape=shape, dtype=dtype)
         cuda_array2.sub(cuda_array, cuda_array_result)
 
         dummy_result = dummy2 - dummy
 
-        diff = numpy.linalg.norm(cuda_array_result.ndarray - dummy_result)
+        diff = numpy.linalg.norm(cuda_array_result.to_numpy() - dummy_result)
 
         assert diff < 1e-5
         assert cuda_array_result.shape == shape
@@ -525,7 +526,7 @@ class test_darray:
         Test for rsub of darray
         """
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array = dp.darray(dummy)
+        cuda_array = dp.darray(array=dummy)
 
         scalar = dtype.numpy_dtype(numpy.random.rand()*10)
 
@@ -534,7 +535,7 @@ class test_darray:
 
         dummy_result = scalar - dummy
 
-        diff = numpy.linalg.norm(cuda_array_result.ndarray - dummy_result)
+        diff = numpy.linalg.norm(cuda_array_result.to_numpy() - dummy_result)
 
         assert diff < 1e-5
         assert cuda_array_result.shape == shape
@@ -545,17 +546,17 @@ class test_darray:
         Test for mul of darray
         """
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array = dp.darray(dummy)
+        cuda_array = dp.darray(array=dummy)
 
         dummy2 = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array2 = dp.darray(dummy2)
+        cuda_array2 = dp.darray(array=dummy2)
 
         cuda_array_result = dp.zeros(shape=shape, dtype=dtype)
         cuda_array.multiply(cuda_array2, cuda_array_result)
 
         dummy_result = dummy * dummy2
 
-        diff = numpy.linalg.norm(cuda_array_result.ndarray - dummy_result)
+        diff = numpy.linalg.norm(cuda_array_result.to_numpy() - dummy_result)
 
         assert diff < 1e-5
         assert cuda_array_result.shape == shape
@@ -566,16 +567,16 @@ class test_darray:
         Test for mul of darray
         """
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array = dp.darray(dummy)
+        cuda_array = dp.darray(array=dummy)
 
         dummy2 = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array2 = dp.darray(dummy2)
+        cuda_array2 = dp.darray(array=dummy2)
 
         res = cuda_array * cuda_array2
 
         dummy_result = dummy * dummy2
 
-        diff = numpy.linalg.norm(res.ndarray - dummy_result)
+        diff = numpy.linalg.norm(res.to_numpy() - dummy_result)
 
         assert diff < 1e-5
         assert res.shape == shape
@@ -586,7 +587,7 @@ class test_darray:
         Test for mul of darray
         """
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array = dp.darray(dummy)
+        cuda_array = dp.darray(array=dummy)
 
         scalar = dtype.numpy_dtype(numpy.random.rand()*10)
 
@@ -595,7 +596,7 @@ class test_darray:
 
         dummy_result = dummy * scalar
 
-        diff = numpy.linalg.norm(cuda_array_result.ndarray - dummy_result)
+        diff = numpy.linalg.norm(cuda_array_result.to_numpy() - dummy_result)
 
         assert diff < 1e-5
         assert cuda_array_result.shape == shape
@@ -606,7 +607,7 @@ class test_darray:
         Test for mul of darray
         """
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array = dp.darray(dummy)
+        cuda_array = dp.darray(array=dummy)
 
         scalar = dtype.numpy_dtype(numpy.random.rand()*10)
 
@@ -614,7 +615,7 @@ class test_darray:
 
         dummy_result = dummy * scalar
 
-        diff = numpy.linalg.norm(res.ndarray - dummy_result)
+        diff = numpy.linalg.norm(res.to_numpy() - dummy_result)
 
         assert diff < 1e-5
         assert res.shape == shape
@@ -625,16 +626,16 @@ class test_darray:
         Test for imul of darray
         """
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array = dp.darray(dummy)
+        cuda_array = dp.darray(array=dummy)
 
         dummy2 = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array2 = dp.darray(dummy2)
+        cuda_array2 = dp.darray(array=dummy2)
 
         cuda_array *= cuda_array2
 
         dummy_result = dummy * dummy2
 
-        diff = numpy.linalg.norm(cuda_array.ndarray - dummy_result)
+        diff = numpy.linalg.norm(cuda_array.to_numpy() - dummy_result)
 
         assert diff < 1e-5
         assert cuda_array.shape == shape
@@ -645,7 +646,7 @@ class test_darray:
         Test for imul of darray
         """
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array = dp.darray(dummy)
+        cuda_array = dp.darray(array=dummy)
 
         scalar = dtype.numpy_dtype(numpy.random.rand()*10)
 
@@ -653,7 +654,7 @@ class test_darray:
 
         dummy_result = dummy * scalar
 
-        diff = numpy.linalg.norm(cuda_array.ndarray - dummy_result)
+        diff = numpy.linalg.norm(cuda_array.to_numpy() - dummy_result)
 
         assert diff < 1e-5
         assert cuda_array.shape == shape
@@ -664,17 +665,17 @@ class test_darray:
         Test for rmul of darray
         """
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array = dp.darray(dummy)
+        cuda_array = dp.darray(array=dummy)
 
         dummy2 = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array2 = dp.darray(dummy2)
+        cuda_array2 = dp.darray(array=dummy2)
 
         cuda_array_result = dp.zeros(shape=shape, dtype=dtype)
         cuda_array2.multiply(cuda_array, cuda_array_result)
 
         dummy_result = dummy2 * dummy
 
-        diff = numpy.linalg.norm(cuda_array_result.ndarray - dummy_result)
+        diff = numpy.linalg.norm(cuda_array_result.to_numpy() - dummy_result)
 
         assert diff < 1e-5
         assert cuda_array_result.shape == shape
@@ -685,7 +686,7 @@ class test_darray:
         Test for rmul of darray
         """
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array = dp.darray(dummy)
+        cuda_array = dp.darray(array=dummy)
 
         scalar = dtype.numpy_dtype(numpy.random.rand()*10)
 
@@ -694,7 +695,7 @@ class test_darray:
 
         dummy_result = scalar * dummy
 
-        diff = numpy.linalg.norm(cuda_array_result.ndarray - dummy_result)
+        diff = numpy.linalg.norm(cuda_array_result.to_numpy() - dummy_result)
 
         assert diff < 1e-5
         assert cuda_array_result.shape == shape
@@ -705,17 +706,17 @@ class test_darray:
         Test for div of darray
         """
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)+1
-        cuda_array = dp.darray(dummy)
+        cuda_array = dp.darray(array=dummy)
 
         dummy2 = numpy.random.rand(*shape).astype(dtype.numpy_dtype)+1
-        cuda_array2 = dp.darray(dummy2)
+        cuda_array2 = dp.darray(array=dummy2)
 
         cuda_array_result = dp.zeros(shape=shape, dtype=dtype)
         cuda_array.divide(cuda_array2, cuda_array_result)
 
         dummy_result = dummy / dummy2
 
-        diff = numpy.linalg.norm(cuda_array_result.ndarray - dummy_result)
+        diff = numpy.linalg.norm(cuda_array_result.to_numpy() - dummy_result)
 
         assert diff < 1e-5
         assert cuda_array_result.shape == shape
@@ -726,16 +727,16 @@ class test_darray:
         Test for div of darray
         """
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)+1
-        cuda_array = dp.darray(dummy)
+        cuda_array = dp.darray(array=dummy)
 
         dummy2 = numpy.random.rand(*shape).astype(dtype.numpy_dtype)+1
-        cuda_array2 = dp.darray(dummy2)
+        cuda_array2 = dp.darray(array=dummy2)
 
         res = cuda_array / cuda_array2
 
         dummy_result = dummy / dummy2
 
-        diff = numpy.linalg.norm(res.ndarray - dummy_result)
+        diff = numpy.linalg.norm(res.to_numpy() - dummy_result)
 
         assert diff < 1e-5
         assert res.shape == shape
@@ -746,7 +747,7 @@ class test_darray:
         Test for div of darray
         """
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array = dp.darray(dummy)
+        cuda_array = dp.darray(array=dummy)
 
         scalar = dtype.numpy_dtype(numpy.random.rand()*10)+1
 
@@ -755,7 +756,7 @@ class test_darray:
 
         dummy_result = dummy / scalar
 
-        diff = numpy.linalg.norm(cuda_array_result.ndarray - dummy_result)
+        diff = numpy.linalg.norm(cuda_array_result.to_numpy() - dummy_result)
 
         assert diff < 1e-4
         assert cuda_array_result.shape == shape
@@ -766,7 +767,7 @@ class test_darray:
         Test for div of darray
         """
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)+1
-        cuda_array = dp.darray(dummy)
+        cuda_array = dp.darray(array=dummy)
 
         scalar = dtype.numpy_dtype(numpy.random.rand()*10)+1
 
@@ -774,7 +775,7 @@ class test_darray:
 
         dummy_result = dummy / scalar
 
-        diff = numpy.linalg.norm(res.ndarray -
+        diff = numpy.linalg.norm(res.to_numpy() -
                                  dummy_result.astype(dtype.numpy_dtype))
 
         assert diff < 1e-4
@@ -786,16 +787,16 @@ class test_darray:
         Test for idiv of darray
         """
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)+1
-        cuda_array = dp.darray(dummy)
+        cuda_array = dp.darray(array=dummy)
 
         dummy2 = numpy.random.rand(*shape).astype(dtype.numpy_dtype)+1
-        cuda_array2 = dp.darray(dummy2)
+        cuda_array2 = dp.darray(array=dummy2)
 
         cuda_array /= cuda_array2
 
         dummy_result = dummy / dummy2
 
-        diff = numpy.linalg.norm(cuda_array.ndarray - dummy_result)
+        diff = numpy.linalg.norm(cuda_array.to_numpy() - dummy_result)
 
         assert diff < 1e-4
         assert cuda_array.shape == shape
@@ -806,7 +807,7 @@ class test_darray:
         Test for idiv of darray
         """
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)+1
-        cuda_array = dp.darray(dummy)
+        cuda_array = dp.darray(array=dummy)
 
         scalar = dtype.numpy_dtype(numpy.random.rand()*10)+1
 
@@ -814,7 +815,7 @@ class test_darray:
 
         dummy_result = dummy / scalar
 
-        diff = numpy.linalg.norm(cuda_array.ndarray -
+        diff = numpy.linalg.norm(cuda_array.to_numpy() -
                                  dummy_result.astype(dtype.numpy_dtype))
 
         assert diff < 1e-4
@@ -826,17 +827,17 @@ class test_darray:
         Test for rdiv of darray
         """
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)+1
-        cuda_array = dp.darray(dummy)
+        cuda_array = dp.darray(array=dummy)
 
         dummy2 = numpy.random.rand(*shape).astype(dtype.numpy_dtype)+1
-        cuda_array2 = dp.darray(dummy2)
+        cuda_array2 = dp.darray(array=dummy2)
 
         cuda_array_result = dp.zeros(shape=shape, dtype=dtype)
         cuda_array2.divide(cuda_array, cuda_array_result)
 
         dummy_result = dummy2 / dummy
 
-        diff = numpy.linalg.norm(cuda_array_result.ndarray - dummy_result)
+        diff = numpy.linalg.norm(cuda_array_result.to_numpy() - dummy_result)
 
         assert diff < 1e-4
         assert cuda_array_result.shape == shape
@@ -847,7 +848,7 @@ class test_darray:
         Test for rdiv of darray
         """
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)+1
-        cuda_array = dp.darray(dummy)
+        cuda_array = dp.darray(array=dummy)
 
         scalar = dtype.numpy_dtype(numpy.random.rand()*10)+1
 
@@ -856,7 +857,7 @@ class test_darray:
 
         dummy_result = scalar / dummy
 
-        diff = numpy.linalg.norm(cuda_array_result.ndarray - dummy_result)
+        diff = numpy.linalg.norm(cuda_array_result.to_numpy() - dummy_result)
 
         assert diff < 1e-4
         assert cuda_array_result.shape == shape
@@ -873,7 +874,7 @@ class test_darray:
         dummy = numpy.zeros(shape, dtype=dtype.numpy_dtype)
         dummy.fill(value)
 
-        diff = numpy.linalg.norm(cuda_array.ndarray - dummy)
+        diff = numpy.linalg.norm(cuda_array.to_numpy() - dummy)
 
         assert diff < 1e-4
         assert cuda_array.shape == shape

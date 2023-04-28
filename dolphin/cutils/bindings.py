@@ -1,13 +1,14 @@
 
-from dolphin import dtype
+
+import numpy as np
 
 import pycuda.driver as cuda
 import tensorrt as trt
 
-import numpy as np
+import dolphin
 
 
-class HostDeviceMem(object):
+class HostDeviceMem:
     """
     This class is used to allocate memory on the host and the device.
 
@@ -38,13 +39,13 @@ class CudaBinding:
       >>> d2h(stream: cuda.Stream = None)           -> None
 
     Also, CudaBinding contains these properties :
-        >>> CudaBinding.size: int                       # Returns the number of elements in the buffer
-        >>> CudaBinding.nbytes: int                     # Returns the number of bytes in the buffer
+        >>> CudaBinding.size: int                       # Returns the number of elements in the buffer  # noqa
+        >>> CudaBinding.nbytes: int                     # Returns the number of bytes in the buffer  # noqa
         >>> CudaBinding.host: np.ndarray                # Returns the host memory
         >>> CudaBinding.device: cuda.DeviceAllocation   # Returns the device memory
-        >>> CudaBinding.shape: tuple                    # Returns the shape of the buffer
-        >>> CudaBinding.dtype: dolphin.dtype            # Returns the data type of the buffer
-        >>> CudaBinding.value: np.ndarray               # Returns the reshaped data on the host
+        >>> CudaBinding.shape: tuple                    # Returns the shape of the buffer  # noqa
+        >>> CudaBinding.dtype: dolphin.dtype            # Returns the data type of the buffer  # noqa
+        >>> CudaBinding.value: np.ndarray               # Returns the reshaped data on the host  # noqa
 
     """
 
@@ -60,13 +61,18 @@ class CudaBinding:
           >>> _size
 
         Also, CudaBinding contains these properties :
-          >>> CudaBinding.size: int which returns the number of elements in the buffer
-          >>> CudaBinding.nbytes: int which returns the number of bytes in the buffer
+          >>> CudaBinding.size: int which returns the number of elements
+                                in the buffer
+          >>> CudaBinding.nbytes: int which returns the number of bytes
+                                in the buffer
           >>> CudaBinding.host: np.ndarray which returns the host memory
-          >>> CudaBinding.device: cuda.DeviceAllocation which returns the device memory
+          >>> CudaBinding.device: cuda.DeviceAllocation which returns
+                                  the device memory
           >>> CudaBinding.shape: tuple which returns the shape of the buffer
-          >>> CudaBinding.dtype: dolphin.dtype which returns the data type of the buffer
-          >>> CudaBinding.value: np.ndarray which returns the reshaped data on the host
+          >>> CudaBinding.dtype: dolphin.dtype which returns the data type
+                                 of the buffer
+          >>> CudaBinding.value: np.ndarray which returns the reshaped data
+                                 on the host
         """
 
         self._hdm = None
@@ -77,7 +83,7 @@ class CudaBinding:
 
     def allocate(self,
                  shape: tuple,
-                 dtype: dtype) -> None:
+                 dtype: dolphin.dtype) -> None:
         """
         This function allocates the memory on the host and the device.
 
@@ -156,7 +162,7 @@ class CudaBinding:
             del self._hdm.host
         except AttributeError:
             pass
-        except Exception as exception:  # pylint: disable=broad-exception-caught
+        except Exception as exception:
             print(f"Encountered Exception while destroying object \
                   {self.__class__} : {exception}")
 
@@ -226,7 +232,7 @@ class CudaBinding:
         return self._shape
 
     @property
-    def dtype(self) -> dtype:
+    def dtype(self) -> dolphin.dtype:
         """
         Returns the dtype of the buffer
 

@@ -1,11 +1,10 @@
 
-import cv2
-import argparse
-import numpy as np
-import numpy as np
-from typing import Dict, Tuple, List
-import gdown
 import os
+import argparse
+from typing import Dict, Tuple, List
+import cv2
+import gdown
+import numpy as np
 import dolphin as dp
 
 
@@ -31,7 +30,7 @@ def prepare_classes() -> List[Dict[str, str]]:
     for element in coco_classes:
         res.append({
             "name": element,
-            "color": tuple([np.random.randint(0, 255) for _ in range(3)])
+            "color": tuple(np.random.randint(0, 255, size=(3,)))
         })
 
     return res
