@@ -9,6 +9,9 @@ jobs:
       matrix:
         python-version: ["3.8", "3.9", "3.10"]
     steps:
+      - uses: actions/checkout@main
+        with:
+          ref: ${{ github.head_ref }}
       - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v1
         with:
@@ -16,9 +19,5 @@ jobs:
       - name: Install flake8
         run: pip install flake8
       - name: Run flake8
-        with:
-          checkName: 'flake8_py3'   # NOTE: this needs to be the same as the job name
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           flake8 dolphin/*
