@@ -519,6 +519,7 @@ class darray(dolphin.CudaBase):
                  dtype: dolphin.dtype = dolphin.dtype.float32,
                  stream: cuda.Stream = None,
                  array: numpy.ndarray = None,
+                 strides: tuple = None,
                  allocation: cuda.DeviceAllocation = None
                  ) -> None:
 
@@ -534,6 +535,11 @@ class darray(dolphin.CudaBase):
         self._size: int = trt.volume(self._shape)
         self._nbytes: int = int(self._size * self._dtype.itemsize)
 
+        if strides is None:
+            self._strides: tuple = self.compute_strides(self._shape)
+        else:
+            self._strides: tuple = strides
+
         if allocation is not None:
             self._allocation: cuda.DeviceAllocation = allocation
         else:
@@ -542,7 +548,7 @@ class darray(dolphin.CudaBase):
 
         if array is not None:
             cuda.memcpy_htod_async(self._allocation,
-                                   array,
+                                   array.flatten(order="C"),
                                    self._stream)
 
         self._block, self._grid = self.GET_BLOCK_GRID_1D(self._size)
@@ -631,7 +637,14 @@ class darray(dolphin.CudaBase):
 
         return dst
 
-    def transpose(self, *axes: int, dst: 'darray' = None) -> 'darray':
+    def update_allocation(self) -> 'darray':
+        """Updates the allocation of the darray.
+        This is useful when the strides are changed, in order to
+        reorder the data in the allocation.
+        """
+        return self
+
+    def transpose(self, *axes: int) -> 'darray':
         """Transposes the darray according to the axes.
 
         :param axes: Axes to permute
@@ -646,47 +659,18 @@ class darray(dolphin.CudaBase):
         if not all(isinstance(v, int) for v in axes):
             raise ValueError("axes must be integers")
 
-        strides = self.strides
+        if len(set(axes)) != len(axes):
+            raise ValueError("repeated axis in transpose")
+
+        strides = self._strides
         new_shape = [self.shape[i] for i in axes]
         new_strides = [strides[i] for i in axes]
 
-        if dst is not None:
-            if dst.shape != tuple(new_shape):
-                raise ValueError("dst shape doesn't match")
-            if dst.dtype != self.dtype:
-                raise ValueError("dst dtype doesn't match")
-
-        new_shape = numpy.array(new_shape,
-                                dtype=numpy.uint32)
-        new_strides = numpy.array(new_strides,
-                                  dtype=numpy.uint32)
-
-        new_shape_allocation = cuda.mem_alloc(new_shape.nbytes)
-        new_strides_allocation = cuda.mem_alloc(new_strides.nbytes)
-
-        cuda.memcpy_htod_async(new_shape_allocation,
-                               new_shape,
-                               self._stream)
-        cuda.memcpy_htod_async(new_strides_allocation,
-                               new_strides,
-                               self._stream)
-        if dst is not None:
-            res = dst
-        else:
-            res = self.__class__(shape=tuple(new_shape),
-                                 dtype=self._dtype,
-                                 stream=self._stream)
-
-        self._cu_transpose(
-            self,
-            res,
-            new_shape_allocation,
-            new_strides_allocation,
-            len(new_shape),
-            self._size,
-            block=self._block,
-            grid=self._grid,
-            stream=self._stream)
+        res = self.__class__(shape=tuple(new_shape),
+                             dtype=self._dtype,
+                             stream=self._stream,
+                             strides=new_strides,
+                             allocation=self._allocation)
 
         return res
 
@@ -715,7 +699,7 @@ class darray(dolphin.CudaBase):
         :return: _description_
         :rtype: _type_
         """
-        return self.compute_strides(self._shape)
+        return self._strides
 
     @property
     def allocation(self) -> cuda.DeviceAllocation:
@@ -761,12 +745,18 @@ class darray(dolphin.CudaBase):
         :return: numpy.ndarray of the darray
         :rtype: numpy.ndarray
         """
-        res = numpy.empty(self._shape, dtype=self._dtype.numpy_dtype)
+        res = numpy.empty(self._shape,
+                          dtype=self._dtype.numpy_dtype)
 
         cuda.memcpy_dtoh_async(res,
                                self._allocation,
                                self._stream)
-        return res
+
+        temp_s = tuple([s*self._dtype.itemsize for s in self._strides])
+        return numpy.lib.stride_tricks.as_strided(
+            res,
+            shape=self._shape,
+            strides=temp_s)
 
     @property
     def np(self) -> numpy.ndarray:
@@ -1547,8 +1537,7 @@ class darray(dolphin.CudaBase):
 
 
 def transpose(axes: tuple,
-              src: darray,
-              dst: darray = None) -> darray:
+              src: darray) -> darray:
     """Returns a darray with the axes transposed.
 
     :param axes: Axes to transpose
@@ -1558,7 +1547,7 @@ def transpose(axes: tuple,
     :return: Transposed darray
     :rtype: darray
     """
-    return src.transpose(*axes, dst=dst)
+    return src.transpose(*axes)
 
 
 def multiply(src: darray,

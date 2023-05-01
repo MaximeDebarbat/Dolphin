@@ -97,6 +97,8 @@ class CuResizeNearest(dolphin.CuResizeCompiler):
         else:
             mode = "HWC"
 
+        print(f"cuda call arguments : {src.allocation}, {dst.allocation}, {src.width}, {src.height}, {dst.width}, {dst.height}, {src.channel}, {mode}, {block} {grid}")
+
         self._func[mode+src.dtype.cuda_dtype].prepared_async_call(
             grid,
             block,
@@ -568,6 +570,7 @@ class dimage(dolphin.darray):
                  stream: cuda.Stream = None,
                  array: numpy.ndarray = None,
                  channel_format: dimage_channel_format = None,
+                 strides: tuple = None,
                  allocation: cuda.DeviceAllocation = None
                  ) -> None:
 
@@ -575,6 +578,7 @@ class dimage(dolphin.darray):
                          shape=shape,
                          dtype=dtype,
                          stream=stream,
+                         strides=strides,
                          allocation=allocation)
 
         if len(self._shape) != 2 and len(self._shape) != 3:
@@ -631,7 +635,6 @@ be GRAY_SCALE.")
                 self._image_channel_format = (
                     dimage_channel_format.DOLPHIN_GRAY_SCALE)
                 self._image_dim_format = dimage_dim_format.DOLPHIN_HW
-                self._shape = (self._shape[0], self._shape[1])
 
             elif self._shape[0] == 1:
                 if self._image_channel_format is not None and \
@@ -644,7 +647,6 @@ be GRAY_SCALE.")
                 self._image_channel_format = (
                     dimage_channel_format.DOLPHIN_GRAY_SCALE)
                 self._image_dim_format = dimage_dim_format.DOLPHIN_HW
-                self._shape = (self._shape[1], self._shape[2])
             else:
                 raise ValueError(f"The shape of the image is not valid. \
 Supported shape : (H, W), (H, W, 1), (1, H, W), (H, W, 3), (3, H, W). \
@@ -694,9 +696,14 @@ Got : {self._shape}")
         :return: The height of the image
         :rtype: numpy.uint16
         """
-        if self._image_dim_format in (dimage_dim_format.DOLPHIN_HW,
-                                      dimage_dim_format.DOLPHIN_HWC):
+        if self._image_dim_format.value == dimage_dim_format.DOLPHIN_HW.value:
+            if len(self.shape) == 3 and self.shape[0] == 1:
+                return numpy.uint16(self._shape[1])
             return numpy.uint16(self._shape[0])
+
+        if self._image_dim_format.value == dimage_dim_format.DOLPHIN_HWC.value:
+            return numpy.uint16(self._shape[0])
+
         return numpy.uint16(self._shape[1])
 
     @property
@@ -706,9 +713,15 @@ Got : {self._shape}")
         :return: The width of the image
         :rtype: numpy.uint16
         """
-        if self._image_dim_format in (dimage_dim_format.DOLPHIN_HW,
-                                      dimage_dim_format.DOLPHIN_HWC):
+
+        if self._image_dim_format.value == dimage_dim_format.DOLPHIN_HW.value:
+            if len(self.shape) == 3 and self.shape[0] == 1:
+                return numpy.uint16(self._shape[2])
             return numpy.uint16(self._shape[1])
+
+        if self._image_dim_format.value == dimage_dim_format.DOLPHIN_HWC.value:
+            return numpy.uint16(self._shape[1])
+
         return numpy.uint16(self._shape[2])
 
     @property
@@ -1230,7 +1243,7 @@ arguments.")
 
         return dst
 
-    def transpose(self, *axes: int, dst: 'dimage' = None) -> 'dimage':
+    def transpose(self, *axes: int) -> 'dimage':
         """
         ### Transpose the image
 
@@ -1243,41 +1256,34 @@ arguments.")
 
             src = dimage(shape=(2, 3, 4), dtype=np.float32)
             dst = dimage(shape=(4, 3, 2), dtype=np.float32)
-            src.transpose(2, 1, 0, dst=dst)
+            src.transpose(2, 1, 0)
 
         :param axes: The permutation of the axes
         :type axes: *int
-        :param dst: The destination image
-        :type dst: dimage
         :return: The transposed image
         :rtype: dimage
         """
-        new_shape = tuple(self._shape[i] for i in axes)
-        if dst is not None and (dst.dtype != self.dtype or
-                                dst.channel != self.channel):
-            raise ValueError(f"The destination image must have the same dtype \
-and number of channels than source image. Found dst:{dst.dtype} and \
-expected:{self.dtype}, dst:{dst.channel} and expected:{self.channel}")
+        if len(axes) != len(self._shape):
+            raise ValueError("axes don't match array")
 
-        if dst is not None and dst.shape != new_shape:
-            raise ValueError(
-                f"The destination image must have a consistent shape \
-regarding axes. Found dst:{dst.shape} and expected:{new_shape}")
+        if not all(isinstance(v, int) for v in axes):
+            raise ValueError("axes must be integers")
 
-        if (dst is not None and
-           dst.image_channel_format != self.image_channel_format):
-            raise ValueError(
-                f"The destination image must have a consistent channel format \
-regarding axes. Found dst:{dst.image_channel_format} and \
-expected:{self.image_channel_format}")
+        if len(set(axes)) != len(axes):
+            raise ValueError("repeated axis in transpose")
 
-        if dst is None:
-            dst = self.__class__(shape=new_shape,
-                                 dtype=self.dtype,
-                                 stream=self._stream,
-                                 channel_format=self._image_channel_format)
+        strides = self._strides
+        new_shape = [self.shape[i] for i in axes]
+        new_strides = [strides[i] for i in axes]
 
-        return super().transpose(*axes, dst=dst)
+        res = self.__class__(shape=tuple(new_shape),
+                             dtype=self._dtype,
+                             stream=self._stream,
+                             strides=new_strides,
+                             channel_format=self._image_channel_format,
+                             allocation=self._allocation)
+
+        return res
 
 
 def resize_padding(src: dimage,
