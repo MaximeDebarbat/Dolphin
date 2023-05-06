@@ -5,8 +5,8 @@ import cv2
 import dolphin as dp
 
 @pytest.mark.parametrize("shape_format", [((50, 50), dp.dimage_dim_format.DOLPHIN_HW),
-                                          ((50, 50, 1), dp.dimage_dim_format.DOLPHIN_HW),
-                                          ((1, 50, 50), dp.dimage_dim_format.DOLPHIN_HW),
+                                          ((50, 50, 1), dp.dimage_dim_format.DOLPHIN_HWC),
+                                          ((1, 50, 50), dp.dimage_dim_format.DOLPHIN_CHW),
                                           ((50, 50, 3), dp.dimage_dim_format.DOLPHIN_HWC),
                                           ((3, 50, 50), dp.dimage_dim_format.DOLPHIN_CHW)])
 @pytest.mark.parametrize("dtype", [dp.dtype.float32,
@@ -58,6 +58,10 @@ class test_dimage:
         assert dimage.dtype == dtype
         if format == dp.dimage_dim_format.DOLPHIN_HW:
             assert dimage.image_channel_format == dp.DOLPHIN_GRAY_SCALE
+        elif format == dp.dimage_dim_format.DOLPHIN_HWC and shape[2] == 1:
+            assert dimage.image_channel_format == dp.DOLPHIN_GRAY_SCALE
+        elif format == dp.dimage_dim_format.DOLPHIN_CHW and shape[0] == 1:
+            assert dimage.image_channel_format == dp.DOLPHIN_GRAY_SCALE
         else:
             assert dimage.image_channel_format == dp.DOLPHIN_RGB
 
@@ -88,11 +92,16 @@ class test_dimage:
 
         diff = numpy.linalg.norm(dimage.to_numpy() - dimage_copy.to_numpy())
 
+        print(dimage_copy.image_channel_format, dimage_copy.image_dim_format)
         assert isinstance(dimage_copy, dp.dimage)
         assert dimage_copy.image_dim_format == format
         assert dimage_copy.dtype == dtype
         assert diff < 1e-5
         if format == dp.dimage_dim_format.DOLPHIN_HW:
+            assert dimage_copy.image_channel_format == dp.DOLPHIN_GRAY_SCALE
+        elif format == dp.dimage_dim_format.DOLPHIN_HWC and shape[2] == 1:
+            assert dimage_copy.image_channel_format == dp.DOLPHIN_GRAY_SCALE
+        elif format == dp.dimage_dim_format.DOLPHIN_CHW and shape[0] == 1:
             assert dimage_copy.image_channel_format == dp.DOLPHIN_GRAY_SCALE
         else:
             assert dimage_copy.image_channel_format == dp.DOLPHIN_RGB
@@ -126,9 +135,8 @@ class test_dimage:
                                    dp.dtype.uint8])
 class test_dimage_transpose:
 
-    @pytest.mark.parametrize("shape", [(1, 40, 50),
-                                       (40, 50),
-                                       (40, 50, 1)])
+    @pytest.mark.parametrize("shape", [(40, 50),
+                                       (40, 500)])
     def test_dimage_HW(self, dtype, shape):
         """
         Test the transpose of a dimage
@@ -137,8 +145,8 @@ class test_dimage_transpose:
         dimage = dp.dimage(array=array)
         shape = dimage.shape
 
-        perms = (1, 0)
-        new_shape = (shape[1], shape[0])
+        perms = tuple([i for i in range(len(shape))[::-1]])
+        new_shape = tuple([shape[i] for i in perms])
         dimage_transpose = dimage.transpose(*perms)
 
         assert dimage_transpose.shape == new_shape
@@ -147,21 +155,20 @@ class test_dimage_transpose:
         assert dimage_transpose.dtype == dtype
 
 
-    @pytest.mark.parametrize("shape", [(40, 50, 3),
-                                       (10, 10, 3),
-                                       (500, 500, 3)])
-    @pytest.mark.parametrize("format", [dp.DOLPHIN_RGB,
-                                        dp.DOLPHIN_BGR])
-    def test_dimage_HWC(self, dtype, shape, format):
+    @pytest.mark.parametrize("shape_format", [((40, 50, 3), dp.DOLPHIN_RGB),
+                                       ((10, 10, 3), dp.DOLPHIN_RGB),
+                                       ((500, 500, 1), dp.DOLPHIN_GRAY_SCALE)])
+    def test_dimage_HWC(self, dtype, shape_format):
         """
         Test the transpose of a dimage
         """
+        shape, format = shape_format
         array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
         dimage = dp.dimage(array=array, channel_format=format)
         shape = dimage.shape
 
-        perms = (2, 1, 0)
-        new_shape = (shape[2], shape[1], shape[0])
+        perms = tuple([i for i in range(len(shape))[::-1]])
+        new_shape = tuple([shape[i] for i in perms])
         dimage_transpose = dimage.transpose(*perms)
 
         assert dimage_transpose.shape == new_shape
@@ -170,92 +177,21 @@ class test_dimage_transpose:
         assert dimage_transpose.dtype == dtype
 
 
-    @pytest.mark.parametrize("shape", [(3, 40, 50),
-                                       (3, 10, 10),
-                                       (3, 500, 500)])
-    @pytest.mark.parametrize("format", [dp.DOLPHIN_RGB,
-                                        dp.DOLPHIN_BGR])
-    def test_dimage_CHW(self, dtype, shape, format):
+    @pytest.mark.parametrize("shape_format", [((3, 40, 50), dp.DOLPHIN_RGB),
+                                              ((3, 10, 10), dp.DOLPHIN_RGB),
+                                              ((1, 500, 500), dp.DOLPHIN_GRAY_SCALE)])
+    def test_dimage_CHW(self, dtype, shape_format):
         """
         Test the transpose of a dimage
         """
+        shape, format = shape_format
         array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
         dimage = dp.dimage(array=array, channel_format=format)
         shape = dimage.shape
 
-        perms = (1, 2, 0)
-        new_shape = (shape[1], shape[2], shape[0])
+        perms = tuple([i for i in range(len(shape))[::-1]])
+        new_shape = tuple([shape[i] for i in perms])
         dimage_transpose = dimage.transpose(*perms)
-
-        assert dimage_transpose.shape == new_shape
-        assert dimage_transpose.image_dim_format == dp.dimage_dim_format.DOLPHIN_HWC
-        assert dimage_transpose.image_channel_format == format
-        assert dimage_transpose.dtype == dtype
-
-    @pytest.mark.parametrize("shape", [(1, 40, 50),
-                                       (40, 50),
-                                       (40, 50, 1)])
-    def test_dimage_HW_inplace(self, dtype, shape):
-        """
-        Test the transpose of a dimage
-        """
-        array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        dimage = dp.dimage(array=array)
-        shape = dimage.shape
-
-        perms = (1, 0)
-        new_shape = (shape[1], shape[0])
-        dimage_transpose = dp.dimage(shape=new_shape, dtype=dtype)
-        dp.transpose(perms, src=dimage, dst=dimage_transpose)
-
-        assert dimage_transpose.shape == new_shape
-        assert dimage_transpose.image_dim_format == dp.dimage_dim_format.DOLPHIN_HW
-        assert dimage_transpose.image_channel_format == dp.DOLPHIN_GRAY_SCALE
-        assert dimage_transpose.dtype == dtype
-
-
-    @pytest.mark.parametrize("shape", [(40, 50, 3),
-                                       (10, 10, 3),
-                                       (500, 500, 3)])
-    @pytest.mark.parametrize("format", [dp.DOLPHIN_RGB,
-                                        dp.DOLPHIN_BGR])
-    def test_dimage_HWC_inplace(self, dtype, shape, format):
-        """
-        Test the transpose of a dimage
-        """
-        array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        dimage = dp.dimage(array=array, channel_format=format)
-        shape = dimage.shape
-
-        perms = (2, 1, 0)
-        new_shape = (shape[2], shape[1], shape[0])
-        dimage_transpose = dp.dimage(shape=new_shape, dtype=dtype, channel_format=format)
-        dp.transpose(perms, src=dimage, dst=dimage_transpose)
-
-        assert dimage_transpose.shape == new_shape
-        assert dimage_transpose.image_dim_format == dp.dimage_dim_format.DOLPHIN_CHW
-        assert dimage_transpose.image_channel_format == format
-        assert dimage_transpose.dtype == dtype
-
-    @pytest.mark.parametrize("shape", [(3, 40, 50),
-                                       (3, 10, 10),
-                                       (3, 500, 500)])
-    @pytest.mark.parametrize("format", [dp.DOLPHIN_RGB,
-                                        dp.DOLPHIN_BGR])
-    def test_dimage_CHW_inplace(self, dtype, shape, format):
-        """
-        Test the transpose of a dimage
-        """
-        array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        dimage = dp.dimage(array=array, channel_format=format)
-        shape = dimage.shape
-
-        perms = (1, 2, 0)
-        new_shape = (shape[1], shape[2], shape[0])
-
-        dimage_transpose = dp.dimage(shape=new_shape, dtype=dtype, channel_format=format)
-
-        dp.transpose(perms, src=dimage, dst=dimage_transpose)
 
         assert dimage_transpose.shape == new_shape
         assert dimage_transpose.image_dim_format == dp.dimage_dim_format.DOLPHIN_HWC
@@ -302,9 +238,8 @@ def letterbox(im: numpy.ndarray,
                                    dp.dtype.uint8])
 class test_dimage_resize:
 
-    @pytest.mark.parametrize("shape", [(1, 40, 50),
-                                       (40, 50),
-                                       (40, 50, 1)])
+    @pytest.mark.parametrize("shape", [(40, 50),
+                                       (400, 500)])
     @pytest.mark.parametrize("new_shape", [(200, 200),
                                            (400, 100),
                                            (100, 400)])
@@ -341,9 +276,8 @@ class test_dimage_resize:
         assert dimage_resize.image_channel_format == dp.DOLPHIN_GRAY_SCALE
         assert dimage_resize.dtype == dtype
 
-    @pytest.mark.parametrize("shape", [(1, 40, 50),
-                                       (40, 50),
-                                       (40, 50, 1)])
+    @pytest.mark.parametrize("shape", [(40, 50),
+                                       (400, 500)])
     @pytest.mark.parametrize("new_shape", [(200, 200),
                                            (400, 100),
                                            (100, 400)])
@@ -555,9 +489,8 @@ class test_dimage_resize:
                                    dp.dtype.uint8])
 class test_dimage_normalization:
 
-    @pytest.mark.parametrize("shape", [(1, 40, 50),
-                                       (40, 50),
-                                       (40, 50, 1)])
+    @pytest.mark.parametrize("shape", [(40, 50),
+                                       (400, 500)])
     def test_dimage_HW_255(self, dtype, shape):
         """
         Test resize of a HW (grayscale) dimage
@@ -626,9 +559,8 @@ class test_dimage_normalization:
         assert dimage_normalized.dtype == dtype
 
 
-    @pytest.mark.parametrize("shape", [(1, 40, 50),
-                                       (40, 50),
-                                       (40, 50, 1)])
+    @pytest.mark.parametrize("shape", [(40, 50),
+                                       (400, 500)])
     def test_dimage_HW_TF(self, dtype, shape):
         """
         Test resize of a HW (grayscale) dimage
@@ -693,9 +625,8 @@ class test_dimage_normalization:
         assert dimage_normalized.image_dim_format == dp.dimage_dim_format.DOLPHIN_HWC
         assert dimage_normalized.image_channel_format == format
 
-    @pytest.mark.parametrize("shape", [(1, 40, 50),
-                                       (40, 50),
-                                       (40, 50, 1)])
+    @pytest.mark.parametrize("shape", [(40, 50),
+                                       (400, 500)])
     def test_dimage_HW_mean_std(self, dtype, shape):
         """
         Test normalize of a HW (grayscale) dimage

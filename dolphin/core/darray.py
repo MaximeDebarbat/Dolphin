@@ -57,6 +57,7 @@ only once.
 """
 
 from typing import Union
+import traceback
 
 import pycuda.driver as cuda  # pylint: disable=import-error
 import tensorrt as trt  # pylint: disable=import-error
@@ -520,7 +521,8 @@ class darray(dolphin.CudaBase):
                  stream: cuda.Stream = None,
                  array: numpy.ndarray = None,
                  strides: tuple = None,
-                 allocation: cuda.DeviceAllocation = None
+                 allocation: cuda.DeviceAllocation = None,
+                 allocation_size: cuda.DeviceAllocation = None
                  ) -> None:
 
         super().__init__()
@@ -530,7 +532,7 @@ class darray(dolphin.CudaBase):
             shape = array.shape
 
         self._stream: cuda.Stream = stream
-        self._dtype: dtype = dtype
+        self._dtype: dolphin.dtype = dtype
         self._shape: tuple = shape
         self._size: int = trt.volume(self._shape)
         self._nbytes: int = int(self._size * self._dtype.itemsize)
@@ -540,11 +542,16 @@ class darray(dolphin.CudaBase):
         else:
             self._strides: tuple = strides
 
+        if allocation_size is not None:
+            self._allocation_size: int = allocation_size
+        else:
+            self._allocation_size: int = self._nbytes
+
         if allocation is not None:
             self._allocation: cuda.DeviceAllocation = allocation
         else:
             self._allocation: cuda.DeviceAllocation = cuda.mem_alloc(
-                self._nbytes)
+                self._allocation_size)
 
         if array is not None:
             cuda.memcpy_htod_async(self._allocation,
@@ -683,11 +690,13 @@ class darray(dolphin.CudaBase):
         """
         res = self.__class__(shape=self._shape,
                              dtype=self._dtype,
+                             strides=self._strides,
+                             allocation_size=self._allocation_size,
                              stream=self._stream)
 
         cuda.memcpy_dtod_async(res.allocation,
                                self._allocation,
-                               self._nbytes,
+                               self._allocation_size,
                                stream=self._stream)
 
         return res
@@ -745,7 +754,7 @@ class darray(dolphin.CudaBase):
         :return: numpy.ndarray of the darray
         :rtype: numpy.ndarray
         """
-        res = numpy.empty(self._shape,
+        res = numpy.empty((self._allocation_size//self.dtype.itemsize,),
                           dtype=self._dtype.numpy_dtype)
 
         cuda.memcpy_dtoh_async(res,
@@ -833,6 +842,103 @@ class darray(dolphin.CudaBase):
         :type array: numpy.ndarray
         """
         self.from_numpy(array)
+
+    def __getitem__(self, index: Union[int, slice, tuple]) -> 'darray':
+        """Returns a view of the darray with the given index.
+
+        :param index: Index to use
+        :type index: Union[int, slice, tuple]
+        :raises IndexError: Too many indexes. The number of indexes
+            must be less than the number of dimensions of the array.
+        :raises IndexError: Axes must be in the range of the number
+            of dimensions of the array.
+        :return: View of the darray
+        :rtype: darray
+        """
+        print(f"__getitem__ : {index}")
+        if not isinstance(index, tuple):
+            index = (index,)
+
+        new_shape = []
+        new_offset = 0
+        new_strides = []
+
+        seen_ellipsis = False
+
+        index_axis = 0
+        array_axis = 0
+        while index_axis < len(index):
+            index_entry = index[index_axis]
+
+            if array_axis > len(self.shape):
+                raise IndexError("too many axes in index")
+
+            if isinstance(index_entry, slice):
+                start, stop, idx_stride = index_entry.indices(
+                    self.shape[array_axis])
+
+                array_stride = self.strides[array_axis]
+
+                new_shape.append((abs(stop - start) - 1) //
+                                 abs(idx_stride) + 1)
+                new_strides.append(idx_stride * array_stride)
+                new_offset += array_stride * start
+
+                index_axis += 1
+                array_axis += 1
+
+            elif isinstance(index_entry, (int, numpy.integer)):
+                array_shape = self.shape[array_axis]
+                if index_entry < 0:
+                    index_entry += array_shape
+
+                if not (0 <= index_entry < array_shape):
+                    raise IndexError(f"subindex in axis {index_axis} \
+out of range")
+
+                new_offset += self.strides[array_axis] * index_entry
+
+                index_axis += 1
+                array_axis += 1
+
+            elif index_entry is Ellipsis:
+                index_axis += 1
+
+                remaining_index_count = len(index) - index_axis
+                new_array_axis = len(self.shape) - remaining_index_count
+                if new_array_axis < array_axis:
+                    raise IndexError("invalid use of ellipsis in index")
+                while array_axis < new_array_axis:
+                    new_shape.append(self.shape[array_axis])
+                    new_strides.append(self.strides[array_axis])
+                    array_axis += 1
+
+                if seen_ellipsis:
+                    raise IndexError("more than one ellipsis \
+not allowed in index")
+                seen_ellipsis = True
+
+            elif index_entry is numpy.newaxis:
+                new_shape.append(1)
+                new_strides.append(0)
+                index_axis += 1
+
+            else:
+                raise IndexError(f"invalid subindex in axis {index_axis}")
+
+        while array_axis < len(self.shape):
+            new_shape.append(self.shape[array_axis])
+            new_strides.append(self.strides[array_axis])
+
+            array_axis += 1
+
+        return darray(
+            shape=tuple(new_shape),
+            dtype=self.dtype,
+            strides=tuple(new_strides),
+            allocation=int(self.allocation) + new_offset,
+            allocation_size=self._allocation_size
+        )
 
     def __str__(self) -> str:
         """Returns the string representation of the numpy array.
@@ -960,10 +1066,9 @@ class darray(dolphin.CudaBase):
         :return: A copy of the darray where the result is written
         :rtype: darray
         """
-
         return self.add(other)
 
-    __radd__ = __add__  # object + array
+    __radd__ = __add__
 
     def __iadd__(self, other: object) -> 'darray':
         """Implements += operator. As __add__, this method is not

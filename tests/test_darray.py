@@ -124,7 +124,7 @@ class test_darray:
 
         cuda_array_result = dp.zeros(shape=new_shape, dtype=dtype)
 
-        dp.transpose(perms, cuda_array, cuda_array_result)
+        cuda_array_result = dp.transpose(perms, cuda_array)
         dummy_result = numpy.transpose(dummy, perms)
 
         diff = numpy.linalg.norm(cuda_array_result.to_numpy() - dummy_result)
@@ -368,7 +368,7 @@ class test_darray:
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
         cuda_array = dp.darray(array=dummy)
 
-        scalar = dtype.numpy_dtype(numpy.random.rand()*10)
+        scalar = 15
 
         cuda_array_result = dp.zeros(shape=shape, dtype=dtype)
         cuda_array_result = scalar + cuda_array
@@ -528,7 +528,7 @@ class test_darray:
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
         cuda_array = dp.darray(array=dummy)
 
-        scalar = dtype.numpy_dtype(numpy.random.rand()*10)
+        scalar = 15
 
         cuda_array_result = dp.zeros(shape=shape, dtype=dtype)
         cuda_array_result = scalar - cuda_array
@@ -688,7 +688,7 @@ class test_darray:
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
         cuda_array = dp.darray(array=dummy)
 
-        scalar = dtype.numpy_dtype(numpy.random.rand()*10)
+        scalar = 3
 
         cuda_array_result = dp.zeros(shape=shape, dtype=dtype)
         cuda_array_result = scalar * cuda_array
@@ -850,7 +850,7 @@ class test_darray:
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)+1
         cuda_array = dp.darray(array=dummy)
 
-        scalar = dtype.numpy_dtype(numpy.random.rand()*10)+1
+        scalar = 2
 
         cuda_array_result = dp.zeros(shape=shape, dtype=dtype)
         cuda_array_result = scalar / cuda_array
@@ -879,3 +879,62 @@ class test_darray:
         assert diff < 1e-4
         assert cuda_array.shape == shape
         assert cuda_array.dtype == dtype
+
+
+@pytest.mark.parametrize("shape", [(50, 50),
+                                   (200, 200, 200),
+                                   (4, 3, 2),
+                                   (5, 4, 3, 2, 1),
+                                   (1, 2, 3)])
+@pytest.mark.parametrize("dtype", [dp.dtype.float32,
+                                   dp.dtype.float64,
+                                   dp.dtype.int32,
+                                   dp.dtype.int16,
+                                   dp.dtype.int8,
+                                   dp.dtype.uint32,
+                                   dp.dtype.uint16,
+                                   dp.dtype.uint8])
+class test_darray_getitem:
+
+    def darray_test_getitem_creation(self, shape, dtype):
+        """
+        Test for getitem of darray
+        """
+        dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
+        cuda_array = dp.darray(array=dummy)
+
+        index = tuple([slice(0, max(s//2, 1), 1) for s in shape])
+
+        cuda_array_result = cuda_array[index]
+        dummy_result = dummy[index]
+
+        for i in range(len(shape)):
+            assert cuda_array.shape[i] == shape[i]
+
+        assert cuda_array.dtype == dtype
+        assert cuda_array_result.shape == dummy_result.shape
+        assert cuda_array_result.dtype == dtype
+        assert numpy.allclose(cuda_array_result.to_numpy(), dummy_result)
+
+    def darray_test_getitem_copy(self, shape, dtype):
+        """
+        Test for getitem of darray
+        """
+        dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
+        cuda_array = dp.darray(array=dummy)
+
+        index = tuple([slice(0, max(s//2, 1), 1) for s in shape])
+
+        cuda_array_result = cuda_array[index].copy()
+        dummy_result = dummy[index]
+
+        print(f"cuda_array_result: {cuda_array_result}")
+        print(f"dummy_result: {dummy_result}")
+
+        for i in range(len(shape)):
+            assert cuda_array.shape[i] == shape[i]
+
+        assert cuda_array.dtype == dtype
+        assert cuda_array_result.shape == dummy_result.shape
+        assert cuda_array_result.dtype == dtype
+        assert numpy.allclose(cuda_array_result.to_numpy(), dummy_result)

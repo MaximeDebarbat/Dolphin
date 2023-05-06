@@ -634,7 +634,7 @@ be GRAY_SCALE.")
 
                 self._image_channel_format = (
                     dimage_channel_format.DOLPHIN_GRAY_SCALE)
-                self._image_dim_format = dimage_dim_format.DOLPHIN_HW
+                self._image_dim_format = dimage_dim_format.DOLPHIN_HWC
 
             elif self._shape[0] == 1:
                 if self._image_channel_format is not None and \
@@ -646,7 +646,7 @@ be GRAY_SCALE.")
 
                 self._image_channel_format = (
                     dimage_channel_format.DOLPHIN_GRAY_SCALE)
-                self._image_dim_format = dimage_dim_format.DOLPHIN_HW
+                self._image_dim_format = dimage_dim_format.DOLPHIN_CHW
             else:
                 raise ValueError(f"The shape of the image is not valid. \
 Supported shape : (H, W), (H, W, 1), (1, H, W), (H, W, 3), (3, H, W). \
@@ -662,6 +662,7 @@ Got : {self._shape}")
         res = self.__class__(shape=self._shape,
                              dtype=self._dtype,
                              stream=self._stream,
+                             strides=self._strides,
                              channel_format=self._image_channel_format)
 
         cuda.memcpy_dtod_async(res.allocation,
@@ -696,14 +697,9 @@ Got : {self._shape}")
         :return: The height of the image
         :rtype: numpy.uint16
         """
-        if self._image_dim_format.value == dimage_dim_format.DOLPHIN_HW.value:
-            if len(self.shape) == 3 and self.shape[0] == 1:
-                return numpy.uint16(self._shape[1])
+        if (self._image_dim_format.value == dimage_dim_format.DOLPHIN_HW.value or
+           self._image_dim_format.value == dimage_dim_format.DOLPHIN_HWC.value):
             return numpy.uint16(self._shape[0])
-
-        if self._image_dim_format.value == dimage_dim_format.DOLPHIN_HWC.value:
-            return numpy.uint16(self._shape[0])
-
         return numpy.uint16(self._shape[1])
 
     @property
@@ -714,14 +710,9 @@ Got : {self._shape}")
         :rtype: numpy.uint16
         """
 
-        if self._image_dim_format.value == dimage_dim_format.DOLPHIN_HW.value:
-            if len(self.shape) == 3 and self.shape[0] == 1:
-                return numpy.uint16(self._shape[2])
+        if (self._image_dim_format.value == dimage_dim_format.DOLPHIN_HW.value or
+           self._image_dim_format.value == dimage_dim_format.DOLPHIN_HWC.value):
             return numpy.uint16(self._shape[1])
-
-        if self._image_dim_format.value == dimage_dim_format.DOLPHIN_HWC.value:
-            return numpy.uint16(self._shape[1])
-
         return numpy.uint16(self._shape[2])
 
     @property
