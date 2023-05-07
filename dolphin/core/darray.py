@@ -57,7 +57,6 @@ only once.
 """
 
 from typing import Union
-import traceback
 
 import pycuda.driver as cuda  # pylint: disable=import-error
 import tensorrt as trt  # pylint: disable=import-error

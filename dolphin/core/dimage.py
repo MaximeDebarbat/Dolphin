@@ -97,8 +97,6 @@ class CuResizeNearest(dolphin.CuResizeCompiler):
         else:
             mode = "HWC"
 
-        print(f"cuda call arguments : {src.allocation}, {dst.allocation}, {src.width}, {src.height}, {dst.width}, {dst.height}, {src.channel}, {mode}, {block} {grid}")
-
         self._func[mode+src.dtype.cuda_dtype].prepared_async_call(
             grid,
             block,
@@ -571,7 +569,8 @@ class dimage(dolphin.darray):
                  array: numpy.ndarray = None,
                  channel_format: dimage_channel_format = None,
                  strides: tuple = None,
-                 allocation: cuda.DeviceAllocation = None
+                 allocation: cuda.DeviceAllocation = None,
+                 allocation_size: int = None
                  ) -> None:
 
         super().__init__(array=array,
@@ -579,7 +578,8 @@ class dimage(dolphin.darray):
                          dtype=dtype,
                          stream=stream,
                          strides=strides,
-                         allocation=allocation)
+                         allocation=allocation,
+                         allocation_size=allocation_size)
 
         if len(self._shape) != 2 and len(self._shape) != 3:
             raise ValueError("The shape of the image must be 2 or 3.")
@@ -663,11 +663,12 @@ Got : {self._shape}")
                              dtype=self._dtype,
                              stream=self._stream,
                              strides=self._strides,
+                             allocation_size=self._allocation_size,
                              channel_format=self._image_channel_format)
 
         cuda.memcpy_dtod_async(res.allocation,
                                self._allocation,
-                               self._nbytes,
+                               self._allocation_size,
                                self._stream)
 
         return res
@@ -697,8 +698,10 @@ Got : {self._shape}")
         :return: The height of the image
         :rtype: numpy.uint16
         """
-        if (self._image_dim_format.value == dimage_dim_format.DOLPHIN_HW.value or
-           self._image_dim_format.value == dimage_dim_format.DOLPHIN_HWC.value):
+        if ((self._image_dim_format.value ==
+             dimage_dim_format.DOLPHIN_HW.value) or
+           (self._image_dim_format.value ==
+           dimage_dim_format.DOLPHIN_HWC.value)):
             return numpy.uint16(self._shape[0])
         return numpy.uint16(self._shape[1])
 
@@ -710,8 +713,10 @@ Got : {self._shape}")
         :rtype: numpy.uint16
         """
 
-        if (self._image_dim_format.value == dimage_dim_format.DOLPHIN_HW.value or
-           self._image_dim_format.value == dimage_dim_format.DOLPHIN_HWC.value):
+        if ((self._image_dim_format.value ==
+             dimage_dim_format.DOLPHIN_HW.value) or
+           (self._image_dim_format.value ==
+           dimage_dim_format.DOLPHIN_HWC.value)):
             return numpy.uint16(self._shape[1])
         return numpy.uint16(self._shape[2])
 

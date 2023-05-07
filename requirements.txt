@@ -12,3 +12,4 @@ pycuda==2022.2.2
 pytest==7.3.1
 setuptools==45.2.0
 tensorrt==8.5.2.2
+flake8
