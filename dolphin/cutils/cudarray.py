@@ -25,6 +25,7 @@ class CuFillCompiler(CompilerBase):
             self.source += Template(self._cuda_source).render(
                 dtype=dtype.cuda_dtype)
 
+        self.source = self.append_utils(self.source)
         self.compiled_source = SourceModule(self.source)
 
 
@@ -39,6 +40,7 @@ class AXpBZCompiler(CompilerBase):
             self.source += Template(self._cuda_source).render(
                 dtype=dtype.cuda_dtype)
 
+        self.source = self.append_utils(self.source)
         self.compiled_source = SourceModule(self.source)
 
 
@@ -53,6 +55,7 @@ class AXpBYZCompiler(CompilerBase):
             self.source += Template(self._cuda_source).render(
                 dtype=dtype.cuda_dtype)
 
+        self.source = self.append_utils(self.source)
         self.compiled_source = SourceModule(self.source)
 
 
@@ -67,6 +70,7 @@ class EltwiseMultCompiler(CompilerBase):
             self.source += Template(self._cuda_source).render(
                 dtype=dtype.cuda_dtype)
 
+        self.source = self.append_utils(self.source)
         self.compiled_source = SourceModule(self.source)
 
 
@@ -84,6 +88,7 @@ class EltwiseDivCompiler(CompilerBase):
             self.source += Template(self._cuda_source).render(
                 dtype=dtype.cuda_dtype)
 
+        self.source = self.append_utils(self.source)
         self.compiled_source = SourceModule(self.source)
 
 
@@ -99,6 +104,7 @@ class ScalDivCompiler(CompilerBase):
             self.source += Template(self._cuda_source).render(
                 dtype=dtype.cuda_dtype)
 
+        self.source = self.append_utils(self.source)
         self.compiled_source = SourceModule(self.source)
 
 

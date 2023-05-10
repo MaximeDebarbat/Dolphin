@@ -1,7 +1,7 @@
-
-import pytest
 import numpy
 import dolphin as dp
+import pytest
+
 
 @pytest.mark.parametrize("shape", [(50, 50),
                                    (200, 200, 200),
@@ -938,3 +938,173 @@ class test_darray_getitem:
         assert cuda_array_result.shape == dummy_result.shape
         assert cuda_array_result.dtype == dtype
         assert numpy.allclose(cuda_array_result.to_numpy(), dummy_result)
+
+    def darray_test_getitem_fill(self, shape, dtype):
+        """
+        Test for getitem of darray
+        """
+        dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
+        cuda_array = dp.darray(array=dummy)
+
+        index = tuple([slice(0, max(s//2, 1), 1) for s in shape])
+
+        cuda_array_result = cuda_array[index].fill(10)
+        dummy_res = dummy[index]
+        dummy_res.fill(10)
+
+        for i in range(len(shape)):
+            assert cuda_array.shape[i] == shape[i]
+
+        assert cuda_array.dtype == dtype
+        assert cuda_array_result.shape == dummy_res.shape
+        assert cuda_array_result.dtype == dtype
+        assert numpy.allclose(cuda_array_result.to_numpy(), dummy_res)
+        assert numpy.allclose(cuda_array.to_numpy(), dummy)
+
+    def darray_test_getitem_multiply_scalar(self, shape, dtype):
+        """
+        Test for getitem of darray
+        """
+
+        dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
+        cuda_array = dp.darray(array=dummy)
+
+        index = tuple([slice(0, max(s//2, 1), 1) for s in shape])
+
+        cuda_array_result = cuda_array[index] * 10
+        dummy_res = dummy[index] * 10
+
+        for i in range(len(shape)):
+            assert cuda_array.shape[i] == shape[i]
+
+        assert cuda_array.dtype == dtype
+        assert cuda_array_result.shape == dummy_res.shape
+        assert cuda_array_result.dtype == dtype
+        assert numpy.allclose(cuda_array_result.to_numpy(), dummy_res)
+        assert numpy.allclose(cuda_array.to_numpy(), dummy)
+
+    def darray_test_getitem_multiply_scalar_2(self, shape, dtype):
+        """
+        Test for getitem of darray
+        """
+
+        dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
+        cuda_array = dp.darray(array=dummy)
+
+        index = tuple([slice(0, max(s//2, 1), 1) for s in shape])
+
+        cuda_array_result = cuda_array[index].multiply(10)
+        dummy_res = dummy[index] * 10
+
+        for i in range(len(shape)):
+            assert cuda_array.shape[i] == shape[i]
+
+        assert cuda_array.dtype == dtype
+        assert cuda_array_result.shape == dummy_res.shape
+        assert cuda_array_result.dtype == dtype
+        assert numpy.allclose(cuda_array_result.to_numpy(), dummy_res)
+        assert numpy.allclose(cuda_array.to_numpy(), dummy)
+
+    def darray_test_getitem_multiply_darray(self, shape, dtype):
+        """
+        Test for getitem of darray
+        """
+
+        dummy = numpy.random.rand(*shape)*10
+        dummy = dummy.astype(dtype.numpy_dtype)
+        cuda_array = dp.darray(array=dummy)
+
+        index = tuple([slice(0, max(s//2, 1), 1) for s in shape])
+        new_shape = tuple([max(s//2, 1) for s in shape])
+
+        dummy_2 = numpy.random.rand(*new_shape).astype(dtype.numpy_dtype)
+        cuda_array_2 = dp.darray(array=dummy_2)
+
+        cuda_array_result = cuda_array[index].multiply(cuda_array_2)
+        dummy_res = dummy[index] * dummy_2
+
+        for i in range(len(shape)):
+            assert cuda_array.shape[i] == shape[i]
+
+        assert cuda_array.dtype == dtype
+        assert cuda_array_result.shape == dummy_res.shape
+        assert cuda_array_result.dtype == dtype
+        assert numpy.allclose(cuda_array_result.to_numpy(), dummy_res)
+        assert numpy.allclose(cuda_array.to_numpy(), dummy)
+
+    def darray_test_getitem_div_scalar(self, shape, dtype):
+        """
+        Test for getitem of darray
+        """
+
+        dummy = numpy.random.rand(*shape) * 10
+        dummy = dummy.astype(dtype.numpy_dtype)
+        cuda_array = dp.darray(array=dummy)
+
+        index = tuple([slice(0, max(s//2, 1), 1) for s in shape])
+
+        cuda_array_result = cuda_array[index] / 3
+        dummy_res = dummy[index] / 3
+        dummy_res = dummy_res.astype(dtype.numpy_dtype)
+
+        for i in range(len(shape)):
+            assert cuda_array.shape[i] == shape[i]
+
+        assert cuda_array.dtype == dtype
+        assert cuda_array_result.shape == dummy_res.shape
+        assert cuda_array_result.dtype == dtype
+        assert numpy.allclose(cuda_array_result.to_numpy(), dummy_res)
+        assert numpy.allclose(cuda_array.to_numpy(), dummy)
+
+    def darray_test_getitem_div_scalar_2(self, shape, dtype):
+        """
+        Test for getitem of darray
+        """
+
+        dummy = numpy.random.rand(*shape) * 10
+        dummy = dummy.astype(dtype.numpy_dtype)
+        cuda_array = dp.darray(array=dummy)
+
+        index = tuple([slice(0, max(s//2, 1), 1) for s in shape])
+
+        cuda_array_result = cuda_array[index].divide(3)
+        dummy_res = dummy[index] / 3
+        dummy_res = dummy_res.astype(dtype.numpy_dtype)
+
+        for i in range(len(shape)):
+            assert cuda_array.shape[i] == shape[i]
+
+        assert cuda_array.dtype == dtype
+        assert cuda_array_result.shape == dummy_res.shape
+        assert cuda_array_result.dtype == dtype
+        assert numpy.allclose(cuda_array_result.to_numpy(), dummy_res)
+        assert numpy.allclose(cuda_array.to_numpy(), dummy)
+
+    def darray_test_getitem_div_darray(self, shape, dtype):
+        """
+        Test for getitem of darray
+        """
+
+        dummy = numpy.random.rand(*shape)*10
+        dummy = dummy.astype(dtype.numpy_dtype)
+        cuda_array = dp.darray(array=dummy)
+
+        index = tuple([slice(0, max(s//2, 1), 1) for s in shape])
+        new_shape = tuple([max(s//2, 1) for s in shape])
+
+        dummy_2 = numpy.random.rand(*new_shape)*3 + 1
+        dummy_2 = dummy_2.astype(dtype.numpy_dtype)
+        cuda_array_2 = dp.darray(array=dummy_2)
+
+        cuda_array_result = cuda_array[index].divide(cuda_array_2)
+        dummy_res = dummy[index] / dummy_2
+        dummy_res = dummy_res.astype(dtype.numpy_dtype)
+
+        for i in range(len(shape)):
+            assert cuda_array.shape[i] == shape[i]
+
+        assert cuda_array.dtype == dtype
+        assert cuda_array_result.shape == dummy_res.shape
+        assert cuda_array_result.dtype == dtype
+        assert numpy.allclose(cuda_array_result.to_numpy(), dummy_res)
+        assert numpy.allclose(cuda_array.to_numpy(), dummy)

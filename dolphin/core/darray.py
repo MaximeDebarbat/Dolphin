@@ -74,7 +74,7 @@ class CuFill(dolphin.CuFillCompiler):
         for dtype in dolphin.dtype:
             self._func[dtype.cuda_dtype] = self.compiled_source.get_function(
                 self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare(
-                "P" + numpy.dtype(dtype.numpy_dtype).char + "I")
+                "P" + numpy.dtype(dtype.numpy_dtype).char + "PPII")
 
     def __call__(self,
                  array: 'darray',
@@ -90,6 +90,9 @@ class CuFill(dolphin.CuFillCompiler):
             stream,
             array.allocation,
             value,
+            array.shape_allocation,
+            array.strides_allocation,
+            array.ndim,
             numpy.uint32(size))
 
 
@@ -103,7 +106,7 @@ class AXpBZ(dolphin.AXpBZCompiler):
             self._func[dtype.cuda_dtype] = self.compiled_source.get_function(
                 self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare(
                 "PP" + numpy.dtype(dtype.numpy_dtype).char + numpy.dtype(
-                    dtype.numpy_dtype).char + "I")
+                    dtype.numpy_dtype).char + "PPII")
 
     def __call__(self,
                  x_array: 'darray',
@@ -123,6 +126,9 @@ class AXpBZ(dolphin.AXpBZCompiler):
             z_array.allocation,
             x_array.dtype.numpy_dtype(a_scalar),
             x_array.dtype.numpy_dtype(b_scalar),
+            x_array.shape_allocation,
+            x_array.strides_allocation,
+            x_array.ndim,
             numpy.uint32(size))
 
 
@@ -136,7 +142,7 @@ class AXpBYZ(dolphin.AXpBYZCompiler):
             self._func[dtype.cuda_dtype] = self.compiled_source.get_function(
                 self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare(
                 "PPP" + numpy.dtype(dtype.numpy_dtype).char + numpy.dtype(
-                    dtype.numpy_dtype).char + "I")
+                    dtype.numpy_dtype).char + "PPPPII")
 
     def __call__(self,
                  x_array: 'darray',
@@ -158,6 +164,9 @@ class AXpBYZ(dolphin.AXpBYZCompiler):
             z_array.allocation,
             x_array.dtype.numpy_dtype(a_scalar),
             x_array.dtype.numpy_dtype(b_scalar),
+            x_array.shape_allocation,
+            x_array.strides_allocation,
+            x_array.ndim,
             numpy.uint32(size))
 
 
@@ -170,7 +179,7 @@ class EltwiseMult(dolphin.EltwiseMultCompiler):
 
         for dtype in dolphin.dtype:
             self._func[dtype.cuda_dtype] = self.compiled_source.get_function(
-                self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare("PPPI")
+                self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare("PPPPPPPPPII")
 
     def __call__(self,
                  x_array: 'darray',
@@ -188,6 +197,13 @@ class EltwiseMult(dolphin.EltwiseMultCompiler):
             x_array.allocation,
             y_array.allocation,
             z_array.allocation,
+            x_array.shape_allocation,
+            x_array.strides_allocation,
+            y_array.shape_allocation,
+            y_array.strides_allocation,
+            z_array.shape_allocation,
+            z_array.strides_allocation,
+            x_array.ndim,
             numpy.uint32(size))
 
 
@@ -200,7 +216,7 @@ class EltwiseDiv(dolphin.EltwiseDivCompiler):
 
         for dtype in dolphin.dtype:
             self._func[dtype.cuda_dtype] = self.compiled_source.get_function(
-                self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare("PPPIP")
+                self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare("PPPPPPPPPIIP")
 
     def __call__(self,
                  x_array: 'darray',
@@ -219,6 +235,13 @@ class EltwiseDiv(dolphin.EltwiseDivCompiler):
             x_array.allocation,
             y_array.allocation,
             z_array.allocation,
+            x_array.shape_allocation,
+            x_array.strides_allocation,
+            y_array.shape_allocation,
+            y_array.strides_allocation,
+            z_array.shape_allocation,
+            z_array.strides_allocation,
+            x_array.ndim,
             numpy.uint32(size),
             self._error)
 
@@ -241,7 +264,7 @@ class ScalDiv(dolphin.ScalDivCompiler):
         for dtype in dolphin.dtype:
             self._func[dtype.cuda_dtype] = self.compiled_source.get_function(
                 self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare(
-                    "PP" + numpy.dtype(dtype.numpy_dtype).char + "I")
+                    "PPPPPP" + numpy.dtype(dtype.numpy_dtype).char + "II")
 
     def __call__(self,
                  x_array: 'darray',
@@ -258,7 +281,12 @@ class ScalDiv(dolphin.ScalDivCompiler):
             stream,
             x_array.allocation,
             z_array.allocation,
+            x_array.shape_allocation,
+            x_array.strides_allocation,
+            z_array.shape_allocation,
+            z_array.strides_allocation,
             x_array.dtype.numpy_dtype(a_scalar),
+            x_array.ndim,
             numpy.uint32(size))
 
 
@@ -363,6 +391,9 @@ class EltwiseAbs(dolphin.EltwiseAbsCompiler):
             stream,
             x_array.allocation,
             z_array.allocation,
+            x_array.shape_allocation,
+            x_array.strides_allocation,
+            x_array.ndim,
             numpy.uint32(size))
 
 
@@ -559,6 +590,16 @@ class darray(dolphin.CudaBase):
 
         self._block, self._grid = self.GET_BLOCK_GRID_1D(self._size)
 
+        self._strides_allocation = cuda.mem_alloc(self.ndim * 4)
+        self._shape_allocation = cuda.mem_alloc(self.ndim * 4)
+
+        cuda.memcpy_htod_async(self._strides_allocation,
+                               numpy.array(self._strides, dtype=numpy.uint32),
+                               self._stream)
+        cuda.memcpy_htod_async(self._shape_allocation,
+                               numpy.array(self._shape, dtype=numpy.uint32),
+                               self._stream)
+
     @staticmethod
     def compute_strides(shape: tuple) -> tuple:
         """Computes the strides of an array from the shape.
@@ -699,6 +740,33 @@ class darray(dolphin.CudaBase):
                                stream=self._stream)
 
         return res
+
+    @property
+    def shape_allocation(self) -> cuda.DeviceAllocation:
+        """Property to access the cuda allocation of the shape.
+
+        :return: The cuda allocation of the shape
+        :rtype: cuda.DeviceAllocation
+        """
+        return self._shape_allocation
+
+    @property
+    def strides_allocation(self) -> cuda.DeviceAllocation:
+        """Property to access the cuda allocation of the strides.
+
+        :return: The cuda allocation of the strides
+        :rtype: cuda.DeviceAllocation
+        """
+        return self._strides_allocation
+
+    @property
+    def ndim(self) -> numpy.uint32:
+        """Computes the number of dimensions of the array.
+
+        :return: Number of dimensions of the array
+        :rtype: numpy.uint32
+        """
+        return len(self.shape)
 
     @property
     def strides(self) -> tuple:
@@ -854,7 +922,6 @@ class darray(dolphin.CudaBase):
         :return: View of the darray
         :rtype: darray
         """
-        print(f"__getitem__ : {index}")
         if not isinstance(index, tuple):
             index = (index,)
 
