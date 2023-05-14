@@ -82,8 +82,7 @@ from .cutils.cudarray import (
   InvScalDivCompiler,
   EltWiseCastCompiler,
   EltwiseAbsCompiler,
-  TransposeCompiler,
-  IndexerCompiler
+  DiscontiguousCopyCompiler
 )
 from .cutils.cudimage import (
   CuResizeCompiler,
