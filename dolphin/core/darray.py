@@ -142,7 +142,7 @@ class AXpBYZ(dolphin.AXpBYZCompiler):
             self._func[dtype.cuda_dtype] = self.compiled_source.get_function(
                 self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare(
                 "PPP" + numpy.dtype(dtype.numpy_dtype).char + numpy.dtype(
-                    dtype.numpy_dtype).char + "PPPPII")
+                    dtype.numpy_dtype).char + "PPPPPPII")
 
     def __call__(self,
                  x_array: 'darray',
@@ -166,6 +166,10 @@ class AXpBYZ(dolphin.AXpBYZCompiler):
             x_array.dtype.numpy_dtype(b_scalar),
             x_array.shape_allocation,
             x_array.strides_allocation,
+            y_array.shape_allocation,
+            y_array.strides_allocation,
+            z_array.shape_allocation,
+            z_array.strides_allocation,
             x_array.ndim,
             numpy.uint32(size))
 
@@ -300,7 +304,7 @@ class InvScalDiv(dolphin.InvScalDivCompiler):
         for dtype in dolphin.dtype:
             self._func[dtype.cuda_dtype] = self.compiled_source.get_function(
                 self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare(
-                    "PP" + numpy.dtype(dtype.numpy_dtype).char + "IP")
+                    "PPPPPP" + numpy.dtype(dtype.numpy_dtype).char + "IIP")
 
     def __call__(self,
                  x_array: 'darray',
@@ -318,11 +322,17 @@ class InvScalDiv(dolphin.InvScalDivCompiler):
             stream,
             x_array.allocation,
             z_array.allocation,
+            x_array.shape_allocation,
+            x_array.strides_allocation,
+            z_array.shape_allocation,
+            z_array.strides_allocation,
             x_array.dtype.numpy_dtype(a_scalar),
+            x_array.ndim,
             numpy.uint32(size),
             self._error)
 
-        error = numpy.zeros(1, dtype=numpy.uint8)
+        error = numpy.empty((1,), dtype=numpy.uint8)
+        error.fill(0)
         cuda.memcpy_dtoh_async(error, self._error, stream)
 
         if error[0] == 1:
@@ -347,7 +357,7 @@ class EltWiseCast(dolphin.EltWiseCastCompiler):
                             self.compiled_source.get_function(
                                 dtype.cuda_dtype +
                                 self.__CU_FUNC_NAME +
-                                dtype2.cuda_dtype).prepare("PPI")
+                                dtype2.cuda_dtype).prepare("PPPPPPII")
 
     def __call__(self,
                  x_array: 'darray',
@@ -364,6 +374,11 @@ class EltWiseCast(dolphin.EltWiseCastCompiler):
             stream,
             x_array.allocation,
             z_array.allocation,
+            x_array.shape_allocation,
+            x_array.strides_allocation,
+            z_array.shape_allocation,
+            z_array.strides_allocation,
+            x_array.ndim,
             numpy.uint32(size))
 
 
@@ -375,7 +390,7 @@ class EltwiseAbs(dolphin.EltwiseAbsCompiler):
 
         for dtype in dolphin.dtype:
             self._func[dtype.cuda_dtype] = self.compiled_source.get_function(
-                self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare("PPI")
+                self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare("PPPPPPII")
 
     def __call__(self,
                  x_array: 'darray',
@@ -393,63 +408,25 @@ class EltwiseAbs(dolphin.EltwiseAbsCompiler):
             z_array.allocation,
             x_array.shape_allocation,
             x_array.strides_allocation,
+            z_array.shape_allocation,
+            z_array.strides_allocation,
             x_array.ndim,
             numpy.uint32(size))
 
 
-class Transpose(dolphin.TransposeCompiler):
-    __CU_FUNC_NAME: str = "transpose_"
+class DiscontiguousCopy(dolphin.DiscontiguousCopyCompiler):
+    __CU_FUNC_NAME: str = "discontiguous_copy_"
 
     def __init__(self):
-
         super().__init__()
 
         for dtype in dolphin.dtype:
             self._func[dtype.cuda_dtype] = self.compiled_source.get_function(
-                self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare("PPPPII")
-
-    def __call__(self,
-                 x_array: 'darray',
-                 y_array: 'darray',
-                 shape: cuda.DeviceAllocation,
-                 strides: cuda.DeviceAllocation,
-                 ndim: numpy.uint32,
-                 size: numpy.uint32,
-                 block: tuple,
-                 grid: tuple,
-                 stream: cuda.Stream = None) -> None:
-
-        self._func[x_array.dtype.cuda_dtype].prepared_async_call(
-            grid,
-            block,
-            stream,
-            x_array.allocation,
-            y_array.allocation,
-            shape,
-            strides,
-            numpy.uint32(ndim),
-            numpy.uint32(size))
-
-
-class Indexer(dolphin.IndexerCompiler):
-    __CU_FUNC_NAME: str = "indexer_"
-
-    def __init__(self):
-
-        super().__init__()
-
-        for dtype in dolphin.dtype:
-            self._func[dtype.cuda_dtype] = self.compiled_source.get_function(
-                self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare("PPPPII")
+                self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare("PPPPPPIIII")
 
     def __call__(self,
                  src: 'darray',
                  dst: 'darray',
-                 offset: int,
-                 shape: cuda.DeviceAllocation,
-                 strides: cuda.DeviceAllocation,
-                 ndim: numpy.uint32,
-                 size: numpy.uint32,
                  block: tuple,
                  grid: tuple,
                  stream: cuda.Stream = None) -> None:
@@ -458,12 +435,16 @@ class Indexer(dolphin.IndexerCompiler):
             grid,
             block,
             stream,
-            int(src.allocation) + offset * src.dtype.itemsize,
+            src.allocation,
             dst.allocation,
-            shape,
-            strides,
-            numpy.uint32(ndim),
-            size)
+            src.shape_allocation,
+            src.strides_allocation,
+            dst.shape_allocation,
+            dst.strides_allocation,
+            src.ndim,
+            dst.ndim,
+            src.size,
+            dst.size)
 
 
 class darray(dolphin.CudaBase):
@@ -541,9 +522,8 @@ class darray(dolphin.CudaBase):
     _cu_invscal_div = InvScalDiv()
     _cu_eltwise_cast = EltWiseCast()
     _cu_eltwise_abs = EltwiseAbs()
-    _cu_transpose = Transpose()
     _cu_fill = CuFill()
-    _cu_indexer = Indexer()
+    _cu_discontiguous_copy = DiscontiguousCopy()
 
     def __init__(self,
                  shape: tuple = None,
@@ -599,6 +579,23 @@ class darray(dolphin.CudaBase):
         cuda.memcpy_htod_async(self._shape_allocation,
                                numpy.array(self._shape, dtype=numpy.uint32),
                                self._stream)
+
+    @staticmethod
+    def broadcastable(shape_1: tuple, shape_2: tuple) -> bool:
+        """Checks if two shapes are broadcastable.
+
+        :param shape_1: First shape
+        :type shape_1: tuple
+        :param shape_2: Second shape
+        :type shape_2: tuple
+        :return: True if the shapes are broadcastable, False otherwise
+        :rtype: bool
+        """
+        for i in range(min(len(shape_1), len(shape_2))):
+            if (shape_1[-i] != shape_2[-i] and
+               shape_1[-i] != 1 and shape_2[-i] != 1):
+                return False
+        return True
 
     @staticmethod
     def compute_strides(shape: tuple) -> tuple:
@@ -787,14 +784,14 @@ class darray(dolphin.CudaBase):
         return self._allocation
 
     @property
-    def size(self) -> int:
+    def size(self) -> numpy.uint32:
         """Property to access the size of the array.
         Size is defined as the number of elements in the array.
 
         :return: The size of the array, in terms of number of elements
-        :rtype: int
+        :rtype: numpy.uint32
         """
-        return self._size
+        return numpy.uint32(self._size)
 
     @property
     def dtype(self) -> dolphin.dtype:
@@ -1005,6 +1002,30 @@ not allowed in index")
             allocation=int(self.allocation) + new_offset,
             allocation_size=self._allocation_size
         )
+
+    def __setitem__(self, index: Union[int, slice, tuple],
+                    other: Union[int, float, numpy.number, 'darray']) -> None:
+        """Sets the value of the darray with the given index.
+
+        :param index: Index to use
+        :type index: Union[int, slice, tuple]
+        :param other: Value to set
+        :type other: Union[int, float, numpy.number, darray]
+        :return: View of the darray
+        :rtype: darray
+        """
+
+        if isinstance(other, (numpy.number, int, float)):
+            self[index].fill(other)
+        elif isinstance(other, darray):
+            if not self.broadcastable(self.shape, other.shape):
+                raise ValueError(f"operands could not be broadcast together \
+with shapes {self.shape}, {other.shape}")
+            self._cu_discontiguous_copy(src=other,
+                                        dst=self[index],
+                                        block=self._block,
+                                        grid=self._grid,
+                                        stream=self._stream)
 
     def __str__(self) -> str:
         """Returns the string representation of the numpy array.
@@ -1533,7 +1554,7 @@ not allowed in index")
         """
         return self.divide(other)
 
-    def reversed_divide(self, other: object, dst: 'darray') -> 'darray':
+    def reversed_divide(self, other: object, dst: 'darray' = None) -> 'darray':
         """Efficient division of a darray with another object.
         Can be a darray or a scalar. If dst is None, normal __rdiv__
         is called.
