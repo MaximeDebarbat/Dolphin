@@ -1,6 +1,5 @@
 import pytest
 import numpy
-import cv2
 import dolphin as dp
 
 @pytest.mark.parametrize("dtype", [dp.dtype.float32,
