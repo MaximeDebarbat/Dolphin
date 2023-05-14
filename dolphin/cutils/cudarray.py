@@ -121,6 +121,7 @@ class InvScalDivCompiler(CompilerBase):
             self.source += Template(self._cuda_source).render(
                 dtype=dtype.cuda_dtype)
 
+        self.source = self.append_utils(self.source)
         self.compiled_source = SourceModule(self.source)
 
 
@@ -138,6 +139,7 @@ class EltWiseCastCompiler(CompilerBase):
                     indtype=dtype.cuda_dtype,
                     outdtype=dtype2.cuda_dtype)
 
+        self.source = self.append_utils(self.source)
         self.compiled_source = SourceModule(self.source)
 
 
@@ -153,11 +155,12 @@ class EltwiseAbsCompiler(CompilerBase):
             self.source += Template(self._cuda_source).render(
                 dtype=dtype.cuda_dtype)
 
+        self.source = self.append_utils(self.source)
         self.compiled_source = SourceModule(self.source)
 
 
-class TransposeCompiler(CompilerBase):
-    __CU_FILENAME: str = "transpose.cu"
+class DiscontiguousCopyCompiler(CompilerBase):
+    __CU_FILENAME: str = "discontiguous_copy.cu"
 
     def __init__(self):
         super().__init__(self.__CU_FILENAME)
@@ -168,20 +171,5 @@ class TransposeCompiler(CompilerBase):
             self.source += Template(self._cuda_source).render(
                 dtype=dtype.cuda_dtype)
 
-        self.compiled_source = SourceModule(self.source)
-
-
-class IndexerCompiler(CompilerBase):
-    __CU_FILENAME: str = "indexer.cu"
-
-    def __init__(self):
-
-        super().__init__(self.__CU_FILENAME)
-
-        self.source: str = ""
-
-        for dtype in dolphin.dtype:
-            self.source += Template(self._cuda_source).render(
-                dtype=dtype.cuda_dtype)
-
+        self.source = self.append_utils(self.source)
         self.compiled_source = SourceModule(self.source)

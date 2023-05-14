@@ -1,6 +1,9 @@
 
 import os
-from pycuda.compiler import DynamicModule
+import sys
+import shutil
+from pycuda.driver import module_from_buffer
+from pycuda.driver import Context
 
 
 class CompilerBase:
@@ -36,41 +39,30 @@ class CompilerBase:
                 source = f_s.read() + source
         return source
 
+    @staticmethod
+    def compile(source: str,
+                destination: str = None):
 
-class CompilerBase_Dynamic:
-    """
-    Base Class for compiler classes.
-    This class simply reads the CUDA source code from the file and
-    stores it in the _cuda_source attribute.
-    """
+        if destination is None:
+            import tempfile
+            destination = tempfile.gettempdir()
 
-    __UTILS = [
-        "index_transform.cu"
-    ]
+        file_name: str = source.split("/")[-1].split(".")[0]
 
-    def __init__(self, filename: str):
+        arch: str = "sm_%d%d" % Context.get_device().compute_capability()
+        sys_size: int = 64 if sys.maxsize > 2**32 else 32
+        options = ["-Xptxas -O3,-v",
+                   "-use_fast_math",
+                   f"-arch={arch}",
+                   "--cubin",
+                   f"-m{sys_size}"]
 
-        print(f"Compiling : {filename}")
+        os.system(f"nvcc {options} {source}")
 
-        with open(os.path.join(os.path.split(
-                            os.path.abspath(__file__))[0], "cuda",
-                            filename),
-                  "rt",
-                  encoding="utf-8")as f_s:
-            self._cuda_source: str = f_s.read()
+        shutil.copyfile(file_name + ".cubin",
+                        os.path.join(destination,
+                                     file_name + ".cubin"))
 
-        self._func: dict = {}
-        self._compiler = DynamicModule()
-        self._compiler.add_source(self._cuda_source,
-                                  name=filename.replace("cu", "ptx"))
-        for file in self.__UTILS:
-            with open(os.path.join(os.path.split(
-                                os.path.abspath(__file__))[0], "cuda",
-                                file),
-                      "rt",
-                      encoding="utf-8")as f_s:
+        return module_from_buffer(source)
 
-                _cuda_source: str = f_s.read()
 
-            self._compiler.add_source(_cuda_source, name=file.replace("cu",
-                                                                      "ptx"))
