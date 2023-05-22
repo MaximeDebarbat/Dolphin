@@ -62,4 +62,3 @@ class CuCvtColorCompiler(CompilerBase):
                 )
 
         return source
-

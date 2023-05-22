@@ -1,8 +1,6 @@
 
 import os
-import syslog
 from typing import Union
-import subprocess
 from abc import abstractmethod
 from pycuda.driver import module_from_file
 from pycuda.compiler import compile
