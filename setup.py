@@ -13,14 +13,13 @@ from glob import glob
 
 from setuptools import setup, find_packages
 
-# Package meta-data.
 NAME = 'dolphin-python'
-DESCRIPTION = 'Cuda based library for fast and seamless deep learning inference.'
+DESCRIPTION = 'Cuda based library for fast \
+and seamless deep learning inference.'
 URL = 'https://github.com/MaximeDebarbat/Dolphin'
 EMAIL = 'debarbat.maxime@gmail.com'
 AUTHOR = 'Maxime'
 REQUIRES_PYTHON = '>=3.5.0'
-VERSION = '0.0.5'
 
 # What packages are required for this module to be executed?
 REQUIRED = [
@@ -43,16 +42,23 @@ REQUIRED = [
     "pytest==7.3.1",
 ]
 
+here = os.path.abspath(os.path.dirname(__file__))
+about = {}
+
 try:
-    with io.open(os.path.join(os.path.abspath(os.path.dirname(__file__)),
-                              'README.md'), encoding='utf-8') as f:
+    with io.open(os.path.join(here, 'README.md'),
+                 encoding='utf-8') as f:
         LONG_DESCRIPTION = '\n' + f.read()
 except FileNotFoundError:
     LONG_DESCRIPTION = DESCRIPTION
 
+with open(os.path.join(here, "dolphin", 'version.py'),
+          encoding='utf-8') as f:
+    exec(f.read(), about)
+
 setup(
     name=NAME,
-    version=VERSION,
+    version=about['__version__'],
     description=DESCRIPTION,
     long_description=LONG_DESCRIPTION,
     long_description_content_type='text/markdown',
@@ -75,4 +81,8 @@ setup(
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.6',
     ],
+    options={'bdist_wheel': {
+                             'universal': True
+                            }
+             }
 )
