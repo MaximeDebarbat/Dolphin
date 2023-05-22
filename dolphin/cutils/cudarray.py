@@ -7,7 +7,6 @@ specific data types.
 import numpy
 
 import pycuda.driver as cuda  # pylint: disable=import-error
-from pycuda.compiler import SourceModule  # pylint: disable=import-error
 from jinja2 import Template
 
 import dolphin
@@ -19,14 +18,17 @@ class CuFillCompiler(CompilerBase):
 
     def __init__(self):
         super().__init__(self.__CU_FILENAME)
-        self.source: str = ""
 
+        self.compiled_source = self.try_load_cubin()
+
+    def generate_source(self):
+        source: str = ""
         for dtype in dolphin.dtype:
-            self.source += Template(self._cuda_source).render(
+            source += Template(self._cuda_source).render(
                 dtype=dtype.cuda_dtype)
 
-        self.source = self.append_utils(self.source)
-        self.compiled_source = SourceModule(self.source)
+        source = self.append_utils(source)
+        return source
 
 
 class AXpBZCompiler(CompilerBase):
@@ -35,13 +37,16 @@ class AXpBZCompiler(CompilerBase):
     def __init__(self):
         super().__init__(self.__CU_FILENAME)
 
-        self.source: str = ""
+        self.compiled_source = self.try_load_cubin()
+
+    def generate_source(self):
+        source: str = ""
         for dtype in dolphin.dtype:
-            self.source += Template(self._cuda_source).render(
+            source += Template(self._cuda_source).render(
                 dtype=dtype.cuda_dtype)
 
-        self.source = self.append_utils(self.source)
-        self.compiled_source = SourceModule(self.source)
+        source = self.append_utils(source)
+        return source
 
 
 class AXpBYZCompiler(CompilerBase):
@@ -50,13 +55,16 @@ class AXpBYZCompiler(CompilerBase):
     def __init__(self):
         super().__init__(self.__CU_FILENAME)
 
-        self.source: str = ""
+        self.compiled_source = self.try_load_cubin()
+
+    def generate_source(self):
+        source: str = ""
         for dtype in dolphin.dtype:
-            self.source += Template(self._cuda_source).render(
+            source += Template(self._cuda_source).render(
                 dtype=dtype.cuda_dtype)
 
-        self.source = self.append_utils(self.source)
-        self.compiled_source = SourceModule(self.source)
+        source = self.append_utils(source)
+        return source
 
 
 class EltwiseMultCompiler(CompilerBase):
@@ -65,13 +73,16 @@ class EltwiseMultCompiler(CompilerBase):
     def __init__(self):
         super().__init__(self.__CU_FILENAME)
 
-        self.source: str = ""
+        self.compiled_source = self.try_load_cubin()
+
+    def generate_source(self):
+        source: str = ""
         for dtype in dolphin.dtype:
-            self.source += Template(self._cuda_source).render(
+            source += Template(self._cuda_source).render(
                 dtype=dtype.cuda_dtype)
 
-        self.source = self.append_utils(self.source)
-        self.compiled_source = SourceModule(self.source)
+        source = self.append_utils(source)
+        return source
 
 
 class EltwiseDivCompiler(CompilerBase):
@@ -80,16 +91,19 @@ class EltwiseDivCompiler(CompilerBase):
     def __init__(self):
         super().__init__(self.__CU_FILENAME)
 
-        self.source: str = ""
-
         self._error = cuda.mem_alloc(numpy.dtype(numpy.uint8).itemsize)
         cuda.memcpy_htod(self._error, numpy.uint8(0))
+
+        self.compiled_source = self.try_load_cubin()
+
+    def generate_source(self):
+        source: str = ""
         for dtype in dolphin.dtype:
-            self.source += Template(self._cuda_source).render(
+            source += Template(self._cuda_source).render(
                 dtype=dtype.cuda_dtype)
 
-        self.source = self.append_utils(self.source)
-        self.compiled_source = SourceModule(self.source)
+        source = self.append_utils(source)
+        return source
 
 
 class ScalDivCompiler(CompilerBase):
@@ -98,14 +112,16 @@ class ScalDivCompiler(CompilerBase):
     def __init__(self):
         super().__init__(self.__CU_FILENAME)
 
-        self.source: str = ""
+        self.compiled_source = self.try_load_cubin()
 
+    def generate_source(self):
+        source: str = ""
         for dtype in dolphin.dtype:
-            self.source += Template(self._cuda_source).render(
+            source += Template(self._cuda_source).render(
                 dtype=dtype.cuda_dtype)
 
-        self.source = self.append_utils(self.source)
-        self.compiled_source = SourceModule(self.source)
+        source = self.append_utils(source)
+        return source
 
 
 class InvScalDivCompiler(CompilerBase):
@@ -114,15 +130,17 @@ class InvScalDivCompiler(CompilerBase):
     def __init__(self):
         super().__init__(self.__CU_FILENAME)
 
-        self.source: str = ""
-
         self._error = cuda.mem_alloc(numpy.dtype(numpy.uint8).itemsize)
+        self.compiled_source = self.try_load_cubin()
+
+    def generate_source(self):
+        source: str = ""
         for dtype in dolphin.dtype:
-            self.source += Template(self._cuda_source).render(
+            source += Template(self._cuda_source).render(
                 dtype=dtype.cuda_dtype)
 
-        self.source = self.append_utils(self.source)
-        self.compiled_source = SourceModule(self.source)
+        source = self.append_utils(source)
+        return source
 
 
 class EltWiseCastCompiler(CompilerBase):
@@ -131,16 +149,19 @@ class EltWiseCastCompiler(CompilerBase):
     def __init__(self):
         super().__init__(self.__CU_FILENAME)
 
-        self.source: str = ""
+        self.compiled_source = self.try_load_cubin()
+
+    def generate_source(self):
+        source: str = ""
         for dtype in dolphin.dtype:
             for dtype2 in dolphin.dtype:
 
-                self.source += Template(self._cuda_source).render(
+                source += Template(self._cuda_source).render(
                     indtype=dtype.cuda_dtype,
                     outdtype=dtype2.cuda_dtype)
 
-        self.source = self.append_utils(self.source)
-        self.compiled_source = SourceModule(self.source)
+        source = self.append_utils(source)
+        return source
 
 
 class EltwiseAbsCompiler(CompilerBase):
@@ -149,14 +170,17 @@ class EltwiseAbsCompiler(CompilerBase):
     def __init__(self):
         super().__init__(self.__CU_FILENAME)
 
-        self.source: str = ""
+        self._error = cuda.mem_alloc(numpy.dtype(numpy.uint8).itemsize)
+        self.compiled_source = self.try_load_cubin()
 
+    def generate_source(self):
+        source: str = ""
         for dtype in dolphin.dtype:
-            self.source += Template(self._cuda_source).render(
+            source += Template(self._cuda_source).render(
                 dtype=dtype.cuda_dtype)
 
-        self.source = self.append_utils(self.source)
-        self.compiled_source = SourceModule(self.source)
+        source = self.append_utils(source)
+        return source
 
 
 class DiscontiguousCopyCompiler(CompilerBase):
@@ -165,11 +189,14 @@ class DiscontiguousCopyCompiler(CompilerBase):
     def __init__(self):
         super().__init__(self.__CU_FILENAME)
 
-        self.source: str = ""
+        self._error = cuda.mem_alloc(numpy.dtype(numpy.uint8).itemsize)
+        self.compiled_source = self.try_load_cubin()
 
+    def generate_source(self):
+        source: str = ""
         for dtype in dolphin.dtype:
-            self.source += Template(self._cuda_source).render(
+            source += Template(self._cuda_source).render(
                 dtype=dtype.cuda_dtype)
 
-        self.source = self.append_utils(self.source)
-        self.compiled_source = SourceModule(self.source)
+        source = self.append_utils(source)
+        return source
