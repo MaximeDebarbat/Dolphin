@@ -5,7 +5,7 @@ import cv2
 from utils import prepare_classes, download_required_data, draw
 import dolphin as dp
 
-
+@profile
 def run(opt: argparse.Namespace):
 
     # We create or load the engine here, activate verbose to see the logs
@@ -14,7 +14,6 @@ def run(opt: argparse.Namespace):
                        opt.engine,
                        mode="fp16",
                        verbosity=True)
-
     # We create the stream
     cap = cv2.VideoCapture(opt.video)
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -45,7 +44,6 @@ def run(opt: argparse.Namespace):
     inference_frame = dp.dimage(shape=(3, 640, 640),
                                 dtype=dp.float32,
                                 stream=stream)
-
     while True:
         ret, frame = cap.read()
         if not ret:
@@ -54,12 +52,12 @@ def run(opt: argparse.Namespace):
         t1 = time.time()
 
         # We copy the frame on the GPU
-        frame_darray.ndarray = frame
+        frame_darray.from_numpy(frame)
 
         # We process the frame
         # 1. We transpose the frame
 
-        dp.transpose(axes=(2, 0, 1), src=frame_darray, dst=transposed_frame)
+        frame_darray.transpose(2, 0, 1).flatten(dst=transposed_frame)
 
         # 2. We perform letterbox resize
 
@@ -83,7 +81,7 @@ def run(opt: argparse.Namespace):
 
         t2 = time.time() - t1
 
-        print(f"FPS: {1/t2}")
+        print(f"FPS: {1/t2}, objects detected: {output['num_dets']}")
 
         drawn_frame = draw(frame=frame,
                            classes=classes,
@@ -92,7 +90,7 @@ def run(opt: argparse.Namespace):
                            dwdh=dwdh,
                            fps=1/t2)
         video_output.write(drawn_frame)
-
+        exit(0)
 
     cap.release()
     cv2.destroyAllWindows()
