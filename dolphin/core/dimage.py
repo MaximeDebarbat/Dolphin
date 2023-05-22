@@ -55,15 +55,387 @@ Also, as described in the documentation of `dimage` class,
 you can perform these operations directly from the `dimage` class.
 
 It is important to note that the most efficient way to perform these operations
-is to already have allocated the destination object and to pass it as a parameter.
+is to already have allocated the destination object and to pass it
+as a parameter.
 """
 
 import math
 from enum import Enum
 from typing import List, Union, Tuple
-import numpy
+
 import pycuda.driver as cuda  # pylint: disable=import-error
+
+import numpy
 import dolphin
+
+
+class CuResizeNearest(dolphin.CuResizeCompiler):
+    __CU_FUNC_NAME: str = "_resize_nearest_"
+
+    def __init__(self):
+        super().__init__()
+
+        self._func: dict = {}
+
+        for mode in ["CHW", "HWC"]:
+            for dtype in dolphin.dtype:
+                self._func[mode+dtype.cuda_dtype] = \
+                    self.compiled_source.get_function(
+                        mode+self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare(
+                    "PPHHHHB")
+
+    def __call__(self,
+                 src: 'dimage',
+                 dst: 'dimage',
+                 block: tuple,
+                 grid: tuple,
+                 stream: cuda.Stream = None) -> None:
+
+        if (src.image_dim_format.value ==
+           dimage_dim_format.DOLPHIN_CHW.value):
+            mode = "CHW"
+        else:
+            mode = "HWC"
+
+        self._func[mode+src.dtype.cuda_dtype].prepared_async_call(
+            grid,
+            block,
+            stream,
+            src.allocation,
+            dst.allocation,
+            src.width,
+            src.height,
+            dst.width,
+            dst.height,
+            src.channel
+            )
+
+
+class CuResizePadding(dolphin.CuResizeCompiler):
+    __CU_FUNC_NAME: str = "_resize_padding_"
+
+    def __init__(self):
+        super().__init__()
+
+        self._func: dict = {}
+
+        for mode in ["CHW", "HWC"]:
+            for dtype in dolphin.dtype:
+                self._func[mode+dtype.cuda_dtype] = \
+                    self.compiled_source.get_function(
+                        mode+self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare(
+                    "PPHHHHB"+numpy.dtype(dtype.numpy_dtype).char)
+
+    def __call__(self,
+                 src: 'dimage',
+                 dst: 'dimage',
+                 padding: Union[float, int],
+                 block: tuple,
+                 grid: tuple,
+                 stream: cuda.Stream = None) -> None:
+
+        if (src.image_dim_format.value ==
+           dimage_dim_format.DOLPHIN_CHW.value):
+            mode = "CHW"
+        else:
+            mode = "HWC"
+
+        self._func[mode+src.dtype.cuda_dtype].prepared_async_call(
+            grid,
+            block,
+            stream,
+            src.allocation,
+            dst.allocation,
+            src.width,
+            src.height,
+            dst.width,
+            dst.height,
+            src.channel,
+            src.dtype.numpy_dtype(padding)
+            )
+
+
+class CuNormalizeMeanStd(dolphin.CuNormalizeCompiler):
+    __CU_FUNC_NAME: str = "_normalize_mean_std_"
+
+    def __init__(self):
+        super().__init__()
+
+        self._func: dict = {}
+
+        for mode in ["CHW", "HWC"]:
+            for dtype_in in dolphin.dtype:
+                for dtype_out in dolphin.dtype:
+                    self._func[mode + dtype_in.cuda_dtype +
+                               dtype_out.cuda_dtype] = \
+                        self.compiled_source.get_function(
+                            mode+self.__CU_FUNC_NAME + dtype_in.cuda_dtype +
+                            "_" + dtype_out.cuda_dtype).prepare(
+                        "PPHHBPP")
+
+    def __call__(self,
+                 src: 'dimage',
+                 dst: 'dimage',
+                 mean: Union[float, int],
+                 std: Union[float, int],
+                 block: cuda.DeviceAllocation,
+                 grid: cuda.DeviceAllocation,
+                 stream: cuda.Stream = None) -> None:
+
+        if (src.image_dim_format.value ==
+           dimage_dim_format.DOLPHIN_CHW.value):
+            mode = "CHW"
+        else:
+            mode = "HWC"
+
+        self._func[mode + src.dtype.cuda_dtype +
+                   dst.dtype.cuda_dtype].prepared_async_call(
+            grid,
+            block,
+            stream,
+            src.allocation,
+            dst.allocation,
+            src.width,
+            src.height,
+            src.channel,
+            mean,
+            std
+            )
+
+
+class CuNormalize255(dolphin.CuNormalizeCompiler):
+    __CU_FUNC_NAME: str = "normalize_255_"
+
+    def __init__(self):
+        super().__init__()
+
+        self._func: dict = {}
+
+        for dtype_in in dolphin.dtype:
+            for dtype_out in dolphin.dtype:
+                self._func[dtype_in.cuda_dtype+dtype_out.cuda_dtype] = \
+                    self.compiled_source.get_function(
+                        self.__CU_FUNC_NAME + dtype_in.cuda_dtype +
+                        "_" + dtype_out.cuda_dtype).prepare(
+                    "PPHHB")
+
+    def __call__(self,
+                 src: 'dimage',
+                 dst: 'dimage',
+                 block: cuda.DeviceAllocation,
+                 grid: cuda.DeviceAllocation,
+                 stream: cuda.Stream = None) -> None:
+
+        self._func[src.dtype.cuda_dtype +
+                   dst.dtype.cuda_dtype].prepared_async_call(
+            grid,
+            block,
+            stream,
+            src.allocation,
+            dst.allocation,
+            src.width,
+            src.height,
+            src.channel
+            )
+
+
+class CuNormalizeTF(dolphin.CuNormalizeCompiler):
+    __CU_FUNC_NAME: str = "normalize_tf_"
+
+    def __init__(self):
+        super().__init__()
+
+        self._func: dict = {}
+
+        for dtype_in in dolphin.dtype:
+            for dtype_out in dolphin.dtype:
+                self._func[dtype_in.cuda_dtype+dtype_out.cuda_dtype] = \
+                    self.compiled_source.get_function(
+                        self.__CU_FUNC_NAME + dtype_in.cuda_dtype +
+                        "_" + dtype_out.cuda_dtype).prepare(
+                    "PPHHB")
+
+    def __call__(self,
+                 src: 'dimage',
+                 dst: 'dimage',
+                 block: cuda.DeviceAllocation,
+                 grid: cuda.DeviceAllocation,
+                 stream: cuda.Stream = None) -> None:
+
+        self._func[src.dtype.cuda_dtype +
+                   dst.dtype.cuda_dtype].prepared_async_call(
+            grid,
+            block,
+            stream,
+            src.allocation,
+            dst.allocation,
+            src.width,
+            src.height,
+            src.channel
+            )
+
+
+class CuCvtColorRGB2GRAY(dolphin.CuCvtColorCompiler):
+    __CU_FUNC_NAME: str = "_cvt_color_rgb2gray_"
+
+    def __init__(self):
+        super().__init__()
+
+        self._func: dict = {}
+
+        for mode in ["CHW", "HWC"]:
+            for dtype_in in dolphin.dtype:
+                self._func[mode+dtype_in.cuda_dtype] = \
+                    self.compiled_source.get_function(
+                        mode + self.__CU_FUNC_NAME +
+                        dtype_in.cuda_dtype).prepare(
+                    "PPHHB")
+
+    def __call__(self,
+                 src: 'dimage',
+                 dst: 'dimage',
+                 block: cuda.DeviceAllocation,
+                 grid: cuda.DeviceAllocation,
+                 stream: cuda.Stream = None) -> None:
+
+        if (src.image_dim_format.value ==
+           dimage_dim_format.DOLPHIN_CHW.value):
+            mode = "CHW"
+        else:
+            mode = "HWC"
+
+        self._func[mode+src.dtype.cuda_dtype].prepared_async_call(
+            grid,
+            block,
+            stream,
+            src.allocation,
+            dst.allocation,
+            src.width,
+            src.height,
+            src.channel
+            )
+
+
+class CuCvtColorBGR2GRAY(dolphin.CuCvtColorCompiler):
+    __CU_FUNC_NAME: str = "_cvt_color_bgr2gray_"
+
+    def __init__(self):
+        super().__init__()
+
+        self._func: dict = {}
+
+        for mode in ["CHW", "HWC"]:
+            for dtype_in in dolphin.dtype:
+                self._func[mode+dtype_in.cuda_dtype] = \
+                    self.compiled_source.get_function(
+                        mode + self.__CU_FUNC_NAME +
+                        dtype_in.cuda_dtype).prepare(
+                    "PPHHB")
+
+    def __call__(self,
+                 src: 'dimage',
+                 dst: 'dimage',
+                 block: cuda.DeviceAllocation,
+                 grid: cuda.DeviceAllocation,
+                 stream: cuda.Stream = None) -> None:
+
+        if (src.image_dim_format.value ==
+           dimage_dim_format.DOLPHIN_CHW.value):
+            mode = "CHW"
+        else:
+            mode = "HWC"
+
+        self._func[mode+src.dtype.cuda_dtype].prepared_async_call(
+            grid,
+            block,
+            stream,
+            src.allocation,
+            dst.allocation,
+            src.width,
+            src.height,
+            src.channel
+            )
+
+
+class CuCvtColorBGR2RGB(dolphin.CuCvtColorCompiler):
+    __CU_FUNC_NAME: str = "_cvt_color_bgr2rgb_"
+
+    def __init__(self):
+        super().__init__()
+
+        self._func: dict = {}
+
+        for mode in ["CHW", "HWC"]:
+            for dtype_in in dolphin.dtype:
+                self._func[mode+dtype_in.cuda_dtype] = \
+                    self.compiled_source.get_function(
+                        mode + self.__CU_FUNC_NAME +
+                        dtype_in.cuda_dtype).prepare(
+                    "PPHHB")
+
+    def __call__(self,
+                 src: 'dimage',
+                 dst: 'dimage',
+                 block: cuda.DeviceAllocation,
+                 grid: cuda.DeviceAllocation,
+                 stream: cuda.Stream = None) -> None:
+
+        if (src.image_dim_format.value ==
+           dimage_dim_format.DOLPHIN_CHW.value):
+            mode = "CHW"
+        else:
+            mode = "HWC"
+
+        self._func[mode+src.dtype.cuda_dtype].prepared_async_call(
+            grid,
+            block,
+            stream,
+            src.allocation,
+            dst.allocation,
+            src.width,
+            src.height,
+            src.channel
+            )
+
+
+class CuCvtColorRGB2BGR(dolphin.CuCvtColorCompiler):
+    __CU_FUNC_NAME: str = "_cvt_color_rgb2bgr_"
+
+    def __init__(self):
+        super().__init__()
+
+        self._func: dict = {}
+
+        for mode in ["CHW", "HWC"]:
+            for dtype_in in dolphin.dtype:
+                self._func[mode+dtype_in.cuda_dtype] = \
+                    self.compiled_source.get_function(
+                    mode + self.__CU_FUNC_NAME + dtype_in.cuda_dtype).prepare(
+                    "PPHHB")
+
+    def __call__(self,
+                 src: 'dimage',
+                 dst: 'dimage',
+                 block: cuda.DeviceAllocation,
+                 grid: cuda.DeviceAllocation,
+                 stream: cuda.Stream = None) -> None:
+
+        if (src.image_dim_format.value ==
+           dimage_dim_format.DOLPHIN_CHW.value):
+            mode = "CHW"
+        else:
+            mode = "HWC"
+
+        self._func[mode+src.dtype.cuda_dtype].prepared_async_call(
+            grid,
+            block,
+            stream,
+            src.allocation,
+            dst.allocation,
+            src.width,
+            src.height,
+            src.channel
+            )
 
 
 class dimage_dim_format(Enum):
@@ -110,7 +482,8 @@ class dimage_normalize_type(Enum):
     """Image normalize type.
 
     Attributes:
-        DOLPHIN_MEAN_STD: Normalize the image with the mean and standard deviation.
+        DOLPHIN_MEAN_STD: Normalize the image with the mean and standard
+                          deviation.
         DOLPHIN_255: Normalize the image with 255.
         DOLPHIN_TF: Normalize the image with the TF method.
     """
@@ -179,18 +552,34 @@ class dimage(dolphin.darray):
         cvtColor: Convert the image to another color space.
     """
 
+    cu_resize_linear = CuResizeNearest()
+    cu_resize_padding = CuResizePadding()
+    cu_normalize_mean_std = CuNormalizeMeanStd()
+    cu_normalize_255 = CuNormalize255()
+    cu_normalize_tf = CuNormalizeTF()
+    cu_cvtColor_rbg2gray = CuCvtColorRGB2GRAY()
+    cu_cvtColor_bgr2gray = CuCvtColorBGR2GRAY()
+    cu_cvtColor_bgr2rgb = CuCvtColorBGR2RGB()
+    cu_cvtColor_rgb2bgr = CuCvtColorRGB2BGR()
+
     def __init__(self,
-                 array: numpy.ndarray = None,
                  shape: tuple = None,
                  dtype: dolphin.dtype = dolphin.dtype.uint8,
                  stream: cuda.Stream = None,
-                 channel_format: dimage_channel_format = None
+                 array: numpy.ndarray = None,
+                 channel_format: dimage_channel_format = None,
+                 strides: tuple = None,
+                 allocation: cuda.DeviceAllocation = None,
+                 allocation_size: int = None
                  ) -> None:
 
-        super(dimage, self).__init__(array=array,
-                                     shape=shape,
-                                     dtype=dtype,
-                                     stream=stream)
+        super().__init__(array=array,
+                         shape=shape,
+                         dtype=dtype,
+                         stream=stream,
+                         strides=strides,
+                         allocation=allocation,
+                         allocation_size=allocation_size)
 
         if len(self._shape) != 2 and len(self._shape) != 3:
             raise ValueError("The shape of the image must be 2 or 3.")
@@ -199,62 +588,69 @@ class dimage(dolphin.darray):
 
         if len(self._shape) == 2:
             if self._image_channel_format is not None and \
-                    self._image_channel_format != dimage_channel_format.DOLPHIN_GRAY_SCALE:
+                    (self._image_channel_format !=
+                     dimage_channel_format.DOLPHIN_GRAY_SCALE):
                 raise ValueError(
                     "With a shape of 2 the channel format must be GRAY_SCALE.")
 
-            self._image_channel_format = dimage_channel_format.DOLPHIN_GRAY_SCALE
+            self._image_channel_format = (
+                dimage_channel_format.DOLPHIN_GRAY_SCALE)
             self._image_dim_format = dimage_dim_format.DOLPHIN_HW
 
         else:
             if self._shape[2] == 3:
-                if self._image_channel_format is not None and self._image_channel_format.value not in (
-                        dimage_channel_format.DOLPHIN_RGB.value, dimage_channel_format.DOLPHIN_BGR.value):
+                if (self._image_channel_format is not None and
+                    self._image_channel_format.value not in (
+                        dimage_channel_format.DOLPHIN_RGB.value,
+                        dimage_channel_format.DOLPHIN_BGR.value)):
                     raise ValueError(
-                        "With a shape of 3 the channel format must be RGB or BGR.")
-                self._image_channel_format = self._image_channel_format or dimage_channel_format.DOLPHIN_RGB
+                        "With a shape of 3 the channel format must be RGB \
+or BGR.")
+                self._image_channel_format = (
+                    self._image_channel_format or
+                    dimage_channel_format.DOLPHIN_RGB)
                 self._image_dim_format = dimage_dim_format.DOLPHIN_HWC
 
             elif self._shape[0] == 3:
-                if self._image_channel_format is not None and self._image_channel_format.value not in (
-                        dimage_channel_format.DOLPHIN_RGB.value, dimage_channel_format.DOLPHIN_BGR.value):
+                if (self._image_channel_format is not None and
+                    self._image_channel_format.value not in (
+                        dimage_channel_format.DOLPHIN_RGB.value,
+                        dimage_channel_format.DOLPHIN_BGR.value)):
                     raise ValueError(
-                        "With a shape of 3 the channel format must be RGB or BGR.")
-                self._image_channel_format = self._image_channel_format or dimage_channel_format.DOLPHIN_RGB
+                        "With a shape of 3 the channel format must be RGB \
+or BGR.")
+                self._image_channel_format = (
+                    self._image_channel_format or
+                    dimage_channel_format.DOLPHIN_RGB)
                 self._image_dim_format = dimage_dim_format.DOLPHIN_CHW
 
             elif self._shape[2] == 1:
                 if self._image_channel_format is not None and \
-                        self._image_channel_format.value != dimage_channel_format.DOLPHIN_GRAY_SCALE.value:
+                        self._image_channel_format.value != \
+                        dimage_channel_format.DOLPHIN_GRAY_SCALE.value:
                     raise ValueError(
-                        "With a shape of 2 the channel format must be GRAY_SCALE.")
+                        "With a shape of 2 the channel format must \
+be GRAY_SCALE.")
 
-                self._image_channel_format = dimage_channel_format.DOLPHIN_GRAY_SCALE
-                self._image_dim_format = dimage_dim_format.DOLPHIN_HW
-                self._shape = (self._shape[0], self._shape[1])
+                self._image_channel_format = (
+                    dimage_channel_format.DOLPHIN_GRAY_SCALE)
+                self._image_dim_format = dimage_dim_format.DOLPHIN_HWC
 
             elif self._shape[0] == 1:
                 if self._image_channel_format is not None and \
-                        self._image_channel_format != dimage_channel_format.DOLPHIN_GRAY_SCALE:
+                        self._image_channel_format != \
+                        dimage_channel_format.DOLPHIN_GRAY_SCALE:
                     raise ValueError(
-                        "With a shape of 2 the channel format must be GRAY_SCALE.")
+                        "With a shape of 2 the channel format must \
+be GRAY_SCALE.")
 
-                self._image_channel_format = dimage_channel_format.DOLPHIN_GRAY_SCALE
-                self._image_dim_format = dimage_dim_format.DOLPHIN_HW
-                self._shape = (self._shape[1], self._shape[2])
+                self._image_channel_format = (
+                    dimage_channel_format.DOLPHIN_GRAY_SCALE)
+                self._image_dim_format = dimage_dim_format.DOLPHIN_CHW
             else:
                 raise ValueError(f"The shape of the image is not valid. \
-Supported shape : (H, W), (H, W, 1), (1, H, W), (H, W, 3), (3, H, W). Got : {self._shape}")
-
-        self.cu_resize_linear = dolphin.cudimage.CU_RESIZE_LINEAR
-        self.cu_resize_padding = dolphin.cudimage.CU_RESIZE_PADDING
-        self.cu_normalize_mean_std = dolphin.cudimage.CU_NORMALIZE_MEAN_STD
-        self.cu_normalize_255 = dolphin.cudimage.CU_NORMALIZE_255
-        self.cu_normalize_tf = dolphin.cudimage.CU_NORMALIZE_TF
-        self.cu_cvtColor_rbg2gray = dolphin.cudimage.CU_CVT_COLOR_RGB2GRAY
-        self.cu_cvtColor_bgr2gray = dolphin.cudimage.CU_CVT_COLOR_BGR2GRAY
-        self.cu_cvtColor_bgr2rgb = dolphin.cudimage.CU_CVT_COLOR_BGR2RGB
-        self.cu_cvtColor_rgb2bgr = dolphin.cudimage.CU_CVT_COLOR_RGB2BGR
+Supported shape : (H, W), (H, W, 1), (1, H, W), (H, W, 3), (3, H, W). \
+Got : {self._shape}")
 
     def copy(self) -> 'dimage':
         """Returns a copy of the image.
@@ -266,11 +662,13 @@ Supported shape : (H, W), (H, W, 1), (1, H, W), (H, W, 3), (3, H, W). Got : {sel
         res = self.__class__(shape=self._shape,
                              dtype=self._dtype,
                              stream=self._stream,
+                             strides=self._strides,
+                             allocation_size=self._allocation_size,
                              channel_format=self._image_channel_format)
 
         cuda.memcpy_dtod_async(res.allocation,
                                self._allocation,
-                               self._nbytes,
+                               self._allocation_size,
                                self._stream)
 
         return res
@@ -300,8 +698,10 @@ Supported shape : (H, W), (H, W, 1), (1, H, W), (H, W, 3), (3, H, W). Got : {sel
         :return: The height of the image
         :rtype: numpy.uint16
         """
-        if self._image_dim_format in (dimage_dim_format.DOLPHIN_HW,
-                                      dimage_dim_format.DOLPHIN_HWC):
+        if ((self._image_dim_format.value ==
+             dimage_dim_format.DOLPHIN_HW.value) or
+           (self._image_dim_format.value ==
+           dimage_dim_format.DOLPHIN_HWC.value)):
             return numpy.uint16(self._shape[0])
         return numpy.uint16(self._shape[1])
 
@@ -312,8 +712,11 @@ Supported shape : (H, W), (H, W, 1), (1, H, W), (H, W, 3), (3, H, W). Got : {sel
         :return: The width of the image
         :rtype: numpy.uint16
         """
-        if self._image_dim_format in (dimage_dim_format.DOLPHIN_HW,
-                                      dimage_dim_format.DOLPHIN_HWC):
+
+        if ((self._image_dim_format.value ==
+             dimage_dim_format.DOLPHIN_HW.value) or
+           (self._image_dim_format.value ==
+           dimage_dim_format.DOLPHIN_HWC.value)):
             return numpy.uint16(self._shape[1])
         return numpy.uint16(self._shape[2])
 
@@ -361,7 +764,8 @@ Supported shape : (H, W), (H, W, 1), (1, H, W), (H, W, 3), (3, H, W). Got : {sel
 
         This function resizes the image to a new shape with padding.
         It means that the image is resized to the new shape and
-        the remaining pixels are filled with the padding value (127 by default).
+        the remaining pixels are filled with the padding value
+        (127 by default).
 
         If for instance the image is resized from (50, 100) to (200, 200),
         the aspect ratio of the image is preserved and the image is resized
@@ -401,7 +805,8 @@ Supported shape : (H, W), (H, W, 1), (1, H, W), (H, W, 3), (3, H, W). Got : {sel
            dst.channel != self.channel
            ):
             raise ValueError(
-                "The destination image must have consitent shapes with resize shape.")
+                "The destination image must have \
+consitent shapes with resize shape.")
 
         if (width == self.width and
            height == self.height):
@@ -438,8 +843,8 @@ Supported shape : (H, W), (H, W, 1), (1, H, W), (H, W, 3), (3, H, W). Got : {sel
                 block[1]),
             1)
 
-        self.cu_resize_padding(input=self,
-                               output=dst,
+        self.cu_resize_padding(src=self,
+                               dst=dst,
                                padding=padding_value,
                                block=block,
                                grid=grid,
@@ -495,7 +900,8 @@ Supported shape : (H, W), (H, W, 1), (1, H, W), (H, W, 3), (3, H, W). Got : {sel
            dst.channel != self.channel
            ):
             raise ValueError(
-                "The destination image must have consitent shapes with resize shape.")
+                "The destination image must have consitent \
+shapes with resize shape.")
 
         if (width == self.width and
            height == self.height):
@@ -532,14 +938,15 @@ Supported shape : (H, W), (H, W, 1), (1, H, W), (H, W, 3), (3, H, W). Got : {sel
                 block[1]),
             1)
 
-        self.cu_resize_linear(input=self,
-                              output=dst,
+        self.cu_resize_linear(src=self,
+                              dst=dst,
                               block=block,
                               grid=grid,
                               stream=self._stream)
         return dst
 
-    def normalize(self, normalize_type: dimage_normalize_type = dimage_normalize_type.DOLPHIN_255,
+    def normalize(self, normalize_type: dimage_normalize_type =
+                  dimage_normalize_type.DOLPHIN_255,
                   mean: List[Union[int, float]] = None,
                   std: List[Union[int, float]] = None,
                   dtype: dolphin.dtype = dolphin.dtype.float32,
@@ -557,7 +964,9 @@ Supported shape : (H, W), (H, W, 1), (1, H, W), (H, W, 3), (3, H, W). Got : {sel
 
             src = dimage(shape=(100, 100, 3), dtype=dolphin.dtype.uint8)
             dst = dimage(shape=(100, 100, 3), dtype=dolphin.dtype.float32)
-            src.normalize(dimage_normalize_type.DOLPHIN_MEAN_STD, mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5], dst=dst)
+            src.normalize(dimage_normalize_type.DOLPHIN_MEAN_STD,
+                          mean=[0.5, 0.5, 0.5],
+                          std=[0.5, 0.5, 0.5], dst=dst)
 
         or::
 
@@ -585,14 +994,17 @@ Supported shape : (H, W), (H, W, 1), (1, H, W), (H, W, 3), (3, H, W). Got : {sel
                 "The destination image must have the same shape as \
                 the source image defined in the function arguments.")
 
-        if normalize_type.value == dimage_normalize_type.DOLPHIN_MEAN_STD.value:
+        if (normalize_type.value ==
+           dimage_normalize_type.DOLPHIN_MEAN_STD.value):
             if mean is None or std is None:
                 raise ValueError(
-                    "The mean and std values must be specified for the mean/std normalization.")
+                    "The mean and std values must be \
+specified for the mean/std normalization.")
 
             if len(mean) != self.channel or len(std) != self.channel:
                 raise ValueError(
-                    "The mean and std values must have the same length as the number of channels.")
+                    "The mean and std values must have \
+the same length as the number of channels.")
 
             # Allocate the mean and std values in the GPU
             # and copy the values to the GPU
@@ -620,8 +1032,8 @@ Supported shape : (H, W), (H, W, 1), (1, H, W), (H, W, 3), (3, H, W). Got : {sel
                     block[1]),
                 1)
 
-            self.cu_normalize_mean_std(input=self,
-                                       output=dst,
+            self.cu_normalize_mean_std(src=self,
+                                       dst=dst,
                                        mean=mean_allocation,
                                        std=std_allocation,
                                        block=block,
@@ -639,8 +1051,8 @@ Supported shape : (H, W), (H, W, 1), (1, H, W), (H, W, 3), (3, H, W). Got : {sel
                     block[1]),
                 1)
 
-            self.cu_normalize_255(input=self,
-                                  output=dst,
+            self.cu_normalize_255(src=self,
+                                  dst=dst,
                                   block=block,
                                   grid=grid,
                                   stream=self._stream)
@@ -656,8 +1068,8 @@ Supported shape : (H, W), (H, W, 1), (1, H, W), (H, W, 3), (3, H, W). Got : {sel
                     block[1]),
                 1)
 
-            self.cu_normalize_tf(input=self,
-                                 output=dst,
+            self.cu_normalize_tf(src=self,
+                                 dst=dst,
                                  block=block,
                                  grid=grid,
                                  stream=self._stream)
@@ -686,7 +1098,8 @@ Supported shape : (H, W), (H, W, 1), (1, H, W), (H, W, 3), (3, H, W). Got : {sel
         :type dst: dimage
         """
 
-        if color_format.value == dimage_channel_format.DOLPHIN_GRAY_SCALE.value:
+        if (color_format.value ==
+           dimage_channel_format.DOLPHIN_GRAY_SCALE.value):
 
             if dst is None:
                 dst = self.__class__(shape=(self.height, self.width),
@@ -697,8 +1110,8 @@ Supported shape : (H, W), (H, W, 1), (1, H, W), (H, W, 3), (3, H, W). Got : {sel
                 if dst.shape != (self.height,
                                  self.width) or dst.dtype != self.dtype:
                     raise ValueError(
-                        "The destination image must have the same shape as the \
-source image and the same dtype as defined in the function arguments.")
+                        "The destination image must have the same shape as \
+the source image and the same dtype as defined in the function arguments.")
 
             if self.channel != 3:
                 raise ValueError(
@@ -714,23 +1127,26 @@ source image and the same dtype as defined in the function arguments.")
                     block[1]),
                 1)
 
-            if self.image_channel_format.value == dimage_channel_format.DOLPHIN_RGB.value:
-                self.cu_cvtColor_rbg2gray(input=self,
-                                          output=dst,
+            if (self.image_channel_format.value ==
+               dimage_channel_format.DOLPHIN_RGB.value):
+                self.cu_cvtColor_rbg2gray(src=self,
+                                          dst=dst,
                                           block=block,
                                           grid=grid,
                                           stream=self._stream)
 
-            elif self.image_channel_format.value == dimage_channel_format.DOLPHIN_BGR.value:
-                self.cu_cvtColor_bgr2gray(input=self,
-                                          output=dst,
+            elif (self.image_channel_format.value ==
+                  dimage_channel_format.DOLPHIN_BGR.value):
+                self.cu_cvtColor_bgr2gray(src=self,
+                                          dst=dst,
                                           block=block,
                                           grid=grid,
                                           stream=self._stream)
 
         elif color_format.value == dimage_channel_format.DOLPHIN_RGB.value:
 
-            if self.image_channel_format.value == dimage_channel_format.DOLPHIN_GRAY_SCALE.value:
+            if (self.image_channel_format.value ==
+               dimage_channel_format.DOLPHIN_GRAY_SCALE.value):
                 raise ValueError(
                     "The source image must have 3 channels.")
 
@@ -742,9 +1158,11 @@ source image and the same dtype as defined in the function arguments.")
 
             elif dst.shape != self.shape or dst.dtype != self.dtype:
                 raise ValueError(
-                    "The destination image must have the same shape as the source image and the same dtype as defined in the function arguments.")
+                    "The destination image must have the same shape as \
+the source image and the same dtype as defined in the function arguments.")
 
-            if self.image_channel_format.value == dimage_channel_format.DOLPHIN_RGB.value:
+            if (self.image_channel_format.value ==
+               dimage_channel_format.DOLPHIN_RGB.value):
 
                 cuda.memcpy_dtod_async(dst.allocation,
                                        self.allocation,
@@ -762,15 +1180,16 @@ source image and the same dtype as defined in the function arguments.")
                         block[1]),
                     1)
 
-                self.cu_cvtColor_bgr2rgb(input=self,
-                                         output=dst,
+                self.cu_cvtColor_bgr2rgb(src=self,
+                                         dst=dst,
                                          block=block,
                                          grid=grid,
                                          stream=self._stream)
 
         elif color_format.value == dimage_channel_format.DOLPHIN_BGR.value:
 
-            if self.image_channel_format.value == dimage_channel_format.DOLPHIN_GRAY_SCALE.value:
+            if (self.image_channel_format.value ==
+               dimage_channel_format.DOLPHIN_GRAY_SCALE.value):
                 raise ValueError(
                     "The source image must have 3 channels.")
 
@@ -782,9 +1201,12 @@ source image and the same dtype as defined in the function arguments.")
 
             elif dst.shape != self.shape or dst.dtype != self.dtype:
                 raise ValueError(
-                    "The destination image must have the same shape as the source image and the same dtype as defined in the function arguments arguments.")
+                    "The destination image must have the same shape as \
+the source image and the same dtype as defined in the function arguments \
+arguments.")
 
-            if self.image_channel_format.value == dimage_channel_format.DOLPHIN_BGR.value:
+            if (self.image_channel_format.value ==
+               dimage_channel_format.DOLPHIN_BGR.value):
 
                 cuda.memcpy_dtod_async(dst.allocation,
                                        self.allocation,
@@ -802,8 +1224,8 @@ source image and the same dtype as defined in the function arguments.")
                         block[1]),
                     1)
 
-                self.cu_cvtColor_rgb2bgr(input=self,
-                                         output=dst,
+                self.cu_cvtColor_rgb2bgr(src=self,
+                                         dst=dst,
                                          block=block,
                                          grid=grid,
                                          stream=self._stream)
@@ -817,7 +1239,7 @@ source image and the same dtype as defined in the function arguments.")
 
         return dst
 
-    def transpose(self, *axes: int, dst: 'dimage' = None) -> 'dimage':
+    def transpose(self, *axes: int) -> 'dimage':
         """
         ### Transpose the image
 
@@ -830,45 +1252,42 @@ source image and the same dtype as defined in the function arguments.")
 
             src = dimage(shape=(2, 3, 4), dtype=np.float32)
             dst = dimage(shape=(4, 3, 2), dtype=np.float32)
-            src.transpose(2, 1, 0, dst=dst)
+            src.transpose(2, 1, 0)
 
         :param axes: The permutation of the axes
         :type axes: *int
-        :param dst: The destination image
-        :type dst: dimage
         :return: The transposed image
         :rtype: dimage
         """
-        new_shape = tuple(self._shape[i] for i in axes)
-        if dst is not None and (dst.dtype != self.dtype or
-                                dst.channel != self.channel):
-            raise ValueError(f"The destination image must have the same dtype \
-and number of channels than source image. Found dst:{dst.dtype} and \
-expected:{self.dtype}, dst:{dst.channel} and expected:{self.channel}")
+        if len(axes) != len(self._shape):
+            raise ValueError("axes don't match array")
 
-        if dst is not None and dst.shape != new_shape:
-            raise ValueError(
-                f"The destination image must have a consistent shape \
-regarding axes. Found dst:{dst.shape} and expected:{new_shape}")
+        if not all(isinstance(v, int) for v in axes):
+            raise ValueError("axes must be integers")
 
-        if dst is not None and dst.image_channel_format != self.image_channel_format:
-            raise ValueError(
-                f"The destination image must have a consistent channel format \
-regarding axes. Found dst:{dst.image_channel_format} and expected:{self.image_channel_format}")
+        if len(set(axes)) != len(axes):
+            raise ValueError("repeated axis in transpose")
 
-        if dst is None:
-            dst = self.__class__(shape=new_shape,
-                                 dtype=self.dtype,
-                                 stream=self._stream,
-                                 channel_format=self._image_channel_format)
+        strides = self._strides
+        new_shape = [self.shape[i] for i in axes]
+        new_strides = [strides[i] for i in axes]
 
-        return super().transpose(*axes, dst=dst)
+        res = self.__class__(shape=tuple(new_shape),
+                             dtype=self._dtype,
+                             stream=self._stream,
+                             strides=new_strides,
+                             channel_format=self._image_channel_format,
+                             allocation=self._allocation)
+
+        return res
 
 
 def resize_padding(src: dimage,
                    shape: tuple,
                    padding_value: Union[int, float] = 127,
-                   dst: dimage = None) -> Tuple['dimage', float, Tuple[float, float]]:
+                   dst: dimage = None) -> Tuple['dimage',
+                                                float,
+                                                Tuple[float, float]]:
     """
     ### Padded resize the image
 
@@ -959,7 +1378,10 @@ def normalize(src: dimage,
 
         src = dimage(shape=(100, 100, 3), dtype=dolphin.dtype.uint8)
         dst = dimage(shape=(100, 100, 3), dtype=dolphin.dtype.float32)
-        normalize(src, dimage_normalize_type.DOLPHIN_MEAN_STD, mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5], dst=dst)
+        normalize(src,
+                  dimage_normalize_type.DOLPHIN_MEAN_STD,
+                  mean=[0.5, 0.5, 0.5],
+                  std=[0.5, 0.5, 0.5], dst=dst)
 
     or::
 

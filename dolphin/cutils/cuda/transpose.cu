@@ -33,13 +33,6 @@ __global__ void previous_transpose_{{ dtype }}(const {{ dtype }}* __restrict__ s
 
 #include <stdint.h>
 
-/*
-    Not optimized for speed, just for clarity.
-    TODO:
-     - Gride-stride loop
-     - Shared memory
-*/
-
 __global__ void transpose_{{ dtype }}({{ dtype }} *src,
                                       {{ dtype }} *dst,
                                       uint32_t *shape,

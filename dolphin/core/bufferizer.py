@@ -1,11 +1,12 @@
 """_summary_
 """
 
+from typing import Any, Union, List
+
 import pycuda.driver as cuda  # pylint: disable=import-error
 import tensorrt as trt  # pylint: disable=import-error
 
-from typing import Any
-import dolphin
+import dolphin.core.dtype
 
 
 class Bufferizer:
@@ -17,6 +18,23 @@ class Bufferizer:
     memory allocation but rather reuse the same memory buffer and favour
     copy operations.
 
+    Bufferizer can, through its `append` methods, append data to the buffer.
+    It can be either one `darray` at a time, a list of `darray`s or a single
+    batched `darray`.
+
+    In addition to bufferizing data, the class also allows to trigger hooks
+    at different moments of its lifecycle.
+
+    ## Hooks
+
+    - flush_hook : callable triggered when buffer is flushed
+    - allocate_hook : callable triggered when buffer is allocated
+    - append_one_hook : callable triggered when buffer has a
+                        new element appended
+    - append_multiple_hook : callable triggered when buffer has
+                             new elements appended
+    - buffer_full_hook : callable triggered when the buffer is full
+                         after calling any append
 
     :param shape: shape of element to bufferize
     :type shape: tuple
@@ -26,15 +44,20 @@ class Bufferizer:
     :type dtype: dolphin.dtype
     :param stream: stream to use for the buffer, defaults to None
     :type stream: cuda.Stream, optional
-    :param flush_hook: callable triggered when buffer is flushed, defaults to None
+    :param flush_hook: callable triggered when buffer is flushed,
+                       defaults to None
     :type flush_hook: callable, optional
-    :param allocate_hook: callable triggered when buffer is allocated, defaults to None
+    :param allocate_hook: callable triggered when buffer is allocated,
+                          defaults to None
     :type allocate_hook: callable, optional
-    :param append_one_hook: callable triggered when buffer has a new element appended, defaults to None
+    :param append_one_hook: callable triggered when buffer has
+                            a new element appended, defaults to None
     :type append_one_hook: callable, optional
-    :param append_multiple_hook: callable triggered when buffer has new elements appended, defaults to None
+    :param append_multiple_hook: callable triggered when buffer has
+                                 new elements appended, defaults to None
     :type append_multiple_hook: callable, optional
-    :param buffer_full_hook: callable triggered when the buffer is full after calling any append, defaults to None
+    :param buffer_full_hook: callable triggered when the buffer is
+                             full after calling any append, defaults to None
     :type buffer_full_hook: callable, optional
     """
 
@@ -57,7 +80,8 @@ class Bufferizer:
         self._dtype: dolphin.dtype = dtype
         self._buffer_len: int = buffer_size
         self._itemsize: int = trt.volume(self._shape)
-        self._nbytes: int = self._buffer_len * self._itemsize * self._dtype.itemsize
+        self._nbytes: int = (self._buffer_len * self._itemsize *
+                             self._dtype.itemsize)
         self._n_elements: int = 0
         self._allocation: cuda.DeviceAllocation = None
         self._stream: cuda.Stream = stream
@@ -96,8 +120,35 @@ class Bufferizer:
 
         self.flush(0)
 
+    def append(self, element: Union[dolphin.darray,
+                                    List[dolphin.darray]]) -> None:
+        """
+        General purpose append method.
+        You can provide either a single `darray`, a batched `darray` or
+        a list of `darray` and the method will handle it.
+
+        For more details about the handling of each case, see the
+        `append_one` and `append_multiple` methods.
+
+        :param element: The element to append to the buffer.
+        :type element: Union[dolphin.darray, List[dolphin.darray]]
+        """
+
+        if isinstance(element, dolphin.darray):
+            if element.shape == self._shape:
+                self.append_one(element)
+            elif element.shape[1:] == self._shape:
+                self.append_multiple(element)
+            else:
+                raise ValueError(f"Element shape {element.shape} does not \
+                                  match bufferizer shape {self._shape}.")
+        elif isinstance(element, list):
+            self.append_multiple(element)
+
+        else:
+            raise TypeError(f"Element type {type(element)} is not supported.")
+
     def append_one(self, element: dolphin.darray) -> None:
-        # pylint: disable=no-member
         """
         Method to append one element to the buffer.
         The element is copied and appended to the buffer.
@@ -124,12 +175,13 @@ class Bufferizer:
             raise ValueError(f"Element dtype {element.dtype} does not match \
                               bufferizer dtype {self._dtype}.")
 
-        cuda.memcpy_dtod_async(int(self._allocation) + self._n_elements
-                               * self._itemsize,
-                               element.allocation,
-                               self._itemsize *
-                               self._dtype.itemsize,
-                               self._stream)
+        tmp_darray = dolphin.darray(shape=(self._itemsize, ),
+                                    dtype=self._dtype,
+                                    allocation=(int(self._allocation) +
+                                                self._n_elements
+                                    * self._itemsize * self._dtype.itemsize))
+
+        element.flatten(dst=tmp_darray)
 
         self._n_elements += 1
 
@@ -140,12 +192,15 @@ class Bufferizer:
             if self._buffer_full_hook is not None:
                 self._buffer_full_hook(self)
 
-    def append_multiple(self, element: dolphin.darray) -> None:
+    def append_multiple(self, element: Union[dolphin.darray,
+                                             List[dolphin.darray]]) -> None:
         # pylint: disable=no-member
         """
         Function used in order to append multiple `darray` to the buffer
         at once. The `darray` must be of the same shape and dtype as the
-        `bufferizer`.
+        `bufferizer` with the exception of the first dimension which can be
+        different in case of a batched `darray`. Otherwise, the `darray` must
+        be a list of `darray` of the same shape and dtype as the `bufferizer`.
 
         The size of the buffer is increased by the number of elements in
         `element`.
@@ -163,36 +218,42 @@ class Bufferizer:
         :param element: The element to append to the buffer.
         :type element: darray
         """
-        batch_size = element.shape[0]
+        if isinstance(element, list):
+            for elem in element:
+                self.append_one(elem)
 
-        if element.shape[1:] != self._shape:
-            raise ValueError(f"Element shape {element.shape} does not match \
-                              bufferizer shape {self._shape}.")
+        else:
+            batch_size = element.shape[0]
 
-        if self._n_elements == self._buffer_len:
-            raise BufferError(f"Bufferizer is full (max \
-                                {self._buffer_len} elements).")
+            if element.shape[1:] != self._shape:
+                raise ValueError(f"Element shape {element.shape} does \
+                                 not match bufferizer shape {self._shape}.")
 
-        if self._n_elements + batch_size > self._buffer_len:
-            raise BufferError(f"Bufferizer is going to be overflowed \
-                ({self._buffer_len} elements). Tried to push \
-                {batch_size} elements.")
+            if self._n_elements == self._buffer_len:
+                raise BufferError(f"Bufferizer is full (max \
+                                    {self._buffer_len} elements).")
 
-        cuda.memcpy_dtod_async(int(self._allocation) + self._n_elements
-                               * self._itemsize,
-                               element.allocation,
-                               batch_size * self._itemsize *
-                               self._dtype.itemsize,
-                               self._stream)  # pylint: disable=no-member
+            if self._n_elements + batch_size > self._buffer_len:
+                raise BufferError(f"Bufferizer is going to be overflowed \
+                    ({self._buffer_len} elements). Tried to push \
+                    {batch_size} elements.")
 
-        self._n_elements += batch_size
+            tmp_darray = dolphin.darray(shape=(self._itemsize * batch_size,),
+                                        dtype=self._dtype,
+                                        allocation=(int(self._allocation) +
+                                        self._n_elements * self._itemsize *
+                                        self._dtype.itemsize))
 
-        if self._append_multiple_hook is not None:
-            self._append_multiple_hook(self)
+            element.flatten(dst=tmp_darray)
 
-        if self.full:
-            if self._buffer_full_hook is not None:
-                self._buffer_full_hook(self)
+            self._n_elements += batch_size
+
+            if self._append_multiple_hook is not None:
+                self._append_multiple_hook(self)
+
+            if self.full:
+                if self._buffer_full_hook is not None:
+                    self._buffer_full_hook(self)
 
     def flush(self, value: Any = 0) -> None:
         # pylint: disable=no-member

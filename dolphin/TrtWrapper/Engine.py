@@ -3,16 +3,16 @@
 
 import os
 import sys
-import onnx
 from typing import Dict, Union
+import onnx
 import tensorrt as trt
 import pycuda.driver as cuda
 
-from .utils import TrtLogger
-from .utils import EEngine, IEngine
-
 from dolphin import CudaTrtBuffers, darray
 import dolphin
+
+from .utils import TrtLogger
+from .utils import EEngine, IEngine
 
 
 class Engine(EEngine, IEngine):
@@ -32,7 +32,6 @@ class Engine(EEngine, IEngine):
                  stderr: object = sys.stderr,
                  calib_cache: str = None
                  ):
-
         self.stdout = stdout
         self.stderr = stderr
         self.calib_cache = calib_cache
@@ -51,7 +50,6 @@ class Engine(EEngine, IEngine):
 
         self.optimisation_profile = optimisation_profile
         self.runtime = trt.Runtime(self.trt_logger)
-
         if engine_path is not None and os.path.exists(engine_path):
             self.engine = self.load_engine(engine_path)
             self.dynamic = self.engine.has_implicit_batch_dimension
@@ -70,7 +68,12 @@ has been found at engine_path.")
                 "Failed to build or to read a tensorRT Engine. \
 Check the logs for more details.")
             sys.exit(-1)
+        self.trt_logger.log(TrtLogger.Severity.VERBOSE,
+                            "Creating Execution Context")
         self.context = self.create_context()
+
+        self.trt_logger.log(TrtLogger.Severity.VERBOSE,
+                            "Creating Buffers")
         self.buffers = self.allocate_buffers()
 
     def allocate_buffers(self) -> CudaTrtBuffers:
@@ -85,15 +88,22 @@ Check the logs for more details.")
 
             shape = self.engine.get_binding_shape(binding)
             dtype = self.engine.get_binding_dtype(binding)
+
+            self.trt_logger.log(TrtLogger.Severity.VERBOSE,
+                                f"Allocating buffer for {binding}, \
+shape: {shape}, dtype: {dtype}")
+
             if self.engine.binding_is_input(binding):
                 buffer.allocate_input(name=binding,
-                                      shape=shape[1:],
+                                      shape=tuple(shape[1:]),
                                       buffer_size=shape[0],
-                                      dtype=dolphin.dtype.from_numpy_dtype(trt.nptype(dtype)))
+                                      dtype=dolphin.dtype.from_numpy_dtype(
+                                          trt.nptype(dtype)))
             else:
-                buffer.allocate_output(binding,
-                                       shape,
-                                       dolphin.dtype.from_numpy_dtype(trt.nptype(dtype)))
+                buffer.allocate_output(name=binding,
+                                       shape=tuple(shape),
+                                       dtype=dolphin.dtype.from_numpy_dtype(
+                                           trt.nptype(dtype)))
         return buffer
 
     def load_engine(self, engine_file_path: str,

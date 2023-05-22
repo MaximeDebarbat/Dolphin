@@ -1,9 +1,10 @@
 
-import dolphin as dp
 import time
 import numpy
+import dolphin as dp
 
 N_ITER = int(1e3)
+
 
 def darray_timing():
 

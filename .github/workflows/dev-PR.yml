@@ -1,0 +1,22 @@
+name: Test-Pypi-Publish
+
+on:
+  pull_request:
+    branches:
+    - dev
+
+jobs:
+  pypi-job:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install twine
+        run: pip install twine
+      - name: Build package
+        run: python setup.py bdist_wheel
+      - name: Publish a package to TestPypi
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_TEST_TOKEN }}
+          repository_url: https://test.pypi.org/legacy/

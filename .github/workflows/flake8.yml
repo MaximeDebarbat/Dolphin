@@ -1,0 +1,23 @@
+name: Lint
+
+on: [push]
+
+jobs:
+  flake8_py3:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.9", "3.10"]
+    steps:
+      - uses: actions/checkout@main
+        with:
+          ref: ${{ github.head_ref }}
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install flake8
+        run: pip install flake8
+      - name: Run flake8
+        run: |
+          flake8 dolphin/*

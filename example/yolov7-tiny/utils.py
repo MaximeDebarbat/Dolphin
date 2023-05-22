@@ -1,11 +1,10 @@
 
-import cv2
-import argparse
-import numpy as np
-import numpy as np
-from typing import Dict, Tuple, List
-import gdown
 import os
+import argparse
+from typing import Dict, Tuple, List, Union
+import cv2
+import gdown
+import numpy as np
 import dolphin as dp
 
 
@@ -31,7 +30,8 @@ def prepare_classes() -> List[Dict[str, str]]:
     for element in coco_classes:
         res.append({
             "name": element,
-            "color": tuple([np.random.randint(0, 255) for _ in range(3)])
+            "color": tuple(np.random.randint(0, 255,
+                                             size=(3,)).astype(int).tolist())
         })
 
     return res
@@ -39,16 +39,16 @@ def prepare_classes() -> List[Dict[str, str]]:
 
 def draw(frame: np.ndarray,
          classes: List[Dict[str, str]],
-         output: Dict[str, dp.darray],
+         output: Dict[str, Union[dp.darray, np.ndarray]],
          r: Tuple[float, float],
          dwdh: Tuple[int, int],
          fps: int) -> np.ndarray:
 
     if isinstance(output["det_boxes"], dp.darray):
-        boxes = output["det_boxes"].ndarray
-        num_dets = output["num_dets"].ndarray
-        score_dets = output["det_scores"].ndarray
-        class_dets = output["det_classes"].ndarray
+        boxes = output["det_boxes"].to_numpy()
+        num_dets = output["num_dets"].to_numpy()
+        score_dets = output["det_scores"].to_numpy()
+        class_dets = output["det_classes"].to_numpy()
     else:
         boxes = output["det_boxes"]
         num_dets = output["num_dets"]
@@ -93,7 +93,7 @@ def draw(frame: np.ndarray,
             frame = cv2.rectangle(frame,
                                   c1,
                                   c2,
-                                  class_color,
+                                  color=class_color,
                                   thickness=line_thickness,
                                   lineType=cv2.LINE_AA
                                   )
