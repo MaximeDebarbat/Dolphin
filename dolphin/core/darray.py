@@ -1045,6 +1045,29 @@ with shapes {self.shape}, {other.shape}")
         """
         return self.to_numpy().__repr__()  # pylint: disable=E1120
 
+    def flatten(self, dst: 'darray' = None) -> 'darray':
+        """Returns a flattened view of the darray. Useful for
+        reordering the array in memory.
+
+        :param dst: Destination darray
+        :type dst: darray
+        :return: Flattened view of the darray
+        :rtype: darray
+        """
+        if dst is None:
+            dst = darray(shape=(self.size,),
+                         dtype=self.dtype,
+                         allocation=self._allocation,
+                         allocation_size=self._allocation_size)
+
+        self._cu_discontiguous_copy(src=self,
+                                    dst=dst,
+                                    block=self._block,
+                                    grid=self._grid,
+                                    stream=self._stream)
+
+        return dst
+
     def fill(self, value: Union[int, float, numpy.number]) -> 'darray':
         """
         Fills the darray with the value of value.

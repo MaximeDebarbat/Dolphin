@@ -68,6 +68,7 @@ debarbat.maxime@gmail.com
 https://www.linkedin.com/in/mdebarbat/
 """
 
+from .version import __version__
 import pycuda.autoinit
 import pycuda.driver as cuda  # pylint: disable=import-error
 

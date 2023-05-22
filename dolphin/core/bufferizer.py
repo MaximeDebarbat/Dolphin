@@ -175,12 +175,13 @@ class Bufferizer:
             raise ValueError(f"Element dtype {element.dtype} does not match \
                               bufferizer dtype {self._dtype}.")
 
-        cuda.memcpy_dtod_async(int(self._allocation) + self._n_elements
-                               * self._itemsize * self._dtype.itemsize,
-                               element.allocation,
-                               self._itemsize *
-                               self._dtype.itemsize,
-                               self._stream)
+        tmp_darray = dolphin.darray(shape=(self._itemsize, ),
+                                    dtype=self._dtype,
+                                    allocation=(int(self._allocation) +
+                                                self._n_elements
+                                    * self._itemsize * self._dtype.itemsize))
+
+        element.flatten(dst=tmp_darray)
 
         self._n_elements += 1
 
@@ -237,12 +238,13 @@ class Bufferizer:
                     ({self._buffer_len} elements). Tried to push \
                     {batch_size} elements.")
 
-            cuda.memcpy_dtod_async(int(self._allocation) + self._n_elements
-                                   * self._itemsize * self._dtype.itemsize,
-                                   element.allocation,
-                                   batch_size * self._itemsize *
-                                   self._dtype.itemsize,
-                                   self._stream)  # pylint: disable=no-member
+            tmp_darray = dolphin.darray(shape=(self._itemsize * batch_size,),
+                                        dtype=self._dtype,
+                                        allocation=(int(self._allocation) +
+                                        self._n_elements * self._itemsize *
+                                        self._dtype.itemsize))
+
+            element.flatten(dst=tmp_darray)
 
             self._n_elements += batch_size
 

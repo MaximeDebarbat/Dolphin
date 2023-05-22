@@ -215,7 +215,7 @@ class CudaTrtBuffers:
         :rtype: bool
         """
 
-        for buffer in self._inputs:
+        for key, buffer in self._inputs.items():
             if buffer.full:
                 return True
 
@@ -232,7 +232,7 @@ class CudaTrtBuffers:
         :rtype: Dict[str, dolphin.darray]
         """
 
-        return self._outputs.items()
+        return self._outputs
 
     @property
     def input_bindings(self) -> List[dolphin.darray]:
