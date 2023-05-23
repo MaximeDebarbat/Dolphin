@@ -1,10 +1,3 @@
-"""_summary_
-
-:return: _description_
-:rtype: _type_
-:yield: _description_
-:rtype: _type_
-"""
 
 import os
 import sys
@@ -142,12 +135,6 @@ class ImageBatcher:
             self.batches.append(self.images[start:end])
 
     def preprocess_image(self, inp):
-        """_summary_
-        Args:
-            image_path (_type_): _description_
-        Returns:
-            _type_: _description_
-        """
 
         if isinstance(inp, str):
             image = Image.open(inp)
@@ -187,10 +174,6 @@ uses grayscale images")
         return image
 
     def get_batch(self):
-        """_summary_
-        Yields:
-            _type_: _description_
-        """
 
         for i, batch_images in enumerate(self.batches):
             batch_data = np.zeros(self.shape, dtype=self.dtype)
