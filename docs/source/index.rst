@@ -1,20 +1,37 @@
-.. dolphin documentation master file, created by
-   sphinx-quickstart on Mon May 22 15:56:28 2023.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
 
-Welcome to dolphin's documentation!
+Welcome to Dolphin's documentation!
 ===================================
+
+.. automodule:: dolphin
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: Dolphin Reference
+
+   getting_started
+   core_concept
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Dolphin Core Reference
+
+   dolphin.darray
+   dolphin.dimage
+   dolphin.bufferizer
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Dolphin TensorRT Reference
+
+   dolphin.TrtWrapper
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Advanced Utilisation
+
+   dolphin.advanced
 
 
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`

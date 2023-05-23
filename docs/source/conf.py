@@ -22,11 +22,18 @@ extensions = ['sphinx.ext.todo', 'sphinx.ext.viewcode', 'sphinx.ext.autodoc']
 
 templates_path = ['_templates']
 exclude_patterns = []
-
-
+add_module_names = True
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']
+html_sidebars = {'**': ['globaltoc.html', 'relations.html', 'sourcelink.html', 'searchbox.html']}
+html_show_sourcelink = True
+html_show_copyright = True
+html_logo = '_static/banner.png'
+html_theme_options = {
+    'logo_only': False,
+    'display_version': True
+}

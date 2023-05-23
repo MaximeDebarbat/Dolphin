@@ -1,29 +1,18 @@
-dolphin.TrtWrapper package
-==========================
+Inference Engine
+================
 
-Subpackages
------------
+Engine
+------
 
-.. toctree::
-   :maxdepth: 4
-
-   dolphin.TrtWrapper.utils
-
-Submodules
-----------
-
-dolphin.TrtWrapper.Engine module
---------------------------------
-
-.. automodule:: dolphin.TrtWrapper.Engine
+.. autoclass:: dolphin.Engine
    :members:
    :undoc-members:
    :show-inheritance:
 
-Module contents
----------------
+TensorRT Buffers
+----------------
 
-.. automodule:: dolphin.TrtWrapper
+.. autoclass:: dolphin.CudaTrtBuffers
    :members:
    :undoc-members:
    :show-inheritance:
