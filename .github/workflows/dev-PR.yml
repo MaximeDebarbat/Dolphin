@@ -11,7 +11,7 @@ on:
 jobs:
   linter-check:
     name: Check flake8 before publish
-    uses: ./.github/workflows/.flake8.yml
+    uses: ./.github/workflows/flake8.yml
 
   pypi-job:
     runs-on: ubuntu-latest
