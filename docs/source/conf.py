@@ -18,6 +18,7 @@ author = 'Maxime Debarbat'
 about = {}
 exec(open(os.path.join(os.path.abspath(os.path.dirname(__file__)), "..", "..", "dolphin", 'version.py')).read(), about)
 release = about['__version__']
+version = release
 
 print(f"Building documentation for Dolphin {release}")
 
