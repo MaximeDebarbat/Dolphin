@@ -465,7 +465,7 @@ class dimage_resize_type(Enum):
       cv2.resize(src, (width, height), interpolation=cv2.INTER_NEAREST)
 
     `DOLPHIN_PADDED` stands for padded nearest neighbor interpolation resize.
-    Its equivalent can be found `here <https://github.com/WongKinYiu/yolov7/blob/3b41c2cc709628a8c1966931e696b14c11d6db0c/utils/datasets.py#L984/>`_.
+    Its equivalent can be found `here <https://github.com/WongKinYiu/yolov7/blob/3b41c2cc709628a8c1966931e696b14c11d6db0c/utils/datasets.py#L984/>`_. # noqa
 
     """
 
@@ -544,7 +544,8 @@ class dimage(dolphin.darray):
                  dtype: dolphin.dtype = dolphin.dtype.uint8,
                  stream: cuda.Stream = None,
                  array: numpy.ndarray = None,
-                 channel_format: dimage_channel_format = dimage_channel_format.DOLPHIN_BGR,
+                 channel_format: dimage_channel_format
+                 = dimage_channel_format.DOLPHIN_BGR,
                  strides: Tuple[int, ...] = None,
                  allocation: cuda.DeviceAllocation = None,
                  allocation_size: int = None
