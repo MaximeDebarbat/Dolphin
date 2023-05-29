@@ -4,7 +4,6 @@ Each class compiles the kernel for a specific operation with
 specific data types.
 """
 
-from pycuda.compiler import SourceModule  # pylint: disable=import-error
 from jinja2 import Template
 
 import dolphin
@@ -17,12 +16,15 @@ class CuResizeCompiler(CompilerBase):
     def __init__(self):
         super().__init__(self.__CU_FILENAME)
 
-        self.source: str = ""
+        self.compiled_source = self.try_load_cubin()
+
+    def generate_source(self):
+        source: str = ""
         for dtype in dolphin.dtype:
-            self.source += Template(self._cuda_source).render(
+            source += Template(self._cuda_source).render(
                 dtype=dtype.cuda_dtype,
                 )
-        self.compiled_source = SourceModule(self.source)
+        return source
 
 
 class CuNormalizeCompiler(CompilerBase):
@@ -31,14 +33,17 @@ class CuNormalizeCompiler(CompilerBase):
     def __init__(self):
         super().__init__(self.__CU_FILENAME)
 
-        self.source: str = ""
+        self.compiled_source = self.try_load_cubin()
+
+    def generate_source(self):
+        source: str = ""
         for dtype_in in dolphin.dtype:
             for dtype_out in dolphin.dtype:
-                self.source += Template(self._cuda_source).render(
+                source += Template(self._cuda_source).render(
                     intype=dtype_in.cuda_dtype,
                     outtype=dtype_out.cuda_dtype,
                     )
-        self.compiled_source = SourceModule(self.source)
+        return source
 
 
 class CuCvtColorCompiler(CompilerBase):
@@ -46,9 +51,14 @@ class CuCvtColorCompiler(CompilerBase):
 
     def __init__(self):
         super().__init__(self.__CU_FILENAME)
-        self.source = ""
+
+        self.compiled_source = self.try_load_cubin()
+
+    def generate_source(self):
+        source: str = ""
         for dtype in dolphin.dtype:
-            self.source += Template(self._cuda_source).render(
+            source += Template(self._cuda_source).render(
                 dtype=dtype.cuda_dtype
                 )
-        self.compiled_source = SourceModule(self.source)
+
+        return source

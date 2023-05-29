@@ -12,53 +12,13 @@ class dtype(Enum):  # pylint: disable=invalid-name
     the numpy data types as well as the CUDA data types.
     To do so, each element from the Enum class is a tuple containing
     the numpy data type (numpy.dtype) and the CUDA data type (str).
-
-    Example::
-
-      uint8 = (numpy.uint8, "uint8_t")
-      int8 = (numpy.int8, "int8_t")
-      uint16 = (numpy.uint16, "uint16_t")
-      int16 = (numpy.int16, "int16_t")
-      uint32 = (numpy.uint32, "uint32_t")
-      int32 = (numpy.int32, "int32_t")
-      float32 = (numpy.float32, "float")
-      float64 = (numpy.float64, "double")
-
-    Properties::
-
-        @property
-        numpy_dtype: numpy.dtype
-            >>> mytype = dtype.uint8
-            >>> mynptype = mytype.numpy_dtype (numpy.uint8)
-
-        @property
-        cuda_dtype: numpy.dtype
-            >>> mytype = dtype.uint8
-            >>> mycudatype = mytype.cuda_dtype ('uint8_t')
-
-        @property
-        itemsize: int
-            >>> a = dtype.uint8
-            >>> a.itemsize            # 1
-            >>> a = dtype.uint16
-            >>> a.itemsize            # 2
-            >>> a = dtype.uint32
-            >>> a.itemsize            # 4
-
-        __getitem__(key: [str, int]): numpy.dtype or str
-            >>> a = dtype.uint8
-            >>> a[0]                  # numpy.uint8
-            >>> a[1]                  # 'uint8_t'
-            >>> a["numpy_dtype"]      # numpy.uint8
-            >>> a["cuda_dtype"]       # 'uint8_t'
-
     """
 
     uint8 = (numpy.uint8, "uint8_t")  # pylint: disable=invalid-name
-    int8 = (numpy.int8, "int8_t")  # pylint: disable=invalid-name
     uint16 = (numpy.uint16, "uint16_t")  # pylint: disable=invalid-name
-    int16 = (numpy.int16, "int16_t")  # pylint: disable=invalid-name
     uint32 = (numpy.uint32, "uint32_t")  # pylint: disable=invalid-name
+    int8 = (numpy.int8, "int8_t")  # pylint: disable=invalid-name
+    int16 = (numpy.int16, "int16_t")  # pylint: disable=invalid-name
     int32 = (numpy.int32, "int32_t")  # pylint: disable=invalid-name
     float32 = (numpy.float32, "float")  # pylint: disable=invalid-name
     float64 = (numpy.float64, "double")  # pylint: disable=invalid-name

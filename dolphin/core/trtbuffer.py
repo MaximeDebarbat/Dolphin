@@ -10,12 +10,13 @@ import dolphin
 
 class CudaTrtBuffers:
     """
-    To be used with the `dolphin.engine` class.
-    This class actually manages the buffers used by the engine,
-    both for inputs and outputs.
+    To be used with the :func:`darray <dolphin.engine>` class.
+    This class actually manages the :func:`darray <dolphin.Bufferizer>`
+    used by the engine, both for inputs and outputs.
 
-    To ease the use of the buffers, this class can be understood as a
-    dict in order to name inputs and outputs.
+    To ease the use of the :func:`darray <dolphin.Bufferizer>`,
+    this class can be understood as a dict in order to
+    name inputs and outputs.
 
     Note that the names of inputs and outputs have to match the names
     of the inputs and outputs of the engine.
@@ -136,7 +137,7 @@ class CudaTrtBuffers:
         :param name: Name of the input.
         :type name: str
         :param data: Data to append.
-        :type data: CudaBinding
+        :type data: dolphin.darray
         """
 
         self._inputs[name].append_one(data)
@@ -152,7 +153,7 @@ class CudaTrtBuffers:
         :param name: Name of the input.
         :type name: str
         :param data: Data to append.
-        :type data: CudaBinding
+        :type data: dolphin.darray
         """
 
         self._inputs[name].append_multiple_input(data)
@@ -215,7 +216,7 @@ class CudaTrtBuffers:
         :rtype: bool
         """
 
-        for buffer in self._inputs:
+        for key, buffer in self._inputs.items():
             if buffer.full:
                 return True
 
@@ -232,7 +233,7 @@ class CudaTrtBuffers:
         :rtype: Dict[str, dolphin.darray]
         """
 
-        return self._outputs.items()
+        return self._outputs
 
     @property
     def input_bindings(self) -> List[dolphin.darray]:

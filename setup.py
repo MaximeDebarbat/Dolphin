@@ -9,54 +9,56 @@ Otherwise, run:
 
 import io
 import os
+from glob import glob
 
 from setuptools import setup, find_packages
 
-# Package meta-data.
-NAME = 'dolphin'
-DESCRIPTION = 'Cuda based library for fast and seamless deep learning inference.'
+NAME = 'dolphin-python'
+DESCRIPTION = 'Cuda based library for fast \
+and seamless deep learning inference.'
 URL = 'https://github.com/MaximeDebarbat/Dolphin'
 EMAIL = 'debarbat.maxime@gmail.com'
 AUTHOR = 'Maxime'
 REQUIRES_PYTHON = '>=3.5.0'
-VERSION = '0.0.1'
 
 # What packages are required for this module to be executed?
 REQUIRED = [
-    "nvidia-pyindex",
     "appdirs==1.4.4",
     "Jinja2==3.1.2",
     "Mako==1.2.4",
     "MarkupSafe==2.1.2",
     "numpy==1.23.5",
-    "onnx==1.13.1",
+    "onnx",
     "opencv-python==4.5.5.64",
     "Pillow==9.4.0",
     "pip-chill==1.0.1",
     "platformdirs==2.6.2",
-    "polygraphy==0.45.3",
     "protobuf==3.20.3",
-    "pycodestyle==2.10.0",
     "pycuda==2022.2.2",
     "pytools==2022.1.14",
     "tomli==2.0.1",
     "tqdm==4.65.0",
     "typing_extensions==4.4.0",
     "pytest==7.3.1",
-    "gdown==4.7.1",
-    "onnxruntime-gpu==1.10.0",
 ]
 
+here = os.path.abspath(os.path.dirname(__file__))
+about = {}
+
 try:
-    with io.open(os.path.join(os.path.abspath(os.path.dirname(__file__)),
-                              'README.md'), encoding='utf-8') as f:
+    with io.open(os.path.join(here, 'README.md'),
+                 encoding='utf-8') as f:
         LONG_DESCRIPTION = '\n' + f.read()
 except FileNotFoundError:
     LONG_DESCRIPTION = DESCRIPTION
 
+with open(os.path.join(here, "dolphin", 'version.py'),
+          encoding='utf-8') as f:
+    exec(f.read(), about)
+
 setup(
     name=NAME,
-    version=VERSION,
+    version=about['__version__'],
     description=DESCRIPTION,
     long_description=LONG_DESCRIPTION,
     long_description_content_type='text/markdown',
@@ -64,7 +66,11 @@ setup(
     author_email=EMAIL,
     python_requires=REQUIRES_PYTHON,
     url=URL,
-    packages=find_packages(exclude=["tests", "*.tests", "*.tests.*", "tests.*"]),
+    packages=find_packages(exclude=["tests",
+                                    "*.tests",
+                                    "*.tests.*",
+                                    "tests.*"]),
+    data_files=[('dolphin', glob('dolphin/cutils/cuda/*.cu'))],
     install_requires=REQUIRED,
     include_package_data=True,
     license='Apache',
@@ -75,4 +81,8 @@ setup(
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.6',
     ],
+    options={'bdist_wheel': {
+                             'universal': True
+                            }
+             }
 )

@@ -8,7 +8,3 @@ Pillow>=9.4.0
 pytest==7.3.1
 setuptools==45.2.0
 tensorrt
-
-# COMMENTED FOR DOCUMENTATION BUILDING
-
-# pycuda # Uncomment to install dolphin locally

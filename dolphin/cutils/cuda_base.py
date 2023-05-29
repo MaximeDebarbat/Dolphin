@@ -7,43 +7,48 @@ import numpy as np
 
 
 class CudaBase:
+    """
+    This class is mainly used to access device information, such as
+    maximum number of threads per block, size of grid etc...
+    This is a base class used by many other classes. It has a lot of
+    class attributes in order not to load the same things again and
+    again in order to speed up execution.
+    """
 
-    def __init__(self):
+    #: Used device
+    device: pycuda._driver.Device = pycuda.driver.Context.get_device()
 
-        self.DEVICE = pycuda.driver.Context.get_device()
+    #: Maximum number of threads per blocks. Usually, it is 1024
+    max_threads_per_block: int = pycuda.autoinit.device.get_attribute(
+                pycuda.driver.device_attribute.MAX_THREADS_PER_BLOCK)
 
-        self.MAX_THREADS_PER_BLOCKS = int(
-            pycuda.autoinit.device.get_attribute(
-                pycuda.driver.device_attribute.MAX_THREADS_PER_BLOCK))
+    #: Maximum number of blocks per grid x on dim
+    max_grid_dim_x: int = pycuda.autoinit.device.get_attribute(
+            pycuda.driver.device_attribute.MAX_GRID_DIM_X)
 
-        self.MAX_GRID_DIM_X = int(
-            pycuda.autoinit.device.get_attribute(
-                pycuda.driver.device_attribute.MAX_GRID_DIM_X))
+    #: Maximum number of blocks per grid y on dim
+    max_grid_dim_y: int = pycuda.autoinit.device.get_attribute(
+            pycuda.driver.device_attribute.MAX_GRID_DIM_Y)
 
-        self.MAX_GRID_DIM_Y = int(
-            pycuda.autoinit.device.get_attribute(
-                pycuda.driver.device_attribute.MAX_GRID_DIM_Y))
+    #: Maximum number of blocks per grid z on dim
+    max_grid_dim_z: int = pycuda.autoinit.device.get_attribute(
+            pycuda.driver.device_attribute.MAX_GRID_DIM_Z)
 
-        self.MAX_GRID_DIM_Z = int(
-            pycuda.autoinit.device.get_attribute(
-                pycuda.driver.device_attribute.MAX_GRID_DIM_Z))
+    #: Warp size
+    warp_size: int = pycuda.tools.DeviceData(device).warp_size
 
-        self.WARP_SIZE = int(pycuda.tools.DeviceData(self.DEVICE).warp_size)
+    #: Number of MP
+    multiprocessor_count: int = pycuda.autoinit.device.get_attribute(
+            pycuda.driver.device_attribute.MULTIPROCESSOR_COUNT)
 
-        self.MULTIPROCESSOR_COUNT = int(
-            pycuda.autoinit.device.get_attribute(
-                pycuda.driver.device_attribute.MULTIPROCESSOR_COUNT))
+    #: Number of threads per MP
+    threads_blocks_per_mp: int = pycuda.tools.DeviceData(
+        device).thread_blocks_per_mp
 
-        self.THREADS_BLOCKS_PER_MP = int(
-            pycuda.tools.DeviceData(self.DEVICE).thread_blocks_per_mp)
-
-        self.MIN_THREADS = self.WARP_SIZE
-        self.MAX_THREADS = 4*self.WARP_SIZE
-
-        self.MAX_BLOCKS = (4 * self.THREADS_BLOCKS_PER_MP *
-                           self.MULTIPROCESSOR_COUNT)
-
-    def GET_BLOCK_GRID_1D(self, n: int) -> Tuple[tuple, tuple]:
+    @staticmethod
+    def GET_BLOCK_GRID_1D(n: int
+                          ) -> Tuple[Tuple[int, int, int],
+                                     Tuple[int, int]]:
         """
         In ordert to perform memory coalescing on 1D iterations,
         we need to efficiently compute the block & grid sizes.
@@ -51,43 +56,51 @@ class CudaBase:
         :param n: Number of elements to process
         :type n: int
         :return: block, grid
-        :rtype: Tuple[tuple, tuple]
+        :rtype: Tuple[Tuple[int, int, int], Tuple[int, int]]
         """
 
-        if n < self.MIN_THREADS:
-            return (self.MIN_THREADS, 1, 1), (1, 1)
-        elif n < (self.MAX_BLOCKS * self.MIN_THREADS):
-            return (self.MIN_THREADS, 1, 1), ((n + self.MIN_THREADS - 1) //
-                                              self.MIN_THREADS, 1)
-        elif n < (self.MAX_BLOCKS * self.MAX_THREADS):
-            grid = (self.MAX_BLOCKS, 1)
-            grp = (n + self.MIN_THREADS - 1) // self.MIN_THREADS
-            return ((grp + self.MAX_BLOCKS - 1) // self.MAX_BLOCKS *
-                    self.MIN_THREADS), grid
+        min_threads: int = CudaBase.warp_size
+        max_threads: int = 4 * CudaBase.warp_size
 
-        return (self.MAX_THREADS, 1, 1), (self.MAX_BLOCKS, 1)
+        max_blocks: int = (4 * CudaBase.threads_blocks_per_mp *
+                           CudaBase.multiprocessor_count)
 
-    def _GET_BLOCK_X_Y(self, Z: int) -> tuple:
+        if n < min_threads:
+            return (min_threads, 1, 1), (1, 1)
+        elif n < (max_blocks * min_threads):
+            return (min_threads, 1, 1), ((n + min_threads - 1) //
+                                         min_threads, 1)
+        elif n < (max_blocks * max_threads):
+            grid = (max_blocks, 1)
+            grp = (n + min_threads - 1) // min_threads
+            return ((grp + max_blocks - 1) // max_blocks *
+                    min_threads), grid
+
+        return (max_threads, 1, 1), (max_blocks, 1)
+
+    @staticmethod
+    def GET_BLOCK_X_Y(Z: int) -> tuple:
         """Get the block size for a given Z.
         The block size is calculated using the following formula:
         (max(ceil(sqrt(MAX_THREADS_PER_BLOCKS/Z)),1),
         max(ceil(sqrt(MAX_THREADS_PER_BLOCKS/Z)),1), Z)
 
         It is useful to quickly compute the block size that suits
-        self.MAX_THREADS_PER_BLOCKS for
+        self._max_threads_per_block for
         a given Z which can be channels, depth, batch size, etc.
 
         :param Z: Size of the third dimension
         :type Z: int
         :return: Optimal block size that ensure
-                 block[0]*block[1]*block[2] <= self.MAX_THREADS_PER_BLOCKS
+                 block[0]*block[1]*block[2] <= self._max_threads_per_block
         :rtype: tuple
         """
 
-        _s = int(np.sqrt(self.MAX_THREADS_PER_BLOCKS / int(Z)))
+        _s = int(np.sqrt(CudaBase.max_threads_per_block / int(Z)))
         return (_s, _s, Z)
 
-    def _GET_GRID_SIZE(self, size: tuple, block: tuple) -> tuple:
+    @staticmethod
+    def GET_GRID_SIZE(size: tuple, block: tuple) -> Tuple[int, int]:
         """Get the grid size for a given size and block size.
         The grid size is calculated using the following formula:
         (max(ceil(sqrt(size/block[0])),1), max(ceil(sqrt(size/block[1])),1))
@@ -107,7 +120,8 @@ class CudaBase:
         return (max(math.ceil(np.sqrt(size)), 1),
                 max(math.ceil(np.sqrt(size)), 1))
 
-    def _GET_GRID_SIZE_HW(self, size: tuple, block: tuple) -> tuple:
+    @staticmethod
+    def GET_GRID_SIZE_HW(size: tuple, block: tuple) -> Tuple[int, int]:
         """Get the grid size for a given size and block size.
         The grid size is calculated using the following formula:
         (max(ceil(sqrt(size[0]/block[0])),1),

@@ -1,0 +1,29 @@
+name: Pypi-Publish
+
+on:
+  pull_request:
+    types:
+    - closed
+    branches:
+    - main
+
+jobs:
+  linter-check:
+    name: Check flake8 before publish
+    uses: ./.github/workflows/flake8.yml
+
+  pypi-job:
+    needs: linter-check
+    if: github.event.pull_request.merged
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install twine
+        run: pip install twine
+      - name: Build package
+        run: python setup.py bdist_wheel
+      - name: Publish a package to Pypi
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_TEST_TOKEN }}

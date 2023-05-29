@@ -56,7 +56,7 @@ they are not efficient and thus have to be called with caution and if possible,
 only once.
 """
 
-from typing import Union
+from typing import Union, Tuple
 
 import pycuda.driver as cuda  # pylint: disable=import-error
 import tensorrt as trt  # pylint: disable=import-error
@@ -74,14 +74,14 @@ class CuFill(dolphin.CuFillCompiler):
         for dtype in dolphin.dtype:
             self._func[dtype.cuda_dtype] = self.compiled_source.get_function(
                 self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare(
-                "P" + numpy.dtype(dtype.numpy_dtype).char + "I")
+                "P" + numpy.dtype(dtype.numpy_dtype).char + "PPII")
 
     def __call__(self,
                  array: 'darray',
                  value: Union[int, float, numpy.number],
                  size: numpy.uint32,
-                 block: tuple,
-                 grid: tuple,
+                 block: Tuple[int, int, int],
+                 grid: Tuple[int, int],
                  stream: cuda.Stream = None):
 
         self._func[array.dtype.cuda_dtype].prepared_async_call(
@@ -90,6 +90,9 @@ class CuFill(dolphin.CuFillCompiler):
             stream,
             array.allocation,
             value,
+            array.shape_allocation,
+            array.strides_allocation,
+            array.ndim,
             numpy.uint32(size))
 
 
@@ -103,7 +106,7 @@ class AXpBZ(dolphin.AXpBZCompiler):
             self._func[dtype.cuda_dtype] = self.compiled_source.get_function(
                 self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare(
                 "PP" + numpy.dtype(dtype.numpy_dtype).char + numpy.dtype(
-                    dtype.numpy_dtype).char + "I")
+                    dtype.numpy_dtype).char + "PPII")
 
     def __call__(self,
                  x_array: 'darray',
@@ -111,8 +114,8 @@ class AXpBZ(dolphin.AXpBZCompiler):
                  a_scalar: numpy.number,
                  b_scalar: numpy.number,
                  size: numpy.uint32,
-                 block: tuple,
-                 grid: tuple,
+                 block: Tuple[int, int, int],
+                 grid: Tuple[int, int],
                  stream: cuda.Stream = None) -> None:
 
         self._func[x_array.dtype.cuda_dtype].prepared_async_call(
@@ -123,6 +126,9 @@ class AXpBZ(dolphin.AXpBZCompiler):
             z_array.allocation,
             x_array.dtype.numpy_dtype(a_scalar),
             x_array.dtype.numpy_dtype(b_scalar),
+            x_array.shape_allocation,
+            x_array.strides_allocation,
+            x_array.ndim,
             numpy.uint32(size))
 
 
@@ -136,7 +142,7 @@ class AXpBYZ(dolphin.AXpBYZCompiler):
             self._func[dtype.cuda_dtype] = self.compiled_source.get_function(
                 self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare(
                 "PPP" + numpy.dtype(dtype.numpy_dtype).char + numpy.dtype(
-                    dtype.numpy_dtype).char + "I")
+                    dtype.numpy_dtype).char + "PPPPPPII")
 
     def __call__(self,
                  x_array: 'darray',
@@ -145,8 +151,8 @@ class AXpBYZ(dolphin.AXpBYZCompiler):
                  a_scalar: numpy.number,
                  b_scalar: numpy.number,
                  size: numpy.uint32,
-                 block: tuple,
-                 grid: tuple,
+                 block: Tuple[int, int, int],
+                 grid: Tuple[int, int],
                  stream: cuda.Stream = None) -> None:
 
         self._func[x_array.dtype.cuda_dtype].prepared_async_call(
@@ -158,6 +164,13 @@ class AXpBYZ(dolphin.AXpBYZCompiler):
             z_array.allocation,
             x_array.dtype.numpy_dtype(a_scalar),
             x_array.dtype.numpy_dtype(b_scalar),
+            x_array.shape_allocation,
+            x_array.strides_allocation,
+            y_array.shape_allocation,
+            y_array.strides_allocation,
+            z_array.shape_allocation,
+            z_array.strides_allocation,
+            x_array.ndim,
             numpy.uint32(size))
 
 
@@ -170,15 +183,15 @@ class EltwiseMult(dolphin.EltwiseMultCompiler):
 
         for dtype in dolphin.dtype:
             self._func[dtype.cuda_dtype] = self.compiled_source.get_function(
-                self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare("PPPI")
+                self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare("PPPPPPPPPII")
 
     def __call__(self,
                  x_array: 'darray',
                  y_array: 'darray',
                  z_array: 'darray',
                  size: numpy.uint32,
-                 block: tuple,
-                 grid: tuple,
+                 block: Tuple[int, int, int],
+                 grid: Tuple[int, int],
                  stream: cuda.Stream = None) -> None:
 
         self._func[x_array.dtype.cuda_dtype].prepared_async_call(
@@ -188,6 +201,13 @@ class EltwiseMult(dolphin.EltwiseMultCompiler):
             x_array.allocation,
             y_array.allocation,
             z_array.allocation,
+            x_array.shape_allocation,
+            x_array.strides_allocation,
+            y_array.shape_allocation,
+            y_array.strides_allocation,
+            z_array.shape_allocation,
+            z_array.strides_allocation,
+            x_array.ndim,
             numpy.uint32(size))
 
 
@@ -200,15 +220,15 @@ class EltwiseDiv(dolphin.EltwiseDivCompiler):
 
         for dtype in dolphin.dtype:
             self._func[dtype.cuda_dtype] = self.compiled_source.get_function(
-                self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare("PPPIP")
+                self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare("PPPPPPPPPIIP")
 
     def __call__(self,
                  x_array: 'darray',
                  y_array: 'darray',
                  z_array: 'darray',
                  size: numpy.uint32,
-                 block: tuple,
-                 grid: tuple,
+                 block: Tuple[int, int, int],
+                 grid: Tuple[int, int],
                  stream: cuda.Stream = None) -> None:
 
         cuda.memcpy_htod_async(self._error, numpy.uint8(0), stream)
@@ -219,6 +239,13 @@ class EltwiseDiv(dolphin.EltwiseDivCompiler):
             x_array.allocation,
             y_array.allocation,
             z_array.allocation,
+            x_array.shape_allocation,
+            x_array.strides_allocation,
+            y_array.shape_allocation,
+            y_array.strides_allocation,
+            z_array.shape_allocation,
+            z_array.strides_allocation,
+            x_array.ndim,
             numpy.uint32(size),
             self._error)
 
@@ -241,15 +268,15 @@ class ScalDiv(dolphin.ScalDivCompiler):
         for dtype in dolphin.dtype:
             self._func[dtype.cuda_dtype] = self.compiled_source.get_function(
                 self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare(
-                    "PP" + numpy.dtype(dtype.numpy_dtype).char + "I")
+                    "PPPPPP" + numpy.dtype(dtype.numpy_dtype).char + "II")
 
     def __call__(self,
                  x_array: 'darray',
                  z_array: 'darray',
                  a_scalar: numpy.number,
                  size: numpy.uint32,
-                 block: tuple,
-                 grid: tuple,
+                 block: Tuple[int, int, int],
+                 grid: Tuple[int, int],
                  stream: cuda.Stream = None) -> None:
 
         self._func[x_array.dtype.cuda_dtype].prepared_async_call(
@@ -258,7 +285,12 @@ class ScalDiv(dolphin.ScalDivCompiler):
             stream,
             x_array.allocation,
             z_array.allocation,
+            x_array.shape_allocation,
+            x_array.strides_allocation,
+            z_array.shape_allocation,
+            z_array.strides_allocation,
             x_array.dtype.numpy_dtype(a_scalar),
+            x_array.ndim,
             numpy.uint32(size))
 
 
@@ -272,15 +304,15 @@ class InvScalDiv(dolphin.InvScalDivCompiler):
         for dtype in dolphin.dtype:
             self._func[dtype.cuda_dtype] = self.compiled_source.get_function(
                 self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare(
-                    "PP" + numpy.dtype(dtype.numpy_dtype).char + "IP")
+                    "PPPPPP" + numpy.dtype(dtype.numpy_dtype).char + "IIP")
 
     def __call__(self,
                  x_array: 'darray',
                  z_array: 'darray',
                  a_scalar: numpy.number,
                  size: numpy.uint32,
-                 block: tuple,
-                 grid: tuple,
+                 block: Tuple[int, int, int],
+                 grid: Tuple[int, int],
                  stream: cuda.Stream = None) -> None:
 
         cuda.memcpy_htod_async(self._error, numpy.uint8(0), stream)
@@ -290,11 +322,17 @@ class InvScalDiv(dolphin.InvScalDivCompiler):
             stream,
             x_array.allocation,
             z_array.allocation,
+            x_array.shape_allocation,
+            x_array.strides_allocation,
+            z_array.shape_allocation,
+            z_array.strides_allocation,
             x_array.dtype.numpy_dtype(a_scalar),
+            x_array.ndim,
             numpy.uint32(size),
             self._error)
 
-        error = numpy.zeros(1, dtype=numpy.uint8)
+        error = numpy.empty((1,), dtype=numpy.uint8)
+        error.fill(0)
         cuda.memcpy_dtoh_async(error, self._error, stream)
 
         if error[0] == 1:
@@ -319,14 +357,14 @@ class EltWiseCast(dolphin.EltWiseCastCompiler):
                             self.compiled_source.get_function(
                                 dtype.cuda_dtype +
                                 self.__CU_FUNC_NAME +
-                                dtype2.cuda_dtype).prepare("PPI")
+                                dtype2.cuda_dtype).prepare("PPPPPPII")
 
     def __call__(self,
                  x_array: 'darray',
                  z_array: 'darray',
                  size: numpy.uint32,
-                 block: tuple,
-                 grid: tuple,
+                 block: Tuple[int, int, int],
+                 grid: Tuple[int, int],
                  stream: cuda.Stream = None) -> None:
 
         self._func[x_array.dtype.cuda_dtype + self.__CU_FUNC_NAME +
@@ -336,6 +374,11 @@ class EltWiseCast(dolphin.EltWiseCastCompiler):
             stream,
             x_array.allocation,
             z_array.allocation,
+            x_array.shape_allocation,
+            x_array.strides_allocation,
+            z_array.shape_allocation,
+            z_array.strides_allocation,
+            x_array.ndim,
             numpy.uint32(size))
 
 
@@ -347,14 +390,14 @@ class EltwiseAbs(dolphin.EltwiseAbsCompiler):
 
         for dtype in dolphin.dtype:
             self._func[dtype.cuda_dtype] = self.compiled_source.get_function(
-                self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare("PPI")
+                self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare("PPPPPPII")
 
     def __call__(self,
                  x_array: 'darray',
                  z_array: 'darray',
                  size: numpy.uint32,
-                 block: tuple,
-                 grid: tuple,
+                 block: Tuple[int, int, int],
+                 grid: Tuple[int, int],
                  stream: cuda.Stream = None) -> None:
 
         self._func[x_array.dtype.cuda_dtype].prepared_async_call(
@@ -363,145 +406,89 @@ class EltwiseAbs(dolphin.EltwiseAbsCompiler):
             stream,
             x_array.allocation,
             z_array.allocation,
+            x_array.shape_allocation,
+            x_array.strides_allocation,
+            z_array.shape_allocation,
+            z_array.strides_allocation,
+            x_array.ndim,
             numpy.uint32(size))
 
 
-class Transpose(dolphin.TransposeCompiler):
-    __CU_FUNC_NAME: str = "transpose_"
+class DiscontiguousCopy(dolphin.DiscontiguousCopyCompiler):
+    __CU_FUNC_NAME: str = "discontiguous_copy_"
 
     def __init__(self):
-
         super().__init__()
 
         for dtype in dolphin.dtype:
             self._func[dtype.cuda_dtype] = self.compiled_source.get_function(
-                self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare("PPPPII")
-
-    def __call__(self,
-                 x_array: 'darray',
-                 y_array: 'darray',
-                 shape: cuda.DeviceAllocation,
-                 strides: cuda.DeviceAllocation,
-                 ndim: numpy.uint32,
-                 size: numpy.uint32,
-                 block: tuple,
-                 grid: tuple,
-                 stream: cuda.Stream = None) -> None:
-
-        self._func[x_array.dtype.cuda_dtype].prepared_async_call(
-            grid,
-            block,
-            stream,
-            x_array.allocation,
-            y_array.allocation,
-            shape,
-            strides,
-            numpy.uint32(ndim),
-            numpy.uint32(size))
-
-
-class Indexer(dolphin.IndexerCompiler):
-    __CU_FUNC_NAME: str = "indexer_"
-
-    def __init__(self):
-
-        super().__init__()
-
-        for dtype in dolphin.dtype:
-            self._func[dtype.cuda_dtype] = self.compiled_source.get_function(
-                self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare("PPPPII")
+                self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare("PPPPPPIIII")
 
     def __call__(self,
                  src: 'darray',
                  dst: 'darray',
-                 offset: int,
-                 shape: cuda.DeviceAllocation,
-                 strides: cuda.DeviceAllocation,
-                 ndim: numpy.uint32,
-                 size: numpy.uint32,
-                 block: tuple,
-                 grid: tuple,
+                 block: Tuple[int, int, int],
+                 grid: Tuple[int, int],
                  stream: cuda.Stream = None) -> None:
 
         self._func[src.dtype.cuda_dtype].prepared_async_call(
             grid,
             block,
             stream,
-            int(src.allocation) + offset * src.dtype.itemsize,
+            src.allocation,
             dst.allocation,
-            shape,
-            strides,
-            numpy.uint32(ndim),
-            size)
+            src.shape_allocation,
+            src.strides_allocation,
+            dst.shape_allocation,
+            dst.strides_allocation,
+            src.ndim,
+            dst.ndim,
+            src.size,
+            dst.size)
 
 
-class darray(dolphin.CudaBase):
+class darray:
     """
-    ## darray
-
     This class implements a generic numpy style array that can be used
     with the `dolphin` library. It implements common features available
     with numpy arrays such as `astype`, `transpose`, `copy`...
-
-    ### Constructor
-
-    `darray` constructor can be created with the following parameters::
-        array: numpy.ndarray = None
-        shape: tuple = None
-        dtype: dolphin.dtype = None
-        stream: cuda.Stream = None
-        allocation: cuda.DeviceAllocation = None
-
-    ### Overview
 
     `darray` is made with the same philosophy as `numpy.ndarray`. The usability
     is really close to numpy arrays. However, `darray` is meant to be much more
     performant than `numpy.ndarray` since it is GPU accelerated.
 
-    ### Proporties
+    This is how to simply create a `darray` object::
 
-    `darray` has the following proporties::
+      import dolphin as dp
+      import numpy as np
 
-        strides: tuple
-            Strides of the array
-        shape: tuple
-            Shape of the array
-        dtype: dolphin.dtype
-            Dtype of the array
-        size: int
-            Number of elements in the array
-        nbytes: int
-            Number of bytes in the array
-        stream: cuda.Stream
-            Stream used for the operations
-        allocation: cuda.DeviceAllocation
-            Allocation of the array on the device
+      # Create a darray from a numpy array
+      x = dp.darray(array=np.random.randn(10, 10))
 
-    ### Methods
+      # Create a darray from a shape and a dtype
+      x = dp.darray(shape=(10, 10), dtype=dp.float32)
 
-    The methods `darray` currently supports are::
+      # Create a darray from a shape and a dtype and allocate memory
+      # x and y will share the same allocation
+      x = dp.darray(shape=(10, 10), dtype=dp.float32)
+      y = dp.darray(shape=(10, 10), dtype=dp.float32, allocation=x.allocation)
 
-        from_numpy(array: numpy.ndarray) -> None
-            Creates a darray from a numpy array.
-        astype(dtype: dolphin.dtype, dst: 'darray' = None) -> 'darray'
-            Casts the array to a new dtype.
-        transpose(*axes: int, dst: 'darray' = None) -> 'darray'
-            Transposes the array.
-        copy() -> 'darray'
-            Copies the array.
-        add(other: 'darray', dst: 'darray' = None) -> 'darray'
-            Adds the array to another array or a scalar.
-        subtract(other: 'darray', dst: 'darray' = None) -> 'darray'
-            Subtracts the array to another array or a scalar.
-        multiply(other: 'darray', dst: 'darray' = None) -> 'darray'
-            Multiplies the array to another array or a scalar.
-        divide(other: 'darray', dst: 'darray' = None) -> 'darray'
-            Divides the array to another array or a scalar.
-        reversed_divide(other: 'darray', dst: 'darray' = None) -> 'darray'
-            Divides another array or a scalar to the array.
-        reversed_subtract(other: 'darray', dst: 'darray' = None) -> 'darray'
-            Subtracts another array or a scalar to the array.
+    :param shape: Shape of the darray, defaults to None
+    :type shape: Tuple[int, ...], optional
+    :param dtype: dtype of the darray, defaults to None
+    :type dtype: dolphin.dtype, optional
+    :param stream: CUDA stream to use, defaults to None
+    :type stream: cuda.Stream, optional
+    :param array: numpy array to copy, defaults to None
+    :type array: numpy.ndarray, optional
+    :param strides: strides of the darray, defaults to None
+    :type strides: Tuple[int, ...], optional
+    :param allocation: CUDA allocation to use, defaults to None
+    :type allocation: cuda.DeviceAllocation, optional
+    :param allocation_size: Size of the allocation, defaults to None
+    :type allocation_size: int, optional
     """
+
     _cu_axpbz = AXpBZ()
     _cu_axpbyz = AXpBYZ()
     _cu_eltwise_mult = EltwiseMult()
@@ -510,53 +497,91 @@ class darray(dolphin.CudaBase):
     _cu_invscal_div = InvScalDiv()
     _cu_eltwise_cast = EltWiseCast()
     _cu_eltwise_abs = EltwiseAbs()
-    _cu_transpose = Transpose()
     _cu_fill = CuFill()
-    _cu_indexer = Indexer()
+    _cu_discontiguous_copy = DiscontiguousCopy()
 
     def __init__(self,
-                 shape: tuple = None,
+                 shape: Tuple[int, ...] = None,
                  dtype: dolphin.dtype = dolphin.dtype.float32,
                  stream: cuda.Stream = None,
                  array: numpy.ndarray = None,
-                 allocation: cuda.DeviceAllocation = None
+                 strides: Tuple[int, ...] = None,
+                 allocation: cuda.DeviceAllocation = None,
+                 allocation_size: cuda.DeviceAllocation = None
                  ) -> None:
-
-        super().__init__()
 
         if array is not None:
             dtype = dtype.from_numpy_dtype(array.dtype)
             shape = array.shape
 
         self._stream: cuda.Stream = stream
-        self._dtype: dtype = dtype
-        self._shape: tuple = shape
+        self._dtype: dolphin.dtype = dtype
+        self._shape: Tuple[int, ...] = shape
         self._size: int = trt.volume(self._shape)
         self._nbytes: int = int(self._size * self._dtype.itemsize)
+
+        if strides is None:
+            self._strides: Tuple[int, ...] = self.compute_strides(self._shape)
+        else:
+            self._strides: Tuple[int, ...] = strides
+
+        if allocation_size is not None:
+            self._allocation_size: int = allocation_size
+        else:
+            self._allocation_size: int = self._nbytes
 
         if allocation is not None:
             self._allocation: cuda.DeviceAllocation = allocation
         else:
             self._allocation: cuda.DeviceAllocation = cuda.mem_alloc(
-                self._nbytes)
+                self._allocation_size)
 
         if array is not None:
             cuda.memcpy_htod_async(self._allocation,
-                                   array,
+                                   array.flatten(order="C"),
                                    self._stream)
 
-        self._block, self._grid = self.GET_BLOCK_GRID_1D(self._size)
+        self._block, self._grid = dolphin.CudaBase.GET_BLOCK_GRID_1D(
+            self._size)
+
+        self._strides_allocation = cuda.mem_alloc(self.ndim * 4)
+        self._shape_allocation = cuda.mem_alloc(self.ndim * 4)
+
+        cuda.memcpy_htod_async(self._strides_allocation,
+                               numpy.array(self._strides, dtype=numpy.uint32),
+                               self._stream)
+        cuda.memcpy_htod_async(self._shape_allocation,
+                               numpy.array(self._shape, dtype=numpy.uint32),
+                               self._stream)
 
     @staticmethod
-    def compute_strides(shape: tuple) -> tuple:
+    def broadcastable(shape_1: Tuple[int, ...], shape_2: Tuple[int, ...]
+                      ) -> bool:
+        """Checks if two shapes are broadcastable.
+
+        :param shape_1: First shape
+        :type shape_1: Tuple[int, ...]
+        :param shape_2: Second shape
+        :type shape_2: Tuple[int, ...]
+        :return: True if the shapes are broadcastable, False otherwise
+        :rtype: bool
+        """
+        for i in range(min(len(shape_1), len(shape_2))):
+            if (shape_1[-i] != shape_2[-i] and
+               shape_1[-i] != 1 and shape_2[-i] != 1):
+                return False
+        return True
+
+    @staticmethod
+    def compute_strides(shape: Tuple[int, ...]) -> Tuple[int, ...]:
         """Computes the strides of an array from the shape.
         The strides are the number of elements to skip to get to the next
         element. Also, the strides are in elements, not bytes.
 
         :param shape: shape of the ndarray
-        :type shape: tuple
+        :type shape: Tuple[int, ...]
         :return: Strides
-        :rtype: tuple
+        :rtype: Tuple[int, ...]
         """
         if shape:
             strides = [1]
@@ -566,160 +591,46 @@ class darray(dolphin.CudaBase):
 
         return ()
 
-    def from_numpy(self, array: numpy.ndarray) -> None:
-        """Writes allocation from a numpy array.
-        If the array is not the same shape or dtype as the darray,
-        an error is raised.
+    @property
+    def shape_allocation(self) -> cuda.DeviceAllocation:
+        """Property to access the cuda allocation of the shape.
 
-        :param array: Numpy array create the darray from
-        :type array: numpy.ndarray
+        :return: The cuda allocation of the shape
+        :rtype: cuda.DeviceAllocation
         """
-
-        if array.shape != self._shape:
-            raise ValueError(
-                f"array shape doesn't match darray : {array.shape} \
-                    != {self.shape}")
-
-        if dolphin.dtype.from_numpy_dtype(array.dtype) != self._dtype:
-            raise ValueError(
-                f"array does not match the dtype : {array.dtype} \
-                    != {self.dtype}")
-
-        cuda.memcpy_htod_async(self._allocation,
-                               array.flatten(order="C"),
-                               self._stream)
-
-    def astype(self, dtype: dolphin.dtype,
-               dst: 'darray' = None) -> 'darray':
-        """Converts the darray to a different dtype.
-        Note that a copy from device to device is performed.
-
-        :param dtype: Dtype to convert the darray to
-        :type dtype: dolphin.dtype
-        """
-
-        if dst is not None and self._shape != dst.shape:
-            raise ValueError(
-                f"dst shape doesn't match darray : \
-{self.shape} != {dst.shape}")
-
-        if dst is not None and dtype != dst.dtype:
-            raise ValueError(
-                f"dst does not match the dtype : {self.dtype} != {dst.dtype}")
-
-        if dtype == self._dtype:
-            if dst is None:
-                return self.copy()
-
-            cuda.memcpy_dtod_async(dst.allocation,
-                                   self._allocation,
-                                   self._nbytes,
-                                   self._stream)
-            return dst
-
-        if dst is None:
-            dst = self.__class__(shape=self._shape,
-                                 dtype=dtype,
-                                 stream=self._stream)
-
-        self._cu_eltwise_cast(self,
-                              dst,
-                              self._size,
-                              block=self._block,
-                              grid=self._grid,
-                              stream=self._stream)
-
-        return dst
-
-    def transpose(self, *axes: int, dst: 'darray' = None) -> 'darray':
-        """Transposes the darray according to the axes.
-
-        :param axes: Axes to permute
-        :type axes: Tuple[int]
-        :return: Transposed darray
-        :rtype: darray
-        """
-
-        if len(axes) != len(self._shape):
-            raise ValueError("axes don't match array")
-
-        if not all(isinstance(v, int) for v in axes):
-            raise ValueError("axes must be integers")
-
-        strides = self.strides
-        new_shape = [self.shape[i] for i in axes]
-        new_strides = [strides[i] for i in axes]
-
-        if dst is not None:
-            if dst.shape != tuple(new_shape):
-                raise ValueError("dst shape doesn't match")
-            if dst.dtype != self.dtype:
-                raise ValueError("dst dtype doesn't match")
-
-        new_shape = numpy.array(new_shape,
-                                dtype=numpy.uint32)
-        new_strides = numpy.array(new_strides,
-                                  dtype=numpy.uint32)
-
-        new_shape_allocation = cuda.mem_alloc(new_shape.nbytes)
-        new_strides_allocation = cuda.mem_alloc(new_strides.nbytes)
-
-        cuda.memcpy_htod_async(new_shape_allocation,
-                               new_shape,
-                               self._stream)
-        cuda.memcpy_htod_async(new_strides_allocation,
-                               new_strides,
-                               self._stream)
-        if dst is not None:
-            res = dst
-        else:
-            res = self.__class__(shape=tuple(new_shape),
-                                 dtype=self._dtype,
-                                 stream=self._stream)
-
-        self._cu_transpose(
-            self,
-            res,
-            new_shape_allocation,
-            new_strides_allocation,
-            len(new_shape),
-            self._size,
-            block=self._block,
-            grid=self._grid,
-            stream=self._stream)
-
-        return res
-
-    def copy(self) -> 'darray':
-        """Returns a copy of the current darray.
-        Note that a copy from device to device is performed.
-
-        :return: Copy of the array with another cuda allocation
-        :rtype: darray
-        """
-        res = self.__class__(shape=self._shape,
-                             dtype=self._dtype,
-                             stream=self._stream)
-
-        cuda.memcpy_dtod_async(res.allocation,
-                               self._allocation,
-                               self._nbytes,
-                               stream=self._stream)
-
-        return res
+        return self._shape_allocation
 
     @property
-    def strides(self) -> tuple:
+    def strides_allocation(self) -> cuda.DeviceAllocation:
+        """Property to access the cuda allocation of the strides.
+
+        :return: The cuda allocation of the strides
+        :rtype: cuda.DeviceAllocation
+        """
+        return self._strides_allocation
+
+    @property
+    def ndim(self) -> numpy.uint32:
+        """Computes the number of dimensions of the array.
+
+        :return: Number of dimensions of the array
+        :rtype: numpy.uint32
+        """
+        return len(self.shape)
+
+    @property
+    def strides(self) -> Tuple[int, ...]:
         """Property to access the strides of the array.
 
-        :return: _description_
-        :rtype: _type_
+        :return: Strides of the array
+        :rtype: Tuple[int, ...]
         """
-        return self.compute_strides(self._shape)
+        return self._strides
 
     @property
     def allocation(self) -> cuda.DeviceAllocation:
-        """Property to access the cuda allocation of the array
+        """Property to access (Read/Write) the cuda
+        allocation of the array
 
         :return: The cuda allocation of the array
         :rtype: cuda.DeviceAllocation
@@ -727,14 +638,14 @@ class darray(dolphin.CudaBase):
         return self._allocation
 
     @property
-    def size(self) -> int:
+    def size(self) -> numpy.uint32:
         """Property to access the size of the array.
         Size is defined as the number of elements in the array.
 
         :return: The size of the array, in terms of number of elements
-        :rtype: int
+        :rtype: numpy.uint32
         """
-        return self._size
+        return numpy.uint32(self._size)
 
     @property
     def dtype(self) -> dolphin.dtype:
@@ -746,27 +657,13 @@ class darray(dolphin.CudaBase):
         return self._dtype
 
     @property
-    def shape(self) -> tuple:
+    def shape(self) -> Tuple[int, ...]:
         """Property to access the shape of the array
 
         :return: Shape of the array
-        :rtype: tuple
+        :rtype: Tuple[int, ...]
         """
         return self._shape
-
-    def to_numpy(self) -> numpy.ndarray:
-        """Converts the darray to a numpy.ndarray.
-        Note that a copy from the device to the host is performed.
-
-        :return: numpy.ndarray of the darray
-        :rtype: numpy.ndarray
-        """
-        res = numpy.empty(self._shape, dtype=self._dtype.numpy_dtype)
-
-        cuda.memcpy_dtoh_async(res,
-                               self._allocation,
-                               self._stream)
-        return res
 
     @property
     def np(self) -> numpy.ndarray:
@@ -790,7 +687,7 @@ class darray(dolphin.CudaBase):
 
     @property
     def stream(self) -> cuda.Stream:
-        """Property to access the cuda stream of the array
+        """Property to access (Read/Write) the cuda stream of the array
 
         :return: Stream used by the darray
         :rtype: cuda.Stream
@@ -802,9 +699,9 @@ class darray(dolphin.CudaBase):
         """Performs a transpose operation on the darray.
         This transpose reverse the order of the axes::
 
-            >>> a = darray(shape=(2, 3, 4))
-            >>> a.T.shape
-            (4, 3, 2)
+            a = darray(shape=(2, 3, 4))
+            a.T.shape
+            >>> (4, 3, 2)
 
         Also, please note that this function is not efficient as
         it performs a copy of the `darray`.
@@ -844,6 +741,267 @@ class darray(dolphin.CudaBase):
         """
         self.from_numpy(array)
 
+    def to_numpy(self) -> numpy.ndarray:
+        """Converts the darray to a numpy.ndarray.
+        Note that a copy from the device to the host is performed.
+
+        :return: numpy.ndarray of the darray
+        :rtype: numpy.ndarray
+        """
+        res = numpy.empty((self._allocation_size//self.dtype.itemsize,),
+                          dtype=self._dtype.numpy_dtype)
+
+        cuda.memcpy_dtoh_async(res,
+                               self._allocation,
+                               self._stream)
+
+        temp_s = tuple([s*self._dtype.itemsize for s in self._strides])
+        return numpy.lib.stride_tricks.as_strided(
+            res,
+            shape=self._shape,
+            strides=temp_s)
+
+    def from_numpy(self, array: numpy.ndarray) -> None:
+        """Writes allocation from a numpy array.
+        If the array is not the same shape or dtype as the darray,
+        an error is raised.
+
+        :param array: Numpy array create the darray from
+        :type array: numpy.ndarray
+        """
+
+        if array.shape != self._shape:
+            raise ValueError(
+                f"array shape doesn't match darray : {array.shape} \
+                    != {self.shape}")
+
+        if dolphin.dtype.from_numpy_dtype(array.dtype) != self._dtype:
+            raise ValueError(
+                f"array does not match the dtype : {array.dtype} \
+                    != {self.dtype}")
+
+        cuda.memcpy_htod_async(self._allocation,
+                               array.flatten(order="C"),
+                               self._stream)
+
+    def astype(self, dtype: dolphin.dtype,
+               dst: 'darray' = None) -> 'darray':
+        """Converts the darray to a different dtype.
+        Note that a copy from device to device is performed.
+
+        :param dtype: dtype to convert to
+        :type dtype: dolphin.dtype
+        :param dst: darray to write the result of the operation,
+          defaults to None
+        :type dst: darray, optional
+        :raises ValueError: In case the dst shape or dtype doesn't match
+        :return: darray with the new dtype
+        :rtype: darray
+        """
+
+        if dst is not None and self._shape != dst.shape:
+            raise ValueError(
+                f"dst shape doesn't match darray : \
+{self.shape} != {dst.shape}")
+
+        if dst is not None and dtype != dst.dtype:
+            raise ValueError(
+                f"dst does not match the dtype : {self.dtype} != {dst.dtype}")
+
+        if dtype == self._dtype:
+            if dst is None:
+                return self.copy()
+
+            cuda.memcpy_dtod_async(dst.allocation,
+                                   self._allocation,
+                                   self._nbytes,
+                                   self._stream)
+            return dst
+
+        if dst is None:
+            dst = self.__class__(shape=self._shape,
+                                 dtype=dtype,
+                                 stream=self._stream)
+
+        self._cu_eltwise_cast(self,
+                              dst,
+                              self._size,
+                              block=self._block,
+                              grid=self._grid,
+                              stream=self._stream)
+
+        return dst
+
+    def transpose(self, *axes: int) -> 'darray':
+        """Transposes the darray according to the axes.
+
+        :param axes: Axes to permute
+        :type axes: Tuple[int]
+        :return: Transposed darray
+        :rtype: darray
+        """
+
+        if len(axes) != len(self._shape):
+            raise ValueError("axes don't match array")
+
+        if not all(isinstance(v, int) for v in axes):
+            raise ValueError("axes must be integers")
+
+        if len(set(axes)) != len(axes):
+            raise ValueError("repeated axis in transpose")
+
+        strides = self._strides
+        new_shape = [self.shape[i] for i in axes]
+        new_strides = [strides[i] for i in axes]
+
+        res = self.__class__(shape=tuple(new_shape),
+                             dtype=self._dtype,
+                             stream=self._stream,
+                             strides=new_strides,
+                             allocation=self._allocation)
+
+        return res
+
+    def copy(self) -> 'darray':
+        """Returns a copy of the current darray.
+        Note that a copy from device to device is performed.
+
+        :return: Copy of the array with another cuda allocation
+        :rtype: darray
+        """
+        res = self.__class__(shape=self._shape,
+                             dtype=self._dtype,
+                             strides=self._strides,
+                             allocation_size=self._allocation_size,
+                             stream=self._stream)
+
+        cuda.memcpy_dtod_async(res.allocation,
+                               self._allocation,
+                               self._allocation_size,
+                               stream=self._stream)
+
+        return res
+
+    def __getitem__(self, index: Union[int, slice, tuple]) -> 'darray':
+        """Returns a view of the darray with the given index.
+
+        :param index: Index to use
+        :type index: Union[int, slice, tuple]
+        :raises IndexError: Too many indexes. The number of indexes
+            must be less than the number of dimensions of the array.
+        :raises IndexError: Axes must be in the range of the number
+            of dimensions of the array.
+        :return: View of the darray
+        :rtype: darray
+        """
+        if not isinstance(index, tuple):
+            index = (index,)
+
+        new_shape = []
+        new_offset = 0
+        new_strides = []
+
+        seen_ellipsis = False
+
+        index_axis = 0
+        array_axis = 0
+        while index_axis < len(index):
+            index_entry = index[index_axis]
+
+            if array_axis > len(self.shape):
+                raise IndexError("too many axes in index")
+
+            if isinstance(index_entry, slice):
+                start, stop, idx_stride = index_entry.indices(
+                    self.shape[array_axis])
+
+                array_stride = self.strides[array_axis]
+
+                new_shape.append((abs(stop - start) - 1) //
+                                 abs(idx_stride) + 1)
+                new_strides.append(idx_stride * array_stride)
+                new_offset += array_stride * start
+
+                index_axis += 1
+                array_axis += 1
+
+            elif isinstance(index_entry, (int, numpy.integer)):
+                array_shape = self.shape[array_axis]
+                if index_entry < 0:
+                    index_entry += array_shape
+
+                if not (0 <= index_entry < array_shape):
+                    raise IndexError(f"subindex in axis {index_axis} \
+out of range")
+
+                new_offset += self.strides[array_axis] * index_entry
+
+                index_axis += 1
+                array_axis += 1
+
+            elif index_entry is Ellipsis:
+                index_axis += 1
+
+                remaining_index_count = len(index) - index_axis
+                new_array_axis = len(self.shape) - remaining_index_count
+                if new_array_axis < array_axis:
+                    raise IndexError("invalid use of ellipsis in index")
+                while array_axis < new_array_axis:
+                    new_shape.append(self.shape[array_axis])
+                    new_strides.append(self.strides[array_axis])
+                    array_axis += 1
+
+                if seen_ellipsis:
+                    raise IndexError("more than one ellipsis \
+not allowed in index")
+                seen_ellipsis = True
+
+            elif index_entry is numpy.newaxis:
+                new_shape.append(1)
+                new_strides.append(0)
+                index_axis += 1
+
+            else:
+                raise IndexError(f"invalid subindex in axis {index_axis}")
+
+        while array_axis < len(self.shape):
+            new_shape.append(self.shape[array_axis])
+            new_strides.append(self.strides[array_axis])
+
+            array_axis += 1
+
+        return darray(
+            shape=tuple(new_shape),
+            dtype=self.dtype,
+            strides=tuple(new_strides),
+            allocation=int(self.allocation) + new_offset,
+            allocation_size=self._allocation_size
+        )
+
+    def __setitem__(self, index: Union[int, slice, tuple],
+                    other: Union[int, float, numpy.number, 'darray']) -> None:
+        """Sets the value of the darray with the given index.
+
+        :param index: Index to use
+        :type index: Union[int, slice, tuple]
+        :param other: Value to set
+        :type other: Union[int, float, numpy.number, darray]
+        :return: View of the darray
+        :rtype: darray
+        """
+
+        if isinstance(other, (numpy.number, int, float)):
+            self[index].fill(other)
+        elif isinstance(other, darray):
+            if not self.broadcastable(self.shape, other.shape):
+                raise ValueError(f"operands could not be broadcast together \
+with shapes {self.shape}, {other.shape}")
+            self._cu_discontiguous_copy(src=other,
+                                        dst=self[index],
+                                        block=self._block,
+                                        grid=self._grid,
+                                        stream=self._stream)
+
     def __str__(self) -> str:
         """Returns the string representation of the numpy array.
         Note that a copy from the device to the host is performed.
@@ -862,12 +1020,35 @@ class darray(dolphin.CudaBase):
         """
         return self.to_numpy().__repr__()  # pylint: disable=E1120
 
+    def flatten(self, dst: 'darray' = None) -> 'darray':
+        """Returns a flattened view of the darray. Useful for
+        reordering the array in memory.
+
+        :param dst: Destination darray
+        :type dst: darray
+        :return: Flattened view of the darray
+        :rtype: darray
+        """
+        if dst is None:
+            dst = darray(shape=(self.size,),
+                         dtype=self.dtype,
+                         allocation=self._allocation,
+                         allocation_size=self._allocation_size)
+
+        self._cu_discontiguous_copy(src=self,
+                                    dst=dst,
+                                    block=self._block,
+                                    grid=self._grid,
+                                    stream=self._stream)
+
+        return dst
+
     def fill(self, value: Union[int, float, numpy.number]) -> 'darray':
         """
         Fills the darray with the value of value.
 
         :param value: Value to fill the array with
-        :type value: object
+        :type value: Union[int, float, numpy.number]
         :return: Filled darray
         :rtype: darray
         """
@@ -885,7 +1066,7 @@ class darray(dolphin.CudaBase):
 
         return self
 
-    def add(self, other: object,
+    def add(self, other: Union[int, float, numpy.number, 'darray'],
             dst: 'darray' = None) -> 'darray':
         """Efficient addition of a darray with another object.
         Can be a darray or a scalar. If dst is None, normal __add__
@@ -898,7 +1079,7 @@ class darray(dolphin.CudaBase):
         :param dst: darray where to write the result
         :type dst: darray
         :param other: numpy.ndarray or scalar to add
-        :type other: [scalar, numpy.ndarray]
+        :type other: Union[int, float, numpy.number, 'darray']
         :raises ValueError: If the size, dtype or shape of dst is not matching
         :return: darray where the result is written. Can be dst or self
         :rtype: darray
@@ -957,7 +1138,8 @@ class darray(dolphin.CudaBase):
 
         return dst
 
-    def __add__(self, other: object) -> 'darray':
+    def __add__(self, other: Union[int, float, numpy.number, 'darray']
+                ) -> 'darray':
         """Non-Efficient addition of a darray with another object.
         It is not efficient because it implies a copy of the array
         where the result is written. cuda.memalloc is really time
@@ -965,24 +1147,24 @@ class darray(dolphin.CudaBase):
         cuda.memalloc only)
 
         :param other: scalar or darray to add
-        :type other: [scalar, darray]
+        :type other: Union[int, float, numpy.number, 'darray']
         :raises ValueError: If other is not a scalar or a darray
         :return: A copy of the darray where the result is written
         :rtype: darray
         """
-
         return self.add(other)
 
-    __radd__ = __add__  # object + array
+    __radd__ = __add__
 
-    def __iadd__(self, other: object) -> 'darray':
+    def __iadd__(self, other: Union[int, float, numpy.number, 'darray']
+                 ) -> 'darray':
         """Implements += operator. As __add__, this method is not
         efficient because it implies a copy of the array where the
         usage of cuda.memalloc which is really time consuming
         (up to 95% of the total latency is spent in cuda.memalloc only)
 
         :param other: scalar or darray to add
-        :type other: [scalar, darray]
+        :type other: Union[int, float, numpy.number, 'darray']
         :raises ValueError: If other is not a scalar or a darray
         :return: The darray where the result is written
         :rtype: darray
@@ -990,12 +1172,12 @@ class darray(dolphin.CudaBase):
 
         return self.add(other, self)
 
-    def substract(self, other: object,
+    def substract(self, other: Union[int, float, numpy.number, 'darray'],
                   dst: 'darray' = None) -> 'darray':
         """Efficient substraction of a darray with another object.
 
         :param other: scalar or darray to substract
-        :type other: [scalar, darray]
+        :type other: Union[int, float, numpy.number, 'darray']
         :param dst: darray where the result is written
         :type dst: darray
         :raises ValueError: If other is not a scalar or a darray
@@ -1057,7 +1239,8 @@ class darray(dolphin.CudaBase):
 
     sub = substract
 
-    def __sub__(self, other: object) -> 'darray':  # array - object
+    def __sub__(self, other: Union[int, float, numpy.number, 'darray']
+                ) -> 'darray':  # array - object
         """Non-Efficient substraction of a darray with another object.
         It is not efficient because it implies a copy of the array
         where the result is written. cuda.memalloc is really time
@@ -1065,7 +1248,7 @@ class darray(dolphin.CudaBase):
         cuda.memalloc only)
 
         :param other: scalar or darray to substract
-        :type other: [scalar, darray]
+        :type other: Union[int, float, numpy.number, 'darray']
         :raises ValueError: If other is not a scalar or a darray
         :return: A copy of the darray where the result is written
         :rtype: darray
@@ -1073,7 +1256,8 @@ class darray(dolphin.CudaBase):
 
         return self.substract(other)
 
-    def reversed_substract(self, other: object,
+    def reversed_substract(self,
+                           other: Union[int, float, numpy.number, 'darray'],
                            dst: 'darray' = None) -> 'darray':
         """Efficient reverse substraction of an object with darray.
         It is efficient if dst is provided because it does not
@@ -1081,7 +1265,7 @@ class darray(dolphin.CudaBase):
         If dst is not provided, normal __rsub__ is called.
 
         :param other: scalar or darray to substract
-        :type other: [scalar, darray]
+        :type other: Union[int, float, numpy.number, 'darray']
         :param dst: darray where the result is written
         :type dst: darray
         :raises ValueError: If other is not a scalar or a darray
@@ -1124,7 +1308,8 @@ class darray(dolphin.CudaBase):
 '{type(self).__name__}' and '{type(other).__name__}'")
         return dst
 
-    def __rsub__(self, other: object) -> 'darray':  # object - array
+    def __rsub__(self, other: Union[int, float, numpy.number, 'darray']
+                 ) -> 'darray':  # object - array
         """Non-Efficient substraction of another object with darray.
         It is not efficient because it implies a copy of the array
         where the result is written. cuda.memalloc is really time
@@ -1132,14 +1317,15 @@ class darray(dolphin.CudaBase):
         cuda.memalloc only)
 
         :param other: scalar or darray to substract
-        :type other: [scalar, darray]
+        :type other: Union[int, float, numpy.number, 'darray']
         :raises ValueError: If other is not a scalar or a darray
         :return: A copy of the darray where the result is written
         :rtype: darray
         """
         return self.reversed_substract(other)
 
-    def __isub__(self, other: object) -> 'darray':  # array -= object
+    def __isub__(self, other: Union[int, float, numpy.number, 'darray']
+                 ) -> 'darray':  # array -= object
         """Non-Efficient -= operation.
         It is not efficient because it implies a copy of the array
         where the result is written. cuda.memalloc is really time
@@ -1147,14 +1333,14 @@ class darray(dolphin.CudaBase):
         cuda.memalloc only)
 
         :param other: scalar or darray to substract
-        :type other: [scalar, darray]
+        :type other: Union[int, float, numpy.number, 'darray']
         :raises ValueError: If other is not a scalar or a darray
         :return: A copy of the darray where the result is written
         :rtype: darray
         """
         return self.substract(other, dst=self)
 
-    def multiply(self, other: object,
+    def multiply(self, other: Union[int, float, numpy.number, 'darray'],
                  dst: 'darray' = None) -> 'darray':  # array.multiply(object)
         """Efficient multiplication of a darray with another object.
         Can be a darray or a scalar. If dst is None, normal __add__
@@ -1167,7 +1353,7 @@ class darray(dolphin.CudaBase):
         :param dst: darray where to write the result
         :type dst: darray
         :param other: numpy.ndarray or scalar to multiply
-        :type other: [scalar, numpy.ndarray]
+        :type other: Union[int, float, numpy.number, 'darray']
         :raises ValueError: If the size, dtype or shape of dst is not matching
         :return: darray where the result is written. Can be dst or self
         :rtype: darray
@@ -1216,7 +1402,8 @@ class darray(dolphin.CudaBase):
 
     mul = multiply
 
-    def __mul__(self, other: object) -> 'darray':  # array * object
+    def __mul__(self, other: Union[int, float, numpy.number, 'darray']
+                ) -> 'darray':  # array * object
         """Non-Efficient multiplication of a darray with another object.
         This multiplication is element-wise multiplication, not matrix
         multiplication. For matrix multiplication please refer to matmul.
@@ -1225,7 +1412,7 @@ class darray(dolphin.CudaBase):
         total latency is spent in cuda.memalloc only)
 
         :param other: scalar or darray to multiply
-        :type other: [scalar, darray]
+        :type other: Union[int, float, numpy.number, 'darray']
         :raises ValueError: If other is not a scalar or a darray
         :return: The darray where the result is written
         :rtype: darray
@@ -1274,7 +1461,8 @@ class darray(dolphin.CudaBase):
 
     __rmul__ = __mul__  # object * array
 
-    def __imul__(self, other: object) -> 'darray':
+    def __imul__(self, other: Union[int, float, numpy.number, 'darray']
+                 ) -> 'darray':
         """Non-Efficient multiplication of a darray with another object.
         This multiplication is element-wise multiplication, not matrix
         multiplication. For matrix multiplication please refer to matmul.
@@ -1283,14 +1471,15 @@ class darray(dolphin.CudaBase):
         total latency is spent in cuda.memalloc only)
 
         :param other: scalar or darray to multiply
-        :type other: [scalar, darray]
+        :type other: Union[int, float, numpy.number, 'darray']
         :raises ValueError: If other is not a scalar or a darray
         :return: The darray where the result is written
         :rtype: darray
         """
         return self.multiply(other, dst=self)
 
-    def divide(self, other: object, dst: 'darray' = None) -> 'darray':
+    def divide(self, other: Union[int, float, numpy.number, 'darray'],
+               dst: 'darray' = None) -> 'darray':
         """Efficient division of a darray with another object.
         Can be a darray or a scalar. If dst is None, normal __div__
         is called.
@@ -1300,7 +1489,7 @@ class darray(dolphin.CudaBase):
         latency is spent in cuda.memalloc only).
 
         :param other: scalar or darray to divide by
-        :type other: [scalar, darray]
+        :type other: Union[int, float, numpy.number, 'darray']
         :param dst: darray where to write the result
         :type dst: darray
         :raises ValueError: If other is not a scalar or a darray
@@ -1357,7 +1546,8 @@ class darray(dolphin.CudaBase):
 
     div = divide
 
-    def __div__(self, other: object) -> 'darray':  # array / object
+    def __div__(self, other: Union[int, float, numpy.number, 'darray']
+                ) -> 'darray':  # array / object
         """Non-Efficient division of a darray with another object.
         This division is element-wise.
         This operation is not efficient because it implies a copy of the array
@@ -1365,15 +1555,17 @@ class darray(dolphin.CudaBase):
         total latency is spent in cuda.memalloc only)
 
         :param other: scalar or darray to divide by
-        :type other: [scalar, darray]
+        :type other: Union[int, float, numpy.number, 'darray']
         :raises ValueError: If other is not a scalar or a darray
         :return: The darray where the result is written
         :rtype: darray
         """
         return self.divide(other)
 
-    def reversed_divide(self, other: object, dst: 'darray') -> 'darray':
+    def reversed_divide(self, other: Union[int, float, numpy.number, 'darray'],
+                        dst: 'darray' = None) -> 'darray':
         """Efficient division of a darray with another object.
+
         Can be a darray or a scalar. If dst is None, normal __rdiv__
         is called.
         This method is much more efficient than the __rdiv__ method
@@ -1382,7 +1574,7 @@ class darray(dolphin.CudaBase):
         latency is spent in cuda.memalloc only).
 
         :param other: scalar or darray to divide by
-        :type other: [scalar, darray]
+        :type other: Union[int, float, numpy.number, 'darray']
         :param dst: darray where to write the result
         :type dst: darray
         :raises ValueError: If other is not a scalar or a darray
@@ -1426,7 +1618,8 @@ class darray(dolphin.CudaBase):
 
     rdiv = reversed_divide
 
-    def __rdiv__(self, other: object) -> 'darray':  # object / array
+    def __rdiv__(self, other: Union[int, float, numpy.number, 'darray']
+                 ) -> 'darray':  # object / array
         """Non-Efficient reverse division of an object by darray.
         This division is element-wise.
         This operation is not efficient because it implies a copy of the array
@@ -1434,7 +1627,7 @@ class darray(dolphin.CudaBase):
         total latency is spent in cuda.memalloc only)
 
         :param other: scalar or darray to divide by
-        :type other: [scalar, darray]
+        :type other: Union[int, float, numpy.number, 'darray']
         :raises ValueError: If other is not a scalar or a darray
         :return: The darray where the result is written
         :rtype: darray
@@ -1478,7 +1671,8 @@ class darray(dolphin.CudaBase):
                 f"unsupported operand type(s) for /: '{type(self)}' \
                     and '{type(other)}'")
 
-    def __idiv__(self, other: object) -> 'darray':
+    def __idiv__(self, other: Union[int, float, numpy.number, 'darray']
+                 ) -> 'darray':
         """Non-Efficient division of a darray with another object.
         This division is element-wise.
         This operation is not efficient because it implies a copy of the array
@@ -1486,7 +1680,7 @@ class darray(dolphin.CudaBase):
         total latency is spent in cuda.memalloc only)
 
         :param other: scalar or darray to divide by
-        :type other: [scalar, darray]
+        :type other: Union[int, float, numpy.number, 'darray']
         :raises ValueError: If other is not a scalar or a darray
         :return: The darray where the result is written
         :rtype: darray
@@ -1546,23 +1740,22 @@ class darray(dolphin.CudaBase):
         return dst
 
 
-def transpose(axes: tuple,
-              src: darray,
-              dst: darray = None) -> darray:
+def transpose(src: darray,
+              axes: Tuple[int, ...]) -> darray:
     """Returns a darray with the axes transposed.
 
     :param axes: Axes to transpose
-    :type axes: tuple
+    :type axes: Tuple[int, ...]
     :param src: darray to transpose
     :type src: darray
     :return: Transposed darray
     :rtype: darray
     """
-    return src.transpose(*axes, dst=dst)
+    return src.transpose(*axes)
 
 
 def multiply(src: darray,
-             other: object,
+             other: Union[int, float, numpy.number, 'darray'],
              dst: darray = None) -> darray:
     """Returns the multiplication of two darrays.
     It works that way::
@@ -1572,7 +1765,7 @@ def multiply(src: darray,
     :param src: First darray
     :type src: darray
     :param other: Second darray or scalar
-    :type other: [darray, scalar]
+    :type other: Union[int, float, numpy.number, 'darray']
     :return: Multiplication of the two darrays
     :rtype: darray
     """
@@ -1580,7 +1773,7 @@ def multiply(src: darray,
 
 
 def add(src: darray,
-        other: object,
+        other: Union[int, float, numpy.number, 'darray'],
         dst: darray = None) -> darray:
     """Returns the addition of two darrays.
     It works that way::
@@ -1590,7 +1783,7 @@ def add(src: darray,
     :param src: First darray
     :type src: darray
     :param other: Second darray or scalar
-    :type other: [darray, scalar]
+    :type other: Union[int, float, numpy.number, 'darray']
     :return: Addition of the two darrays
     :rtype: darray
     """
@@ -1598,7 +1791,7 @@ def add(src: darray,
 
 
 def substract(src: darray,
-              other: object,
+              other: Union[int, float, numpy.number, 'darray'],
               dst: darray = None) -> darray:
     """Returns the substraction of two darrays.
     It works that way::
@@ -1608,7 +1801,7 @@ def substract(src: darray,
     :param src: First darray
     :type src: darray
     :param other: Second darray or scalar
-    :type other: [darray, scalar]
+    :type other: Union[int, float, numpy.number, 'darray']
     :return: Substraction of the two darrays
     :rtype: darray
     """
@@ -1616,7 +1809,7 @@ def substract(src: darray,
 
 
 def divide(src: darray,
-           other: object,
+           other: Union[int, float, numpy.number, 'darray'],
            dst: darray = None) -> darray:
     """Returns the division of a darray by an object.
     It works that way::
@@ -1626,7 +1819,7 @@ def divide(src: darray,
     :param src: First darray
     :type src: darray
     :param other: Second darray or scalar
-    :type other: [darray, scalar]
+    :type other: Union[int, float, numpy.number, 'darray']
     :return: Division of the two darrays
     :rtype: darray
     """
@@ -1635,7 +1828,7 @@ def divide(src: darray,
 
 def reversed_divide(
         src: darray,
-        other: object,
+        other: Union[int, float, numpy.number, 'darray'],
         dst: darray = None) -> darray:
     """Returns the division of a darray and an object.
     It works that way::
@@ -1645,7 +1838,7 @@ def reversed_divide(
     :param src: First darray
     :type src: darray
     :param other: Second darray or scalar
-    :type other: [darray, scalar]
+    :type other: Union[int, float, numpy.number, 'darray']
     :return: Division of the two darrays
     :rtype: darray
     """
@@ -1654,7 +1847,7 @@ def reversed_divide(
 
 def reversed_substract(
         src: darray,
-        other: object,
+        other: Union[int, float, numpy.number, 'darray'],
         dst: darray = None) -> darray:
     """Returns the substraction of a darray and an object.
     It works that way::
@@ -1664,7 +1857,7 @@ def reversed_substract(
     :param src: First darray
     :type src: darray
     :param other: Second darray or scalar
-    :type other: [darray, scalar]
+    :type other: Union[int, float, numpy.number, 'darray']
     :return: Substraction of the two darrays
     :rtype: darray
     """
@@ -1672,7 +1865,7 @@ def reversed_substract(
 
 
 def zeros(
-        shape: tuple,
+        shape: Tuple[int, ...],
         dtype: dolphin.dtype = dolphin.dtype.float32) -> darray:
     """Returns a darray for a given shape and dtype filled with zeros.
 
@@ -1680,7 +1873,7 @@ def zeros(
     destination `darray` as argument.
 
     :param shape: Shape of the array
-    :type shape: tuple
+    :type shape: Tuple[int, ...]
     :param dtype: Type of the array
     :type dtype: dolphin.dtype
     :return: darray filled with zeros
@@ -1708,14 +1901,15 @@ def zeros_like(other: Union[darray, numpy.array]) -> darray:
                  dtype=dolphin.dtype.from_numpy_dtype(other.dtype))
 
 
-def ones(shape: tuple, dtype: dolphin.dtype = dolphin.dtype.float32) -> darray:
+def ones(shape: Tuple[int, ...], dtype: dolphin.dtype = dolphin.dtype.float32
+         ) -> darray:
     """Returns a darray for a given shape and dtype filled with ones.
 
     This function is a creation function, thus, it does not take an optional
     destination `darray` as argument.
 
     :param shape: Shape of the array
-    :type shape: tuple
+    :type shape: Tuple[int, ...]
     :param dtype: Type of the array
     :type dtype: dolphin.dtype
     :return: darray filled with ones
@@ -1745,7 +1939,7 @@ def ones_like(other: Union[darray, numpy.array]) -> darray:
 
 
 def empty(
-        shape: tuple,
+        shape: Tuple[int, ...],
         dtype: dolphin.dtype = dolphin.dtype.float32) -> darray:
     """Returns a darray of a given shape and dtype without
     initializing entries.
@@ -1754,7 +1948,7 @@ def empty(
     destination `darray` as argument.
 
     :param shape: Shape of the array
-    :type shape: tuple
+    :type shape: Tuple[int, ...]
     :param dtype: Type of the array
     :type dtype: dolphin.dtype
     :return: darray filled with random values

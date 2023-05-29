@@ -11,8 +11,6 @@ import dolphin.core.dtype
 
 class Bufferizer:
     """
-    # Bufferizer
-
     Bufferizer is a class that allows to easily bufferize data on the GPU.
     The purpose is to handle seamlessly batched data and to avoid unnecessary
     memory allocation but rather reuse the same memory buffer and favour
@@ -25,16 +23,14 @@ class Bufferizer:
     In addition to bufferizing data, the class also allows to trigger hooks
     at different moments of its lifecycle.
 
-    ## Hooks
-
     - flush_hook : callable triggered when buffer is flushed
     - allocate_hook : callable triggered when buffer is allocated
-    - append_one_hook : callable triggered when buffer has a
-                        new element appended
-    - append_multiple_hook : callable triggered when buffer has
-                             new elements appended
-    - buffer_full_hook : callable triggered when the buffer is full
-                         after calling any append
+    - append_one_hook : callable triggered when
+      buffer has a new element appended
+    - append_multiple_hook : callable triggered when buffer
+      has new elements appended
+    - buffer_full_hook : callable triggered when the buffer
+      is full after calling any append
 
     :param shape: shape of element to bufferize
     :type shape: tuple
@@ -48,7 +44,7 @@ class Bufferizer:
                        defaults to None
     :type flush_hook: callable, optional
     :param allocate_hook: callable triggered when buffer is allocated,
-                          defaults to None
+      not triggered by the first allocation, defaults to None
     :type allocate_hook: callable, optional
     :param append_one_hook: callable triggered when buffer has
                             a new element appended, defaults to None
@@ -175,12 +171,13 @@ class Bufferizer:
             raise ValueError(f"Element dtype {element.dtype} does not match \
                               bufferizer dtype {self._dtype}.")
 
-        cuda.memcpy_dtod_async(int(self._allocation) + self._n_elements
-                               * self._itemsize * self._dtype.itemsize,
-                               element.allocation,
-                               self._itemsize *
-                               self._dtype.itemsize,
-                               self._stream)
+        tmp_darray = dolphin.darray(shape=(self._itemsize, ),
+                                    dtype=self._dtype,
+                                    allocation=(int(self._allocation) +
+                                                self._n_elements
+                                    * self._itemsize * self._dtype.itemsize))
+
+        element.flatten(dst=tmp_darray)
 
         self._n_elements += 1
 
@@ -237,12 +234,13 @@ class Bufferizer:
                     ({self._buffer_len} elements). Tried to push \
                     {batch_size} elements.")
 
-            cuda.memcpy_dtod_async(int(self._allocation) + self._n_elements
-                                   * self._itemsize * self._dtype.itemsize,
-                                   element.allocation,
-                                   batch_size * self._itemsize *
-                                   self._dtype.itemsize,
-                                   self._stream)  # pylint: disable=no-member
+            tmp_darray = dolphin.darray(shape=(self._itemsize * batch_size,),
+                                        dtype=self._dtype,
+                                        allocation=(int(self._allocation) +
+                                        self._n_elements * self._itemsize *
+                                        self._dtype.itemsize))
+
+            element.flatten(dst=tmp_darray)
 
             self._n_elements += batch_size
 
