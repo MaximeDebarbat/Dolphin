@@ -447,7 +447,7 @@ class DiscontiguousCopy(dolphin.DiscontiguousCopyCompiler):
             dst.size)
 
 
-class darray(dolphin.CudaBase):
+class darray:
     """
     This class implements a generic numpy style array that can be used
     with the `dolphin` library. It implements common features available
@@ -510,8 +510,6 @@ class darray(dolphin.CudaBase):
                  allocation_size: cuda.DeviceAllocation = None
                  ) -> None:
 
-        super().__init__()
-
         if array is not None:
             dtype = dtype.from_numpy_dtype(array.dtype)
             shape = array.shape
@@ -543,7 +541,8 @@ class darray(dolphin.CudaBase):
                                    array.flatten(order="C"),
                                    self._stream)
 
-        self._block, self._grid = self.GET_BLOCK_GRID_1D(self._size)
+        self._block, self._grid = dolphin.CudaBase.GET_BLOCK_GRID_1D(
+            self._size)
 
         self._strides_allocation = cuda.mem_alloc(self.ndim * 4)
         self._shape_allocation = cuda.mem_alloc(self.ndim * 4)
@@ -630,7 +629,8 @@ class darray(dolphin.CudaBase):
 
     @property
     def allocation(self) -> cuda.DeviceAllocation:
-        """Property to access the cuda allocation of the array
+        """Property to access (Read/Write) the cuda
+        allocation of the array
 
         :return: The cuda allocation of the array
         :rtype: cuda.DeviceAllocation
@@ -687,7 +687,7 @@ class darray(dolphin.CudaBase):
 
     @property
     def stream(self) -> cuda.Stream:
-        """Property to access the cuda stream of the array
+        """Property to access (Read/Write) the cuda stream of the array
 
         :return: Stream used by the darray
         :rtype: cuda.Stream
@@ -1740,8 +1740,8 @@ with shapes {self.shape}, {other.shape}")
         return dst
 
 
-def transpose(axes: Tuple[int, ...],
-              src: darray) -> darray:
+def transpose(src: darray,
+              axes: Tuple[int, ...]) -> darray:
     """Returns a darray with the axes transposed.
 
     :param axes: Axes to transpose

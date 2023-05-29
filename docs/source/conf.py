@@ -8,6 +8,8 @@
 
 import os
 import sys
+autodoc_mock_imports = ["pycuda", "pycuda.autoinit.device.get_attribute"]
+
 sys.path.insert(0, os.path.abspath('../../'))
 
 project = 'dolphin'
@@ -18,11 +20,16 @@ release = '0.0.6.2'
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = ['sphinx.ext.todo', 'sphinx.ext.viewcode', 'sphinx.ext.autodoc']
+extensions = ['sphinx.ext.todo',
+              'sphinx.ext.viewcode',
+              'sphinx.ext.autodoc',
+              'sphinx.ext.intersphinx',
+              'sphinx.ext.autosectionlabel']
 
 templates_path = ['_templates']
 exclude_patterns = []
 add_module_names = True
+autodoc_member_order = 'bysource'
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output

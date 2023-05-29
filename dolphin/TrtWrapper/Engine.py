@@ -3,7 +3,7 @@
 
 import os
 import sys
-from typing import Dict, Union
+from typing import Dict, Union, Tuple
 import onnx
 import tensorrt as trt
 import pycuda.driver as cuda
@@ -16,28 +16,59 @@ from .utils import EEngine, IEngine
 
 
 class Engine(EEngine, IEngine):
-    """_summary_
+    """
+    Class to manage TensorRT engines.
+    It is able to read an engine from a file or to create one from an
+    onnx file.
+
+    This class is using the :class:`CudaTrtBuffers <dolphin.CudaTrtBuffers>`
+    class to manage batched buffers. Find more details on the
+    documentation of :func:`~dolphin.Engine.infer`.
+
+    TensorRT Github official Repository: https://github.com/NVIDIA/TensorRT \n
+    TensorRT official documentation: https://developer.nvidia.com/tensorrt
+
+    :param onnx_file_path: Path to the onnx file to use, defaults to None
+    :type onnx_file_path: str, optional
+    :param engine_path: Path to the engine to read or to save, defaults to None
+    :type engine_path: str, optional
+    :param mode: Can be `fp32`, `fp16` or `int8`, defaults to `fp16`
+    :type mode: str, optional
+    :param optimisation_profile: Tuple defining the optimisation profile
+      to use, defaults to None
+    :type optimisation_profile: Tuple[int, ...], optional
+    :param verbosity: Boolean to activate verbose mode, defaults to False
+    :type verbosity: bool, optional
+    :param explicit_batch: Sets `explicit_batch` flag, defaults to False
+    :type explicit_batch: bool, optional
+    :param direct_io: Sets `direct_io` flag, defaults to False
+    :type direct_io: bool, optional
+    :param stdout: Out stream to write standard output, defaults to sys.stdout
+    :type stdout: object, optional
+    :param stderr: Out stream to write errors output, defaults to sys.stderr
+    :type stderr: object, optional
+    :param calib_cache: Where to write or read calibration cache file,
+      defaults to None
+    :type calib_cache: str, optional
+    :raises ValueError: If no engine nor onnx file is provided
     """
 
     def __init__(self, onnx_file_path: str = None,
                  engine_path: str = None,
                  mode: str = "fp16",
-                 optimisation_profile=None,
+                 optimisation_profile: Tuple[int, ...] = None,
                  verbosity: bool = False,
-                 layer_profile: str = None,
-                 profile: str = None,
                  explicit_batch: bool = False,
                  direct_io: bool = False,
                  stdout: object = sys.stdout,
                  stderr: object = sys.stderr,
                  calib_cache: str = None
                  ):
+
         self.stdout = stdout
         self.stderr = stderr
         self.calib_cache = calib_cache
 
-        self.layer_profile = layer_profile
-        self.profile = profile
         self.explicit_batch = explicit_batch
         self.direct_io = direct_io
 
@@ -77,10 +108,12 @@ Check the logs for more details.")
         self.buffers = self.allocate_buffers()
 
     def allocate_buffers(self) -> CudaTrtBuffers:
-        """_summary_
+        """Creates buffers for the engine.
+        For now, only implicit dimensions are supported.
+        Meaning, that dynamic shapes are not supported yet.
 
         :return: _description_
-        :rtype: CudaTrtBuffers
+        :rtype: dolphin.CudaTrtBuffers
         """
 
         buffer = CudaTrtBuffers()
@@ -106,33 +139,33 @@ shape: {shape}, dtype: {dtype}")
                                            trt.nptype(dtype)))
         return buffer
 
-    def load_engine(self, engine_file_path: str,
-                    runtime=None):
-        """_summary_
+    def load_engine(self, engine_file_path: str) -> trt.ICudaEngine:
+        """
+        Loads a tensorRT engine from a file, using TensorRT.Runtime.
 
-        :param engine_file_path: _description_
+        :param engine_file_path: Path to the engine file
         :type engine_file_path: str
-        :param runtime: _description_, defaults to None
-        :type runtime: _type_, optional
-        :return: _description_
-        :rtype: _type_
+        :return: TensorRT engine
+        :rtype: trt.ICudaEngine
         """
         self.trt_logger.log(
             TrtLogger.Severity.INFO,
             f"Loading engine from {engine_file_path}")
-        runtime = runtime or self.runtime
         with open(engine_file_path, 'rb') as engine_file:
             engine_data = engine_file.read()
-        engine = runtime.deserialize_cuda_engine(engine_data)
+        engine = self.runtime.deserialize_cuda_engine(engine_data)
 
         return engine
 
     def is_dynamic(self, onnx_file_path: str) -> bool:
-        """_summary_
+        """
+        Returns True if the model is dynamic, False otherwise.
+        By `dynamic` we mean that the model has at least one input
+        with a dynamic dimension.
 
-        :param onnx_file_path: _description_
+        :param onnx_file_path: Path to the onnx file
         :type onnx_file_path: str
-        :return: _description_
+        :return: True if the model is dynamic, False otherwise
         :rtype: bool
         """
         onnx_model = onnx.load(onnx_file_path)
@@ -149,11 +182,12 @@ shape: {shape}, dtype: {dtype}")
         return False
 
     def create_context(self) -> trt.IExecutionContext:
-        """_summary_
+        """
+        Creates a tensorRT execution context from the engine.
 
-        :param tensorrt_engine: _description_
+        :param tensorrt_engine: TensorRT engine
         :type tensorrt_engine: trt.ICudaEngine
-        :return: _description_
+        :return: TensorRT execution context
         :rtype: trt.IExecutionContext
         """
 
@@ -167,17 +201,23 @@ shape: {shape}, dtype: {dtype}")
                      engine_file_path: str = None,
                      mode: str = "fp16",
                      max_workspace_size: int = 30) -> trt.ICudaEngine:
-        """_summary_
+        """
+        Builds a tensorRT engine from an onnx file. If the onnx model
+        is detected as dynamic, then a dynamic engine is built, otherwise
+        a static engine is built.
 
-        :param onnx_file_path: _description_, defaults to None
+        :param onnx_file_path: Path to an onnx file, defaults to None
         :type onnx_file_path: str, optional
-        :param engine_file_path: _description_, defaults to None
+        :param engine_file_path: Path to the engine file to save
+          ,defaults to None
         :type engine_file_path: str, optional
-        :param mode: _description_, defaults to "fp16"
+        :param mode: Datatype mode `fp32`, `fp16` or `int8`,
+          defaults to "fp16"
         :type mode: str, optional
-        :param max_workspace_size: _description_, defaults to 30
+        :param max_workspace_size: maximum workspace size to use,
+          defaults to 30
         :type max_workspace_size: int, optional
-        :return: _description_
+        :return: TensorRT engine
         :rtype: trt.ICudaEngine
         """
 
@@ -195,9 +235,11 @@ shape: {shape}, dtype: {dtype}")
                                     max_workspace_size)
 
     def do_inference(self, stream: cuda.Stream = None) -> None:
-        """_summary_
+        """
+        Executes the inference on the engine. This function assumes
+        that the buffers are already filled with the input data.
 
-        :param stream: _description_, defaults to None
+        :param stream: Cuda Stream, defaults to None
         :type stream: cuda.Stream, optional
         """
 
@@ -210,17 +252,29 @@ shape: {shape}, dtype: {dtype}")
     def infer(self, inputs: Dict[str, darray],
               batched_input: bool = False,
               force_infer: bool = False,
-              stream: cuda.Stream = None) -> Union[darray, None]:
-        """_summary_
+              stream: cuda.Stream = None) -> Union[
+                  Dict[str, dolphin.Bufferizer],
+                  None]:
+        """
+        Method to call to perform inference on the engine. This method
+        will automatically fill the buffers with the input data and
+        execute the inference if the buffers are full.
+        You can still force the inference by setting `force_infer` to True.
 
-        :param inputs: _description_
+        This expected `inputs` argument expects a dictionary of
+        :class:`dolphin.darray` objects or a dict of list of
+        :class:`dolphin.darray`.
+        The keys of the dictionary must match the names
+        of the inputs of the model.
+
+        :param inputs: Dictionary of inputs
         :type inputs: Dict[str, darray]
-        :param batched_input: _description_, defaults to False
+        :param batched_input: Consider input as batched, defaults to False
         :type batched_input: bool, optional
-        :param stream: _description_, defaults to None
+        :param stream: Cuda stream to use, defaults to None
         :type stream: cuda.Stream, optional
-        :return: _description_
-        :rtype: darray
+        :return: Output of the model
+        :rtype: Union[Dict[str, dolphin.Bufferizer], None]
         """
 
         for name in inputs.keys():
@@ -237,46 +291,53 @@ shape: {shape}, dtype: {dtype}")
         return None
 
     @property
-    def output(self) -> dict:
-        """_summary_
+    def output(self) -> Dict[str, dolphin.Bufferizer]:
+        """
+        Returns the output of the :class:`dolphin.CudaTrtBuffers`
+        of the engine.
 
-        :return: _description_
-        :rtype: dict
+        :return: Output bufferizer of the engine.
+        :rtype: Dict[str, dolphin.Bufferizer]
         """
         return self.buffers.output
 
     @property
-    def input_shape(self) -> dict:
-        """_summary_
+    def input_shape(self) -> Dict[str, tuple]:
+        """
+        Returns the shape of the inputs of the engine.
 
-        :return: _description_
+        :return: Shape of the inputs
         :rtype: dict
         """
         return self.buffers.input_shape
 
     @property
-    def input_dtype(self) -> dict:
-        """_summary_
+    def input_dtype(self) -> Dict[str,
+                                  dolphin.dtype]:
+        """
+        Returns the datatype of the inputs of the engine.
 
-        :return: _description_
-        :rtype: dict
+        :return: Datatype of the inputs
+        :rtype: Dict[str, dolphin.dtype]
         """
         return self.buffers.input_dtype
 
     @property
-    def output_shape(self) -> dict:
-        """_summary_
+    def output_shape(self) -> Dict[str, tuple]:
+        """
+        Returns the shape of the outputs of the engine.
 
-        :return: _description_
+        :return: Shape of the outputs
         :rtype: dict
         """
         return self.buffers.output_shape
 
     @property
-    def output_dtype(self) -> dict:
-        """_summary_
+    def output_dtype(self) -> Dict[str, dolphin.dtype]:
+        """
+        Returns the datatype of the outputs of the engine.
 
-        :return: _description_
+        :return: Datatype of the outputs
         :rtype: dict
         """
         return self.buffers.output_dtype

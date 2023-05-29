@@ -2,14 +2,14 @@ Dolphin darray
 ==============
 
 darray
---------------------------
+------
 
 .. autoclass:: dolphin.darray
    :members:
    :undoc-members:
    :show-inheritance:
    :special-members:
-
+   :exclude-members: __dict__
 
 Built-in functions
 --------------------------

@@ -11,22 +11,25 @@ Welcome to Dolphin's documentation!
    :maxdepth: 2
    :caption: Dolphin Reference
 
-   getting_started
    core_concept
+   getting_started
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Dolphin Core Reference
 
    dolphin.darray
    dolphin.dimage
    dolphin.bufferizer
+   dolphin.dtype
+   dolphin.cudabase
 
 .. toctree::
    :maxdepth: 2
    :caption: Dolphin TensorRT Reference
 
    dolphin.TrtWrapper
+   dolphin.CudaTrtBuffers
 
 .. toctree::
    :maxdepth: 2
