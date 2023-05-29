@@ -2,11 +2,14 @@ name: Pypi-Publish
 
 on:
   pull_request:
+    types:
+    - closed
     branches:
     - main
 
 jobs:
   pypi-job:
+    if: github.event.pull_request.merged
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -18,4 +21,4 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           user: __token__
-          password: ${{ secrets.PYPI_TOKEN }}
+          password: ${{ secrets.PYPI_TEST_TOKEN }}
