@@ -15,7 +15,12 @@ sys.path.insert(0, os.path.abspath('../../'))
 project = 'dolphin'
 copyright = '2023, Maxime Debarbat'
 author = 'Maxime Debarbat'
-release = '0.0.6.2'
+about = {}
+exec(open(os.path.join(os.path.abspath(os.path.dirname(__file__)), "..", "..", "dolphin", 'version.py')).read(), about)
+release = about['__version__']
+version = release
+
+print(f"Building documentation for Dolphin {release}")
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

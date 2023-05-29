@@ -2,6 +2,8 @@
 Welcome to Dolphin's documentation!
 ===================================
 
+Documentation version |version|
+
 .. automodule:: dolphin
    :members:
    :undoc-members:
