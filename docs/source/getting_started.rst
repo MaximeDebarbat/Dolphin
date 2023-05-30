@@ -8,14 +8,14 @@ Manipulating :py:class:`dolphin.dtype` :
 :py:class:`dolphin.darray` object. It is similar to numpy's dtype. It is used
 to create a gate between numpy types and cuda types. It currently supports
 the following operations :
-  * :py:attr:`dolphin.dtype.uint8`
-  * :py:attr:`dolphin.dtype.uint16`
-  * :py:attr:`dolphin.dtype.uint32`
-  * :py:attr:`dolphin.dtype.int8`
-  * :py:attr:`dolphin.dtype.int16`
-  * :py:attr:`dolphin.dtype.int32`
-  * :py:attr:`dolphin.dtype.float32`
-  * :py:attr:`dolphin.dtype.float64`
+    * :py:attr:`dolphin.dtype.uint8`
+    * :py:attr:`dolphin.dtype.uint16`
+    * :py:attr:`dolphin.dtype.uint32`
+    * :py:attr:`dolphin.dtype.int8`
+    * :py:attr:`dolphin.dtype.int16`
+    * :py:attr:`dolphin.dtype.int32`
+    * :py:attr:`dolphin.dtype.float32`
+    * :py:attr:`dolphin.dtype.float64`
 
 Creating :py:class:`dolphin.dtype` :
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -415,3 +415,99 @@ Full example
 ------------
 
 You can go to the `examples` folder to see a full example of how to use the library.
+Here, we will go step by step through Yolov7 inference using `Dolphin`.
+
+1. Preprocessing
+~~~~~~~~~~~~~~~~
+
+Most of the time, we underestimate the latency of preprocessing and try to find ways to accelerate the inference
+part which would make a lot of sense if the bottleneck was indeed the inference time. In reality, in real-time applications,
+it often happens that your fps are drastically decreased compared to your expectations due to pre/post processing.
+In this example, Yolov7 needs images to be resized using :py:meth:`dp.dimage.resize_padding` method in order to keep the
+orginal aspect ratio of the image as well as it needs to be normalized.
+A good practice would be to resize your image first before doing any further processings in order to limit
+the amount of data processed at a time.
+
+Keep in mind that it is much better to pre-allocate the :py:class:`dp.darray` and :py:class:`dp.dimage` in order not
+to perform memory allocation during the core of your application. This is what we will be doing here.
+
+.. code-block:: python
+
+    import cv2
+    import dolphin as dp
+
+    stream = cv2.VideoCapture("your_video.mp4")
+
+    # We need to know the size of the frame
+    width = int(stream.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(stream.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+    # As OpenCV reads HWC uint8_t images, we allocate the
+    # corresponding dp.dimage
+    d_frame = dp.dimage(shape=(height, width, 3), dtype=dp.uint8)
+
+    # Yolov7 is processing directly CHW images, we thus have to
+    # transpose the array, meaning, pre-allocate where we will
+    # store the transposed reordered data
+    transposed_frame = dp.dimage(shape=(3, height, width),
+                                dtype=dp.uint8,
+                                stream=stream)
+
+    # We also pre-allocate the image once resized in order
+    # (640, 640) is the size Yolov7 works with
+    resized_frame = dp.dimage(shape=(3, 640, 640),
+                              dtype=dp.uint8,
+                              stream=stream)
+
+    # Once the image is correctly formatted, meaning :
+    # 3x640x640 uint8, we need to normalize the image
+    # between 0<=image<=1. To do so, we need to use
+    # dp.DOLPHIN_255 flag which will write float32
+    # data
+    inference_frame = dp.dimage(shape=(3, 640, 640),
+                                dtype=dp.float32,
+                                stream=stream)
+
+
+2. Inference
+~~~~~~~~~~~~~~~~
+
+We thus have pre-allocated `18MB` to speed up the preprocessing by avoiding
+on-the-fly allocations. Shall we now go through the inference part of all of this.
+
+.. code-block:: python
+
+
+    # We now instanciate our AI model as a TensorRT engine
+    engine = dp.Engine("your_model.onnx",
+                       "your_model.engine",
+                       mode="fp16",
+                       verbosity=True)
+
+    while(True):
+        # We copy the OpenCV frame onto the GPU
+        d_frame.from_numpy(frame)
+
+        # We process the frame
+        # 1. We transpose the frame and call 'flatten' in order
+        # to rearrange the data in memory as expected
+        d_frame.transpose(2, 0, 1).flatten(dst=transposed_frame)
+
+        # 2. We perform padding resize
+        _, r, dwdh = dp.resize_padding(src=transposed_frame,
+                                       shape=(640, 640),
+                                       dst=resized_frame)
+
+        # 3. We do channel swapping in order to transform
+        # our BGR image into RGB
+        dp.cvtColor(src=resized_frame,
+                    color_format=dp.DOLPHIN_RGB,
+                    dst=resized_frame)
+
+        # 4. We normalize the frame as described just above
+        dp.normalize(src=resized_frame,
+                     dst=inference_frame,
+                     normalize_type=dp.DOLPHIN_255)
+
+        # 5. We finally infer our model
+        output = engine.infer({"images": inference_frame})

@@ -24,6 +24,12 @@ In order to test the package, you will need the library `pytest` which you can r
 pytest
 ```
 
+## Install
+
+```
+pip install dolphin-python
+```
+
 ## Build
 
 Dolphin can be installed with Pypi (coming soon) or built with Docker which is the recommended way to use it :

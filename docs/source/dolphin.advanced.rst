@@ -8,7 +8,6 @@ of computation required and the amount of data you want to process.
 
 There is a general rule that you should always keep in mind when using Dolphin: **The more data,
 the more complex the computation, the more Dolphin is efficient**.
-
 There are still ways to speed up the execution of Dolphin functions. We will go through a few
 of them in this section.
 
@@ -63,6 +62,25 @@ Optimized approach:
 When your application is based on a loop or the consecutive execution of several functions,
 you should always try to use the `dst` parameter to save time. It can really be a game changer in
 some cases.
+
+Usage of allocations
+--------------------
+
+Dolphin by default allocates CUDA memory and operates on it. Also, any modification made on
+a view of this array will imact the array itself. For instance, :py:meth:`dolphin.darray.__getitem__`
+returns a view of the current array, any *in-place modification of the values* on it will modify
+the array, exactly like Numpy does:
+
+.. code-block:: python
+
+    import dolphin as dp
+
+    a = dp.zeros(shape=(2, 2), dtype=dp.float32)
+    a[:,0].fill(1)
+
+    print(a)
+    # array([[1., 0.],
+    #        [1., 0.]], dtype=float32)
 
 Usage of Cuda Stream
 --------------------

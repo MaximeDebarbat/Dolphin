@@ -457,22 +457,6 @@ class darray:
     is really close to numpy arrays. However, `darray` is meant to be much more
     performant than `numpy.ndarray` since it is GPU accelerated.
 
-    This is how to simply create a `darray` object::
-
-      import dolphin as dp
-      import numpy as np
-
-      # Create a darray from a numpy array
-      x = dp.darray(array=np.random.randn(10, 10))
-
-      # Create a darray from a shape and a dtype
-      x = dp.darray(shape=(10, 10), dtype=dp.float32)
-
-      # Create a darray from a shape and a dtype and allocate memory
-      # x and y will share the same allocation
-      x = dp.darray(shape=(10, 10), dtype=dp.float32)
-      y = dp.darray(shape=(10, 10), dtype=dp.float32, allocation=x.allocation)
-
     :param shape: Shape of the darray, defaults to None
     :type shape: Tuple[int, ...], optional
     :param dtype: dtype of the darray, defaults to None
