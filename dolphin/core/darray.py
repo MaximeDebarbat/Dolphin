@@ -954,9 +954,6 @@ not allowed in index")
 
             array_axis += 1
 
-        print(f"dtype : {self.dtype} new_shape: {new_shape} new_strides: {new_strides} \
-new_offset: {new_offset} new_allocation: {int(self.allocation) + new_offset}")
-
         return darray(
             shape=tuple(new_shape),
             dtype=self.dtype,
