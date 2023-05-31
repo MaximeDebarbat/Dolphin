@@ -53,6 +53,7 @@ from .core.darray import (
     ones_like,
     empty_like,
     absolute,
+    from_numpy
 )
 from .core.dimage import (dimage,
                           dimage_dim_format,

@@ -694,7 +694,7 @@ class darray:
         :rtype: darray
         """
 
-        return self.transpose(*self._shape[::-1])
+        return self.transpose(*list(range(len(self._shape)))[::-1])
 
     @stream.setter
     def stream(self, stream: cuda.Stream) -> None:
@@ -1971,3 +1971,15 @@ def absolute(array: darray, dst: darray = None) -> darray:
     """
 
     return array.absolute(dst)
+
+
+def from_numpy(array: numpy.ndarray) -> darray:
+    """Returns a darray from a numpy array.
+
+    :param array: numpy array to convert
+    :type array: numpy.ndarray
+    :return: _description_
+    :rtype: darray
+    """
+
+    return darray(array=array)

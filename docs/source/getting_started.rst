@@ -52,13 +52,13 @@ There are several ways to create a :py:class:`dolphin.darray` object :
     d = dp.darray(array=a)
 
     # Create a zero-filled darray
-    d = dp.zeros(shape=(10,), dtype=np.float32)
+    d = dp.zeros(shape=(10,), dtype=dp.float32)
 
     # Create an empty darray
-    d = dp.empty(shape=(10,), dtype=np.float32)
+    d = dp.empty(shape=(10,), dtype=dp.float32)
 
     # or
-    d = dp.darray(shape=(10,), dtype=np.float32)
+    d = dp.darray(shape=(10,), dtype=dp.float32)
 
     # Create a zeros darray like another
     d = dp.zeros_like(d)
@@ -67,7 +67,7 @@ There are several ways to create a :py:class:`dolphin.darray` object :
     d = dp.empty_like(d)
 
     # Create a ones darray
-    d = dp.ones(shape=(10,), dtype=np.float32)
+    d = dp.ones(shape=(10,), dtype=dp.float32)
 
     # Create a ones darray like another
     d = dp.ones_like(d)
@@ -226,7 +226,7 @@ py:attr:`dolphin.dimage_channel_format.DOLPHIN_BGR`.
     d = dp.dimage(array=image)
 
     # or
-    d = dp.dimage(array=image, dimage_channel_format=dp.dimage_channel_format.DOLPHIN_BGR)
+    d = dp.dimage(array=image, channel_format=dp.dimage_channel_format.DOLPHIN_BGR)
 
 Resizing :py:class:`dolphin.dimage` :
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -312,13 +312,13 @@ different other arguments in order to customize the engine built.
     import dolphin as dp
 
     # Create an engine from an onnx model
-    engine = dp.Engine(onnx_model_path="your_model.onnx")
+    engine = dp.Engine(onnx_file_path="your_model.onnx")
 
     # Create an engine from a TensorRT engine
     engine = dp.Engine(engine_path="your_engine.trt")
 
     # Create an engine from an onnx model and specify different arguments
-    engine = dp.Engine(onnx_model_path="your_model.onnx",
+    engine = dp.Engine(onnx_file_path="your_model.onnx",
                        engine_path="your_engine.trt",
                        mode="fp16",
                        explicit_batch=True,
