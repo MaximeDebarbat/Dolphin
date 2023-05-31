@@ -954,12 +954,15 @@ not allowed in index")
 
             array_axis += 1
 
+        print(f"dtype : {self.dtype} new_shape: {new_shape} new_strides: {new_strides} \
+new_offset: {new_offset} new_allocation: {int(self.allocation) + new_offset}")
+
         return darray(
             shape=tuple(new_shape),
             dtype=self.dtype,
             strides=tuple(new_strides),
-            allocation=int(self.allocation) + new_offset,
-            allocation_size=self._allocation_size
+            allocation=int(self.allocation) + new_offset * self.dtype.itemsize,
+            allocation_size=self._allocation_size - new_offset
         )
 
     def __setitem__(self, index: Union[int, slice, tuple],
@@ -975,6 +978,7 @@ not allowed in index")
         """
 
         if isinstance(other, (numpy.number, int, float)):
+            print("other is a number")
             self[index].fill(other)
         elif isinstance(other, darray):
             if not self.broadcastable(self.shape, other.shape):
