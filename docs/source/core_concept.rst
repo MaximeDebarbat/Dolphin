@@ -31,11 +31,3 @@ Disclaimer
 This library is currently under development. The API might not be stable yet. Some features might be missing,
 some might be broken, some might be optimized. You are vert welcome to contribute to this project.
 Be kind, be constructive, be open.
-
-Installation
-------------
-
-Dolphin is available on PyPI. You can install it using pip:
-``pip install dolphin-python``
-
-and import it in your python code using ``import dolphin``.

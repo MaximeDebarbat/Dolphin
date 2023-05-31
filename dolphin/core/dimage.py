@@ -736,7 +736,7 @@ Got : {self._shape}")
                        shape: Tuple[int, ...],
                        dst: 'dimage' = None,
                        padding_value: Union[int, float] = 127
-                       ) -> Tuple['dimage', Tuple[int, int]]:
+                       ) -> Tuple['dimage', float, Tuple[int, int]]:
         """
         Padded resize the image
 
@@ -768,6 +768,8 @@ Got : {self._shape}")
         :type dst: dimage
         :param padding_value: The padding value
         :type padding_value: int or float
+        :return: The resized image and the offset parameters of the image
+        :rtype: Tuple[dimage, float, Tuple[int, int]]
         """
 
         if len(shape) != 2:

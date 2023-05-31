@@ -457,22 +457,6 @@ class darray:
     is really close to numpy arrays. However, `darray` is meant to be much more
     performant than `numpy.ndarray` since it is GPU accelerated.
 
-    This is how to simply create a `darray` object::
-
-      import dolphin as dp
-      import numpy as np
-
-      # Create a darray from a numpy array
-      x = dp.darray(array=np.random.randn(10, 10))
-
-      # Create a darray from a shape and a dtype
-      x = dp.darray(shape=(10, 10), dtype=dp.float32)
-
-      # Create a darray from a shape and a dtype and allocate memory
-      # x and y will share the same allocation
-      x = dp.darray(shape=(10, 10), dtype=dp.float32)
-      y = dp.darray(shape=(10, 10), dtype=dp.float32, allocation=x.allocation)
-
     :param shape: Shape of the darray, defaults to None
     :type shape: Tuple[int, ...], optional
     :param dtype: dtype of the darray, defaults to None
@@ -710,7 +694,7 @@ class darray:
         :rtype: darray
         """
 
-        return self.transpose(*self._shape[::-1])
+        return self.transpose(*list(range(len(self._shape)))[::-1])
 
     @stream.setter
     def stream(self, stream: cuda.Stream) -> None:
@@ -974,8 +958,8 @@ not allowed in index")
             shape=tuple(new_shape),
             dtype=self.dtype,
             strides=tuple(new_strides),
-            allocation=int(self.allocation) + new_offset,
-            allocation_size=self._allocation_size
+            allocation=int(self.allocation) + new_offset * self.dtype.itemsize,
+            allocation_size=self._allocation_size - new_offset
         )
 
     def __setitem__(self, index: Union[int, slice, tuple],
@@ -991,6 +975,7 @@ not allowed in index")
         """
 
         if isinstance(other, (numpy.number, int, float)):
+            print("other is a number")
             self[index].fill(other)
         elif isinstance(other, darray):
             if not self.broadcastable(self.shape, other.shape):
@@ -1987,3 +1972,15 @@ def absolute(array: darray, dst: darray = None) -> darray:
     """
 
     return array.absolute(dst)
+
+
+def from_numpy(array: numpy.ndarray) -> darray:
+    """Returns a darray from a numpy array.
+
+    :param array: numpy array to convert
+    :type array: numpy.ndarray
+    :return: _description_
+    :rtype: darray
+    """
+
+    return darray(array=array)

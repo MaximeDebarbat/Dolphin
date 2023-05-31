@@ -71,7 +71,7 @@ def run(opt: argparse.Namespace):
                     color_format=dp.DOLPHIN_RGB,
                     dst=resized_frame)
 
-        # 3. We normalize the frame
+        # 4. We normalize the frame
 
         dp.normalize(src=resized_frame,
                      dst=inference_frame,

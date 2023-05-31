@@ -23,23 +23,13 @@ REQUIRES_PYTHON = '>=3.5.0'
 
 # What packages are required for this module to be executed?
 REQUIRED = [
-    "appdirs==1.4.4",
     "Jinja2==3.1.2",
-    "Mako==1.2.4",
-    "MarkupSafe==2.1.2",
     "numpy==1.23.5",
     "onnx",
     "opencv-python==4.5.5.64",
     "Pillow==9.4.0",
-    "pip-chill==1.0.1",
-    "platformdirs==2.6.2",
-    "protobuf==3.20.3",
     "pycuda==2022.2.2",
-    "pytools==2022.1.14",
-    "tomli==2.0.1",
     "tqdm==4.65.0",
-    "typing_extensions==4.4.0",
-    "pytest==7.3.1",
 ]
 
 here = os.path.abspath(os.path.dirname(__file__))

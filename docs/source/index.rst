@@ -5,9 +5,14 @@ Welcome to Dolphin's documentation!
 Documentation version |version|
 
 .. automodule:: dolphin
-   :members:
-   :undoc-members:
-   :show-inheritance:
+
+Installation
+------------
+
+Dolphin is available on PyPI. You can install it using pip:
+``pip install dolphin-python``
+
+and import it in your python code using ``import dolphin``.
 
 .. toctree::
    :maxdepth: 2
