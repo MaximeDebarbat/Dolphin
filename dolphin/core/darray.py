@@ -975,7 +975,6 @@ not allowed in index")
         """
 
         if isinstance(other, (numpy.number, int, float)):
-            print("other is a number")
             self[index].fill(other)
         elif isinstance(other, darray):
             if not self.broadcastable(self.shape, other.shape):
