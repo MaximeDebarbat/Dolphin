@@ -124,7 +124,7 @@ class test_darray:
 
         cuda_array_result = dp.zeros(shape=new_shape, dtype=dtype)
 
-        cuda_array_result = dp.transpose(perms, cuda_array)
+        cuda_array_result = dp.transpose(cuda_array, perms)
         dummy_result = numpy.transpose(dummy, perms)
 
         diff = numpy.linalg.norm(cuda_array_result.to_numpy() - dummy_result)
@@ -132,25 +132,6 @@ class test_darray:
         assert diff < 1e-5
         assert cuda_array_result.shape == new_shape
         assert cuda_array_result.dtype == dtype
-
-    def test_transpose_inplace(self, shape, dtype):
-        """
-        Test for transpose of darray
-        """
-        dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
-        cuda_array = dp.darray(array=dummy)
-
-        perms = [i for i in range(len(shape))[::-1]]
-        new_shape = tuple([shape[i] for i in perms])
-
-        res = dp.transpose(perms, cuda_array)
-        dummy_result = numpy.transpose(dummy, perms)
-
-        diff = numpy.linalg.norm(res.to_numpy() - dummy_result)
-
-        assert diff < 1e-5
-        assert res.shape == new_shape
-        assert res.dtype == dtype
 
     def test_astype(self, shape, dtype):
         """
