@@ -2,7 +2,7 @@
 """
 
 from enum import Enum
-from typing import Union, Any
+from typing import Union
 import numpy
 
 
@@ -27,7 +27,7 @@ class dtype(Enum):  # pylint: disable=invalid-name
     def _missing_(cls, value: numpy.dtype) -> 'dtype':
         return cls.from_numpy_dtype(value)
 
-    def __call__(self, value: Any) -> numpy.dtype:
+    def __call__(self, value: Union[int, float, numpy.number]) -> numpy.dtype:
         """In order to use the data type as a function to cast a value into a
         particular type, we need to implement the __call__ method.
 
@@ -37,9 +37,9 @@ class dtype(Enum):  # pylint: disable=invalid-name
           a(4) -> numpy.uint8(4)
 
         :param value: The value to cast to the data type
-        :type value: Any
+        :type value: Union[int, float, numpy.number]
         :return: The numpy casted number passed as value
-        :rtype: Any
+        :rtype: numpy.dtype
         """
         return self.numpy_dtype(value)
 
