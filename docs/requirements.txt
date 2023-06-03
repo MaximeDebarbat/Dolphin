@@ -1,9 +1,9 @@
-Jinja2==3.1.2
-numpy==1.23.5
+Jinja2
+numpy
 onnx>=1.13
 onnxruntime_gpu>=1.10.0
 opencv_python==4.5.5.64
 Pillow>=9.4.0
-pytest==7.3.1
-setuptools==45.2.0
+pytest
+setuptools
 tensorrt
