@@ -544,8 +544,7 @@ class dimage(dolphin.darray):
                  dtype: dolphin.dtype = dolphin.dtype.uint8,
                  stream: cuda.Stream = None,
                  array: numpy.ndarray = None,
-                 channel_format: dimage_channel_format
-                 = dimage_channel_format.DOLPHIN_BGR,
+                 channel_format: dimage_channel_format = None,
                  strides: Tuple[int, ...] = None,
                  allocation: cuda.DeviceAllocation = None,
                  allocation_size: int = None

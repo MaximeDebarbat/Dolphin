@@ -74,7 +74,7 @@ class CudaBase:
             grid = (max_blocks, 1)
             grp = (n + min_threads - 1) // min_threads
             return ((grp + max_blocks - 1) // max_blocks *
-                    min_threads), grid
+                    min_threads, 1, 1), grid
 
         return (max_threads, 1, 1), (max_blocks, 1)
 

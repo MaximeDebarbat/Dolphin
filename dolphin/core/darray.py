@@ -1006,7 +1006,9 @@ with shapes {self.shape}, {other.shape}")
 
     def flatten(self, dst: 'darray' = None) -> 'darray':
         """Returns a flattened view of the darray. Useful for
-        reordering the array in memory.
+        reordering the array in memory. Note that a cuda
+        allocation is performed if dst is None.
+        Also, flatten is order C.
 
         :param dst: Destination darray
         :type dst: darray
@@ -1015,9 +1017,7 @@ with shapes {self.shape}, {other.shape}")
         """
         if dst is None:
             dst = darray(shape=(self.size,),
-                         dtype=self.dtype,
-                         allocation=self._allocation,
-                         allocation_size=self._allocation_size)
+                         dtype=self.dtype)
 
         self._cu_discontiguous_copy(src=self,
                                     dst=dst,

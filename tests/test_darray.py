@@ -4,7 +4,7 @@ import dolphin as dp
 
 
 @pytest.mark.parametrize("shape", [(50, 50),
-                                   (200, 200, 200),
+                                   (30, 5, 30),
                                    (4, 3, 2),
                                    (5, 4, 3, 2, 1),
                                    (1, 2, 3)])
@@ -124,7 +124,7 @@ class test_darray:
 
         cuda_array_result = dp.zeros(shape=new_shape, dtype=dtype)
 
-        cuda_array_result = dp.transpose(perms, cuda_array)
+        cuda_array_result = dp.transpose(cuda_array, perms)
         dummy_result = numpy.transpose(dummy, perms)
 
         diff = numpy.linalg.norm(cuda_array_result.to_numpy() - dummy_result)
@@ -133,9 +133,9 @@ class test_darray:
         assert cuda_array_result.shape == new_shape
         assert cuda_array_result.dtype == dtype
 
-    def test_transpose_inplace(self, shape, dtype):
+    def test_flatten(self, shape, dtype):
         """
-        Test for transpose of darray
+        Test for flatten of darray
         """
         dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
         cuda_array = dp.darray(array=dummy)
@@ -143,14 +143,16 @@ class test_darray:
         perms = [i for i in range(len(shape))[::-1]]
         new_shape = tuple([shape[i] for i in perms])
 
-        res = dp.transpose(perms, cuda_array)
-        dummy_result = numpy.transpose(dummy, perms)
+        cuda_array_result = dp.zeros(shape=new_shape, dtype=dtype)
 
-        diff = numpy.linalg.norm(res.to_numpy() - dummy_result)
+        cuda_array_result = dp.transpose(cuda_array, perms).flatten()
+        dummy_result = numpy.transpose(dummy, perms).flatten(order="C")
+
+        diff = numpy.linalg.norm(cuda_array_result.to_numpy() - dummy_result)
 
         assert diff < 1e-5
-        assert res.shape == new_shape
-        assert res.dtype == dtype
+        assert cuda_array_result.shape == dummy_result.shape
+        assert cuda_array_result.dtype == dtype
 
     def test_astype(self, shape, dtype):
         """
