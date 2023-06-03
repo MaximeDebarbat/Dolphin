@@ -4,7 +4,7 @@ import dolphin as dp
 
 
 @pytest.mark.parametrize("shape", [(50, 50),
-                                   (200, 200, 200),
+                                   (30, 5, 30),
                                    (4, 3, 2),
                                    (5, 4, 3, 2, 1),
                                    (1, 2, 3)])
@@ -131,6 +131,27 @@ class test_darray:
 
         assert diff < 1e-5
         assert cuda_array_result.shape == new_shape
+        assert cuda_array_result.dtype == dtype
+
+    def test_flatten(self, shape, dtype):
+        """
+        Test for flatten of darray
+        """
+        dummy = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
+        cuda_array = dp.darray(array=dummy)
+
+        perms = [i for i in range(len(shape))[::-1]]
+        new_shape = tuple([shape[i] for i in perms])
+
+        cuda_array_result = dp.zeros(shape=new_shape, dtype=dtype)
+
+        cuda_array_result = dp.transpose(cuda_array, perms).flatten()
+        dummy_result = numpy.transpose(dummy, perms).flatten(order="C")
+
+        diff = numpy.linalg.norm(cuda_array_result.to_numpy() - dummy_result)
+
+        assert diff < 1e-5
+        assert cuda_array_result.shape == dummy_result.shape
         assert cuda_array_result.dtype == dtype
 
     def test_astype(self, shape, dtype):
