@@ -8,6 +8,7 @@ General python package for CUDA accelerated deep learning inference.
 - **Source code** : [https://github.com/MaximeDebarbat/Dolphin](https://github.com/MaximeDebarbat/Dolphin)
 - **Bug reports** : [https://github.com/MaximeDebarbat/Dolphin/issues](https://github.com/MaximeDebarbat/Dolphin/issues)
 - **Contributing** : [coming soon]()
+- **Getting Starterd** : <a href="https://colab.research.google.com/drive/1RTZI9hJ6a33NtVUYM0esvSg8nzh2MlP2?usp=sharing"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"></a>
 
 It provides :
 
@@ -56,3 +57,14 @@ docker run \
 ```
 
 Please note that Dolphin might not work without the `--gpus all` flag or `--runtime nvidia`.
+
+## Acknowledgements
+
+This project could not have been possible without [PyCuda](https://github.com/inducer/pycuda):
+
+> Andreas Klöckner, Nicolas Pinto, Yunsup Lee, Bryan Catanzaro, Paul Ivanov, Ahmed Fasih, PyCUDA and PyOpenCL: A scripting-based approach to GPU run-time code generation, > Parallel Computing, Volume 38, Issue 3, March 2012, Pages 157-174.
+
+## TODOs
+
+- [ ] Improve `Engine` class in order to support *int8*
+- [ ] Use Cython to speed up the code
