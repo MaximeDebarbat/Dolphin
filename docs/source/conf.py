@@ -8,7 +8,7 @@
 
 import os
 import sys
-autodoc_mock_imports = ["pycuda", "pycuda.autoinit.device.get_attribute"]
+# autodoc_mock_imports = ["pycuda", "pycuda.autoinit.device.get_attribute"]
 
 sys.path.insert(0, os.path.abspath('../../'))
 

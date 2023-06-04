@@ -4,10 +4,9 @@
 
 General python package for CUDA accelerated deep learning inference.
 
-- **Documentation** : [coming soon]()
+- **Documentation** : [ReadTheDoc](https://dolphin-python.readthedocs.io/en/latest/index.html)
 - **Source code** : [https://github.com/MaximeDebarbat/Dolphin](https://github.com/MaximeDebarbat/Dolphin)
 - **Bug reports** : [https://github.com/MaximeDebarbat/Dolphin/issues](https://github.com/MaximeDebarbat/Dolphin/issues)
-- **Contributing** : [coming soon]()
 - **Getting Starterd** : <a href="https://colab.research.google.com/drive/1RTZI9hJ6a33NtVUYM0esvSg8nzh2MlP2?usp=sharing"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"></a>
 
 It provides :
