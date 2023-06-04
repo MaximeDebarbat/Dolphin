@@ -1,9 +1,6 @@
 Dolphin dimage
 ==============
 
-dimage
---------------------------
-
 .. autoclass:: dolphin.dimage
    :members:
    :undoc-members:
