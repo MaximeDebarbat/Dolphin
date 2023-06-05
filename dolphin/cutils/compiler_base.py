@@ -63,7 +63,7 @@ and loaded next time.")
                 os.mkdir(self.get_cubin_path(""))
 
             with open(cubin_path, "wb") as cubin_file:
-                cubin_file.write(cubin)
+                cubin_file.write(bytes(cubin))
 
         return module_from_file(cubin_path)
 
