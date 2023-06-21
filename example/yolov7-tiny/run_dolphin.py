@@ -5,7 +5,7 @@ import cv2
 from utils import prepare_classes, download_required_data, draw
 import dolphin as dp
 
-@profile
+
 def run(opt: argparse.Namespace):
 
     # We create or load the engine here, activate verbose to see the logs
@@ -33,10 +33,6 @@ def run(opt: argparse.Namespace):
                              dtype=dp.uint8,
                              stream=stream)
 
-    transposed_frame = dp.dimage(shape=(3, height, width),
-                                 dtype=dp.uint8,
-                                 stream=stream)
-
     resized_frame = dp.dimage(shape=(3, 640, 640),
                               dtype=dp.uint8,
                               stream=stream)
@@ -44,6 +40,7 @@ def run(opt: argparse.Namespace):
     inference_frame = dp.dimage(shape=(3, 640, 640),
                                 dtype=dp.float32,
                                 stream=stream)
+
     while True:
         ret, frame = cap.read()
         if not ret:
@@ -57,11 +54,11 @@ def run(opt: argparse.Namespace):
         # We process the frame
         # 1. We transpose the frame
 
-        frame_darray.transpose(2, 0, 1).flatten(dst=transposed_frame)
+        frame_darray = frame_darray.transpose(2, 0, 1)
 
         # 2. We perform letterbox resize
 
-        _, r, dwdh = dp.resize_padding(src=transposed_frame,
+        _, r, dwdh = dp.resize_padding(src=frame_darray,
                                        shape=(640, 640),
                                        dst=resized_frame)
 
@@ -72,7 +69,6 @@ def run(opt: argparse.Namespace):
                     dst=resized_frame)
 
         # 4. We normalize the frame
-
         dp.normalize(src=resized_frame,
                      dst=inference_frame,
                      normalize_type=dp.DOLPHIN_255)
@@ -90,7 +86,6 @@ def run(opt: argparse.Namespace):
                            dwdh=dwdh,
                            fps=1/t2)
         video_output.write(drawn_frame)
-        exit(0)
 
     cap.release()
     cv2.destroyAllWindows()

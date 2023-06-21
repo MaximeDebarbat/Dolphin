@@ -754,19 +754,22 @@ class darray:
         :type array: numpy.ndarray
         """
 
-        if array.shape != self._shape:
+        if array.size != self.size:
             raise ValueError(
-                f"array shape doesn't match darray : {array.shape} \
-                    != {self.shape}")
+                f"array size doesn't match darray : {array.size} \
+!= {self.size}")
 
         if dolphin.dtype.from_numpy_dtype(array.dtype) != self._dtype:
             raise ValueError(
                 f"array does not match the dtype : {array.dtype} \
-                    != {self.dtype}")
+!= {self.dtype}")
 
         cuda.memcpy_htod_async(self._allocation,
                                array.flatten(order="C"),
                                self._stream)
+
+        self._shape = array.shape
+        self._strides = tuple([s//self.dtype.itemsize for s in array.strides])
 
     def astype(self, dtype: dolphin.dtype,
                dst: 'darray' = None) -> 'darray':
@@ -828,7 +831,7 @@ class darray:
         if len(axes) != len(self._shape):
             raise ValueError("axes don't match array")
 
-        if not all(isinstance(v, int) for v in axes):
+        if not all(isinstance(v, (int, numpy.integer)) for v in axes):
             raise ValueError("axes must be integers")
 
         if len(set(axes)) != len(axes):
@@ -1005,10 +1008,8 @@ with shapes {self.shape}, {other.shape}")
         return self.to_numpy().__repr__()  # pylint: disable=E1120
 
     def flatten(self, dst: 'darray' = None) -> 'darray':
-        """Returns a flattened view of the darray. Useful for
-        reordering the array in memory. Note that a cuda
-        allocation is performed if dst is None.
-        Also, flatten is order C.
+        """Returns a flattened view of the darray.
+        Order = C.
 
         :param dst: Destination darray
         :type dst: darray
@@ -1118,7 +1119,7 @@ with shapes {self.shape}, {other.shape}")
         else:
             raise TypeError(
                 f"unsupported operand type(s) for +: '{type(self)}' \
-                    and '{type(other)}'")
+and '{type(other)}'")
 
         return dst
 
@@ -1217,7 +1218,7 @@ with shapes {self.shape}, {other.shape}")
         else:
             raise TypeError(
                 f"unsupported operand type(s) for -: '{type(self)}' \
-                    and '{type(other)}'")
+and '{type(other)}'")
 
         return dst
 
@@ -1381,7 +1382,7 @@ with shapes {self.shape}, {other.shape}")
         else:
             raise TypeError(
                 f"unsupported operand type(s) for *: '{type(self)}' \
-                    and '{type(other)}'")
+and '{type(other)}'")
         return dst
 
     mul = multiply
@@ -1441,7 +1442,7 @@ with shapes {self.shape}, {other.shape}")
         else:
             raise TypeError(
                 f"unsupported operand type(s) for *: '{type(self)}' \
-                    and '{type(other)}'")
+and '{type(other)}'")
 
     __rmul__ = __mul__  # object * array
 
@@ -1524,7 +1525,7 @@ with shapes {self.shape}, {other.shape}")
         else:
             raise TypeError(
                 f"unsupported operand type(s) for /: '{type(self)}' \
-                    and '{type(other)}'")
+and '{type(other)}'")
 
         return dst
 
@@ -1597,7 +1598,8 @@ with shapes {self.shape}, {other.shape}")
         else:
             raise TypeError(
                 f"unsupported operand type(s) for /: '{type(self)}' \
-                    and '{type(other)}'")
+and '{type(other)}'")
+
         return dst
 
     rdiv = reversed_divide
@@ -1653,7 +1655,7 @@ with shapes {self.shape}, {other.shape}")
         else:
             raise TypeError(
                 f"unsupported operand type(s) for /: '{type(self)}' \
-                    and '{type(other)}'")
+and '{type(other)}'")
 
     def __idiv__(self, other: Union[int, float, numpy.number, 'darray']
                  ) -> 'darray':

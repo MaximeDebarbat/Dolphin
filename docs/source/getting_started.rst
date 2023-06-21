@@ -489,9 +489,8 @@ on-the-fly allocations. Shall we now go through the inference part of all of thi
         d_frame.from_numpy(frame)
 
         # We process the frame
-        # 1. We transpose the frame and call 'flatten' in order
-        # to rearrange the data in memory as expected
-        d_frame.transpose(2, 0, 1).flatten(dst=transposed_frame)
+        # 1. We transpose the frame
+        d_frame = d_frame.transpose(2, 0, 1)
 
         # 2. We perform padding resize
         _, r, dwdh = dp.resize_padding(src=transposed_frame,

@@ -15,11 +15,17 @@ __global__ void HWC_resize_nearest_{{ dtype }}(
     const uint16_t input_height,
     const uint16_t output_width,
     const uint16_t output_height,
-    const uint8_t channels
+    const uint32_t* __restrict__  shape_src,
+    const uint32_t* __restrict__  strides_src,
+    const uint32_t* __restrict__  shape_dst,
+    const uint32_t* __restrict__  strides_dst,
+    const uint32_t ndim
 ){
 
     uint16_t i = blockDim.x * blockIdx.x + threadIdx.x;
     uint16_t j = blockDim.y * blockIdx.y + threadIdx.y;
+
+    uint32_t channels = ndim == 2 ? 1 : shape_src[2];
 
     if (i < (output_width) && j < (output_height))
     {
@@ -30,9 +36,9 @@ __global__ void HWC_resize_nearest_{{ dtype }}(
         uint32_t dst_offset = (j   * (output_width) + i  ) * (channels);
         uint32_t src_offset = (jIn * (input_width) + iIn) * (channels);
 
-        for (uint8_t c = 0; c < channels; ++c)
+        for (uint32_t c = 0; c < channels; ++c)
         {
-            dst_img[(uint32_t) dst_offset + c] = src_img[(uint32_t) src_offset + c];
+            dst_img[index_transform(dst_offset + c, strides_dst, shape_dst, ndim)] = src_img[index_transform(src_offset + c, strides_src, shape_src, ndim)];
         }
     }
 
@@ -45,11 +51,16 @@ __global__ void CHW_resize_nearest_{{ dtype }}(
     const uint16_t input_height,
     const uint16_t output_width,
     const uint16_t output_height,
-    const uint8_t channels
+    const uint32_t* __restrict__  shape_src,
+    const uint32_t* __restrict__  strides_src,
+    const uint32_t* __restrict__  shape_dst,
+    const uint32_t* __restrict__  strides_dst,
+    const uint32_t ndim
 ){
 
     uint16_t i = blockDim.x * blockIdx.x + threadIdx.x;
     uint16_t j = blockDim.y * blockIdx.y + threadIdx.y;
+    uint32_t channels = ndim == 2 ? 1 : shape_src[0];
 
     if (i < (output_width) && j < (output_height))
     {
@@ -63,10 +74,9 @@ __global__ void CHW_resize_nearest_{{ dtype }}(
         uint32_t total_size_out = (output_width*output_height);
         uint32_t total_size_in = (input_width*input_height);
 
-        for (uint8_t c = 0; c < channels; ++c)
+        for (uint32_t c = 0; c < channels; ++c)
         {
-
-            dst_img[(uint32_t) dst_offset + total_size_out * c] = src_img[(uint32_t) src_offset + total_size_in * c];
+            dst_img[index_transform(dst_offset + total_size_out * c, strides_dst, shape_dst, ndim)] = src_img[index_transform(src_offset + total_size_in * c, strides_src, shape_src, ndim)];
         }
     }
 
@@ -79,12 +89,17 @@ __global__ void HWC_resize_padding_{{ dtype }}(
     const uint16_t input_height,
     const uint16_t output_width,
     const uint16_t output_height,
-    const uint8_t channels,
-    const {{ dtype }} padding_value
+    const {{ dtype }} padding_value,
+    const uint32_t* __restrict__  shape_src,
+    const uint32_t* __restrict__  strides_src,
+    const uint32_t* __restrict__  shape_dst,
+    const uint32_t* __restrict__  strides_dst,
+    const uint32_t ndim
 ){
 
     uint16_t i = blockDim.x * blockIdx.x + threadIdx.x;
     uint16_t j = blockDim.y * blockIdx.y + threadIdx.y;
+    uint32_t channels = ndim == 2 ? 1 : shape_src[2];
 
     if (i < (output_width) && j < (output_height))
     {
@@ -114,8 +129,9 @@ __global__ void HWC_resize_padding_{{ dtype }}(
 
             uint32_t src_offset = (jIn * (input_width)  + iIn) * channels;
 
-            for(uint16_t k=0; k<channels; k++){
-                dst_img[(uint32_t) dst_offset + k] = src_img[(uint32_t) src_offset + k];
+            for(uint32_t k=0; k<channels; k++){
+
+                dst_img[index_transform(dst_offset + k, strides_dst, shape_dst, ndim)] = src_img[index_transform(src_offset + k, strides_src, shape_src, ndim)];
             }
         }
 
@@ -129,13 +145,17 @@ __global__ void CHW_resize_padding_{{ dtype }}(
     const uint16_t input_height,
     const uint16_t output_width,
     const uint16_t output_height,
-    const uint8_t channels,
-    const {{ dtype }} padding_value
+    const {{ dtype }} padding_value,
+    const uint32_t* __restrict__  shape_src,
+    const uint32_t* __restrict__  strides_src,
+    const uint32_t* __restrict__  shape_dst,
+    const uint32_t* __restrict__  strides_dst,
+    const uint32_t ndim
 ){
 
     uint16_t i = blockDim.x * blockIdx.x + threadIdx.x;
     uint16_t j = blockDim.y * blockIdx.y + threadIdx.y;
-
+    uint32_t channels = ndim == 2 ? 1 : shape_src[0];
 
     if (i < (output_width) && j < (output_height))
     {
@@ -167,8 +187,8 @@ __global__ void CHW_resize_padding_{{ dtype }}(
 
             uint32_t src_offset = (jIn * (input_width)  + iIn);
 
-            for(uint16_t k=0; k<channels; k++){
-                dst_img[(uint32_t) dst_offset + total_size_out*k] = src_img[(uint32_t) src_offset + total_size_in*k];
+            for(uint32_t k=0; k<channels; k++){
+                dst_img[index_transform(dst_offset + total_size_out * k, strides_dst, shape_dst, ndim)] = src_img[index_transform(src_offset + total_size_in * k, strides_src, shape_src, ndim)];
             }
         }
 

@@ -82,7 +82,7 @@ class CuResizeNearest(dolphin.CuResizeCompiler):
                 self._func[mode+dtype.cuda_dtype] = \
                     self.compiled_source.get_function(
                         mode+self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare(
-                    "PPHHHHB")
+                    "PPHHHHPPPPI")
 
     def __call__(self,
                  src: 'dimage',
@@ -107,7 +107,11 @@ class CuResizeNearest(dolphin.CuResizeCompiler):
             src.height,
             dst.width,
             dst.height,
-            src.channel
+            src.shape_allocation,
+            src.strides_allocation,
+            dst.shape_allocation,
+            dst.strides_allocation,
+            numpy.uint32(src.ndim)
             )
 
 
@@ -124,7 +128,7 @@ class CuResizePadding(dolphin.CuResizeCompiler):
                 self._func[mode+dtype.cuda_dtype] = \
                     self.compiled_source.get_function(
                         mode+self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare(
-                    "PPHHHHB"+numpy.dtype(dtype.numpy_dtype).char)
+                    "PPHHHH"+numpy.dtype(dtype.numpy_dtype).char+"PPPPI")
 
     def __call__(self,
                  src: 'dimage',
@@ -150,8 +154,12 @@ class CuResizePadding(dolphin.CuResizeCompiler):
             src.height,
             dst.width,
             dst.height,
-            src.channel,
-            src.dtype.numpy_dtype(padding)
+            src.dtype.numpy_dtype(padding),
+            src.shape_allocation,
+            src.strides_allocation,
+            dst.shape_allocation,
+            dst.strides_allocation,
+            numpy.uint32(src.ndim)
             )
 
 
@@ -289,7 +297,7 @@ class CuCvtColorRGB2GRAY(dolphin.CuCvtColorCompiler):
                     self.compiled_source.get_function(
                         mode + self.__CU_FUNC_NAME +
                         dtype_in.cuda_dtype).prepare(
-                    "PPHHB")
+                    "PPHHPPPPII")
 
     def __call__(self,
                  src: 'dimage',
@@ -312,7 +320,12 @@ class CuCvtColorRGB2GRAY(dolphin.CuCvtColorCompiler):
             dst.allocation,
             src.width,
             src.height,
-            src.channel
+            src.shape_allocation,
+            src.strides_allocation,
+            dst.shape_allocation,
+            dst.strides_allocation,
+            numpy.uint32(src.ndim),
+            numpy.uint32(dst.ndim)
             )
 
 
@@ -330,7 +343,7 @@ class CuCvtColorBGR2GRAY(dolphin.CuCvtColorCompiler):
                     self.compiled_source.get_function(
                         mode + self.__CU_FUNC_NAME +
                         dtype_in.cuda_dtype).prepare(
-                    "PPHHB")
+                    "PPHHPPPPII")
 
     def __call__(self,
                  src: 'dimage',
@@ -353,7 +366,12 @@ class CuCvtColorBGR2GRAY(dolphin.CuCvtColorCompiler):
             dst.allocation,
             src.width,
             src.height,
-            src.channel
+            src.shape_allocation,
+            src.strides_allocation,
+            dst.shape_allocation,
+            dst.strides_allocation,
+            numpy.uint32(src.ndim),
+            numpy.uint32(dst.ndim)
             )
 
 
@@ -371,7 +389,7 @@ class CuCvtColorBGR2RGB(dolphin.CuCvtColorCompiler):
                     self.compiled_source.get_function(
                         mode + self.__CU_FUNC_NAME +
                         dtype_in.cuda_dtype).prepare(
-                    "PPHHB")
+                    "PPHHPPPPII")
 
     def __call__(self,
                  src: 'dimage',
@@ -394,7 +412,12 @@ class CuCvtColorBGR2RGB(dolphin.CuCvtColorCompiler):
             dst.allocation,
             src.width,
             src.height,
-            src.channel
+            src.shape_allocation,
+            src.strides_allocation,
+            dst.shape_allocation,
+            dst.strides_allocation,
+            numpy.uint32(src.ndim),
+            numpy.uint32(dst.ndim)
             )
 
 
@@ -411,7 +434,7 @@ class CuCvtColorRGB2BGR(dolphin.CuCvtColorCompiler):
                 self._func[mode+dtype_in.cuda_dtype] = \
                     self.compiled_source.get_function(
                     mode + self.__CU_FUNC_NAME + dtype_in.cuda_dtype).prepare(
-                    "PPHHB")
+                    "PPHHPPPPII")
 
     def __call__(self,
                  src: 'dimage',
@@ -434,7 +457,12 @@ class CuCvtColorRGB2BGR(dolphin.CuCvtColorCompiler):
             dst.allocation,
             src.width,
             src.height,
-            src.channel
+            src.shape_allocation,
+            src.strides_allocation,
+            dst.shape_allocation,
+            dst.strides_allocation,
+            numpy.uint32(src.ndim),
+            numpy.uint32(dst.ndim)
             )
 
 
@@ -731,6 +759,21 @@ Got : {self._shape}")
 
         return super().astype(dtype, dst)
 
+    def rearange(self) -> 'dimage':
+        """rearange the dimage in place. Useful for
+        reordering the array in memory.
+
+        :return: Flattened darray
+        :rtype: darray
+        """
+        res = dolphin.darray(shape=(self.size,),
+                             dtype=self.dtype,
+                             allocation=self._allocation,
+                             allocation_size=self._allocation_size)
+        self.flatten(dst=res)
+        self._strides = self.compute_strides(self.shape)
+        return self
+
     def resize_padding(self,
                        shape: Tuple[int, ...],
                        dst: 'dimage' = None,
@@ -890,6 +933,7 @@ shapes with resize shape.")
                 return self.copy()
             cuda.memcpy_dtod_async(dst.allocation,
                                    self.allocation,
+                                   self.nbytes,
                                    self._stream)
             return dst
 
@@ -974,7 +1018,7 @@ shapes with resize shape.")
         elif dst.shape != self.shape:
             raise ValueError(
                 "The destination image must have the same shape as \
-                the source image defined in the function arguments.")
+the source image defined in the function arguments.")
 
         if (normalize_type.value ==
            dimage_normalize_type.DOLPHIN_MEAN_STD.value):

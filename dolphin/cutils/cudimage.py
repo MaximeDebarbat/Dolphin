@@ -24,6 +24,7 @@ class CuResizeCompiler(CompilerBase):
             source += Template(self._cuda_source).render(
                 dtype=dtype.cuda_dtype,
                 )
+        source = self.append_utils(source)
         return source
 
 
@@ -60,5 +61,5 @@ class CuCvtColorCompiler(CompilerBase):
             source += Template(self._cuda_source).render(
                 dtype=dtype.cuda_dtype
                 )
-
+        source = self.append_utils(source)
         return source
