@@ -7,6 +7,11 @@ Dolphin notably provides a set of functions to manipulate GPU arrays
 (dolphin.darray) and images (dolphin.dimage) and TensorRT functions
 (dolphin.Engine).
 
+Official documentation :
+
+https://dolphin-python.readthedocs.io/en/latest/
+
+
 This package is strongly relying on the CUDA Python bindings PyCuda,
 available at https://github.com/inducer/pycuda,
 https://documen.tician.de/pycuda/.
@@ -33,7 +38,8 @@ from .cutils.cudarray import (
 from .cutils.cudimage import (
   CuResizeCompiler,
   CuNormalizeCompiler,
-  CuCvtColorCompiler
+  CuCvtColorCompiler,
+  CuCropAndResizeCompiler
 )
 
 from .core.dtype import dtype
