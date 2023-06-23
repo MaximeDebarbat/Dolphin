@@ -961,7 +961,8 @@ not allowed in index")
             shape=tuple(new_shape),
             dtype=self.dtype,
             strides=tuple(new_strides),
-            allocation=int(int(self.allocation) + new_offset * self.dtype.itemsize),
+            allocation=int(int(self.allocation) + new_offset *
+                           self.dtype.itemsize),
             allocation_size=self._allocation_size - new_offset
         )
 
