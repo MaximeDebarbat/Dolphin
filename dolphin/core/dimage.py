@@ -163,6 +163,100 @@ class CuResizePadding(dolphin.CuResizeCompiler):
             )
 
 
+class CuCropAndResize(dolphin.CuCropAndResizeCompiler):
+    __CU_FUNC_NAME: str = "_crop_and_resize_"
+
+    def __init__(self):
+        super().__init__()
+
+        self._func: dict = {}
+
+        for mode in ["CHW", "HWC"]:
+            for dtype in dolphin.dtype:
+                self._func[mode+dtype.cuda_dtype] = \
+                    self.compiled_source.get_function(
+                        mode+self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare(
+                    "PPPIIIPPI")
+
+    def __call__(self,
+                 src: 'dimage',
+                 dst: 'dimage',
+                 bounding_box: dolphin.darray,
+                 size: Tuple[int, int],
+                 block: Tuple[int, int, int],
+                 grid: Tuple[int, int],
+                 stream: cuda.Stream = None) -> None:
+
+        if (src.image_dim_format.value ==
+           dimage_dim_format.DOLPHIN_CHW.value):
+            mode = "CHW"
+        else:
+            mode = "HWC"
+
+        self._func[mode+src.dtype.cuda_dtype].prepared_async_call(
+            grid,
+            block,
+            stream,
+            src.allocation,
+            dst.allocation,
+            bounding_box.allocation,
+            numpy.uint32(bounding_box.shape[0]),
+            numpy.uint32(size[0]),
+            numpy.uint32(size[1]),
+            src.shape_allocation,
+            src.strides_allocation,
+            numpy.uint32(src.ndim)
+            )
+
+
+class CuCropAndResizePadding(dolphin.CuCropAndResizeCompiler):
+    __CU_FUNC_NAME: str = "_crop_and_resize_padding_"
+
+    def __init__(self):
+        super().__init__()
+
+        self._func: dict = {}
+
+        for mode in ["CHW", "HWC"]:
+            for dtype in dolphin.dtype:
+                self._func[mode+dtype.cuda_dtype] = \
+                    self.compiled_source.get_function(
+                        mode+self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare(
+                    "PPPIIIPPI"+numpy.dtype(dtype.numpy_dtype).char)
+
+    def __call__(self,
+                 src: 'dimage',
+                 dst: 'dimage',
+                 bounding_box: dolphin.darray,
+                 size: Tuple[int, int],
+                 padding: Union[int, float],
+                 block: Tuple[int, int, int],
+                 grid: Tuple[int, int],
+                 stream: cuda.Stream = None) -> None:
+
+        if (src.image_dim_format.value ==
+           dimage_dim_format.DOLPHIN_CHW.value):
+            mode = "CHW"
+        else:
+            mode = "HWC"
+
+        self._func[mode+src.dtype.cuda_dtype].prepared_async_call(
+            grid,
+            block,
+            stream,
+            src.allocation,
+            dst.allocation,
+            bounding_box.allocation,
+            numpy.uint32(bounding_box.shape[0]),
+            numpy.uint32(size[0]),
+            numpy.uint32(size[1]),
+            src.shape_allocation,
+            src.strides_allocation,
+            numpy.uint32(src.ndim),
+            src.dtype.numpy_dtype(padding)
+            )
+
+
 class CuNormalizeMeanStd(dolphin.CuNormalizeCompiler):
     __CU_FUNC_NAME: str = "_normalize_mean_std_"
 
@@ -566,6 +660,8 @@ class dimage(dolphin.darray):
     _cu_cvtColor_bgr2gray = CuCvtColorBGR2GRAY()
     _cu_cvtColor_bgr2rgb = CuCvtColorBGR2RGB()
     _cu_cvtColor_rgb2bgr = CuCvtColorRGB2BGR()
+    _cu_crop_and_resize = CuCropAndResize()
+    _cu_crop_and_resize_padding = CuCropAndResizePadding()
 
     def __init__(self,
                  shape: Tuple[int, ...] = None,
@@ -758,21 +854,6 @@ Got : {self._shape}")
         """
 
         return super().astype(dtype, dst)
-
-    def rearange(self) -> 'dimage':
-        """rearange the dimage in place. Useful for
-        reordering the array in memory.
-
-        :return: Flattened darray
-        :rtype: darray
-        """
-        res = dolphin.darray(shape=(self.size,),
-                             dtype=self.dtype,
-                             allocation=self._allocation,
-                             allocation_size=self._allocation_size)
-        self.flatten(dst=res)
-        self._strides = self.compute_strides(self.shape)
-        return self
 
     def resize_padding(self,
                        shape: Tuple[int, ...],
@@ -968,6 +1049,207 @@ shapes with resize shape.")
                                block=block,
                                grid=grid,
                                stream=self._stream)
+        return dst
+
+    def crop_and_resize(self,
+                        coordinates: dolphin.darray,
+                        size: Tuple[int, int],
+                        dst: dolphin.darray = None) -> dolphin.darray:
+        """
+        This method is well performing for cropping and resizing images.
+        The use case would be to process a batch of images which would be
+        the crops of a bigger image. The coordinates of the crops would,
+        for instance, be the output of a detection model.
+
+        In terms of usability, the coordinates are expected to be in the
+        following format: [[x1, y1, x2, y2], ...] where x1, y1, x2, y2 are
+        the absolute coordinates of the top left and bottom right corners
+        of the crop in the original image.
+
+        Coordinates would thus be a :class:`dolphin.darray` of shape
+        (n, 4) where n is the number of crops, n >= 1.
+
+        Also, for faster execution, the destination darray is expected to
+        be preallocated and passed as an argument to the function.
+
+        :param coordinates: darray of coordinates
+        :type coordinates: dolphin.darray
+        :param size: Tuple of the desired shape (width, height)
+        :type size: Tuple[int, int]
+        :param dst: Destination darray for faster execution, defaults to None
+        :type dst: dolphin.darray, optional
+        :return: darray of cropped and resized images
+        :rtype: dolphin.darray
+        """
+
+        if len(size) != 2:
+            raise ValueError(
+                "The size must be a tuple of 2 elements (width, height)")
+
+        if len(coordinates.shape) != 2 or coordinates.shape[1] != 4:
+            raise ValueError(
+                "The coordinates must be a darray of shape (n, 4)")
+
+        # TODO: Check if the coordinates are valid
+        # To do so, implementation of >,<, >= and <= operators
+        # for darray is needed
+
+#         for i in range(coordinates.shape[0]):
+#             if coordinates[i, 0] > coordinates[i, 2] or \
+#                coordinates[i, 1] > coordinates[i, 3]:
+#                 raise ValueError(
+#                     "The coordinates must be in the format \
+# [[x1, y1, x2, y2], ...] where x1, y1, x2, y2 are the absolute coordinates \
+# of the top left and bottom right corners of the crop in the original image.")
+
+#             if coordinates[i, 0] > self.width or \
+#                coordinates[i, 1] > self.height or \
+#                coordinates[i, 2] > self.width or \
+#                coordinates[i, 3] > self.height:
+#                 raise ValueError(
+#                     "The coordinates are invalid for the image. \
+# x1, y1, x2, y2 must be smaller than the image width and height.")
+
+        if dst is not None and (
+            dst.size != (coordinates.shape[0]*size[0]*size[1]*self.channel) or
+                dst.dtype != self.dtype):
+
+            raise ValueError(
+                "The destination darray must have consitent \
+shapes with resize shape.")
+
+        else:
+            if self._image_dim_format == dimage_dim_format.DOLPHIN_HW:
+                shape = (coordinates.shape[0], size[1], size[0])
+            elif self._image_dim_format == dimage_dim_format.DOLPHIN_HWC:
+                shape = (coordinates.shape[0], size[1], size[0], self.channel)
+            elif self._image_dim_format == dimage_dim_format.DOLPHIN_CHW:
+                shape = (coordinates.shape[0], self.channel, size[1], size[0])
+
+            dst = dolphin.darray(shape=shape,
+                                 dtype=self.dtype,
+                                 stream=self._stream)
+
+        block = dolphin.CudaBase.GET_BLOCK_X_Y(coordinates.shape[0])
+        grid = (
+            math.ceil(
+                size[0] /
+                block[0]),
+            math.ceil(
+                size[1] /
+                block[1]),
+            1)
+
+        self._cu_crop_and_resize(src=self,
+                                 dst=dst,
+                                 bounding_box=coordinates,
+                                 size=size,
+                                 block=block,
+                                 grid=grid,
+                                 stream=self._stream)
+
+        return dst
+
+    def crop_and_resize_padding(self,
+                                coordinates: dolphin.darray,
+                                size: Tuple[int, int],
+                                padding: Union[int, float] = 127,
+                                dst: dolphin.darray = None) -> dolphin.darray:
+        """
+        This method is well performing for cropping and resizing images
+        using padded resize.
+        The use case would be to process a batch of images which would be
+        the crops of a bigger image. The coordinates of the crops would,
+        for instance, be the output of a detection model.
+
+        In terms of usability, the coordinates are expected to be in the
+        following format: [[x1, y1, x2, y2], ...] where x1, y1, x2, y2 are
+        the absolute coordinates of the top left and bottom right corners
+        of the crop in the original image.
+
+        Coordinates would thus be a :class:`dolphin.darray` of shape
+        (n, 4) where n is the number of crops, n >= 1.
+
+        Also, for faster execution, the destination darray is expected to
+        be preallocated and passed as an argument to the function.
+
+        :param coordinates: darray of coordinates
+        :type coordinates: dolphin.darray
+        :param size: Tuple of the desired shape (width, height)
+        :type size: Tuple[int, int]
+        :param dst: Destination darray for faster execution, defaults to None
+        :type dst: dolphin.darray, optional
+        :return: darray of cropped and resized images
+        :rtype: dolphin.darray
+        """
+
+        if len(size) != 2:
+            raise ValueError(
+                "The size must be a tuple of 2 elements (width, height)")
+
+        if len(coordinates.shape) != 2 or coordinates.shape[1] != 4:
+            raise ValueError(
+                "The coordinates must be a darray of shape (n, 4)")
+
+        # TODO: Check if the coordinates are valid
+        # To do so, implementation of >,<, >= and <= operators
+        # for darray is needed
+
+#         for i in range(coordinates.shape[0]):
+#             if coordinates[i, 0] > coordinates[i, 2] or \
+#                coordinates[i, 1] > coordinates[i, 3]:
+#                 raise ValueError(
+#                     "The coordinates must be in the format \
+# [[x1, y1, x2, y2], ...] where x1, y1, x2, y2 are the absolute coordinates \
+# of the top left and bottom right corners of the crop in the original image.")
+
+#             if coordinates[i, 0] > self.width or \
+#                coordinates[i, 1] > self.height or \
+#                coordinates[i, 2] > self.width or \
+#                coordinates[i, 3] > self.height:
+#                 raise ValueError(
+#                     "The coordinates are invalid for the image. \
+# x1, y1, x2, y2 must be smaller than the image width and height.")
+
+        if dst is not None and (
+            dst.size != (coordinates.shape[0]*size[0]*size[1]*self.channel) or
+                dst.dtype != self.dtype):
+
+            raise ValueError(
+                "The destination darray must have consitent \
+shapes with resize shape.")
+
+        else:
+            if self._image_dim_format == dimage_dim_format.DOLPHIN_HW:
+                shape = (coordinates.shape[0], size[1], size[0])
+            elif self._image_dim_format == dimage_dim_format.DOLPHIN_HWC:
+                shape = (coordinates.shape[0], size[1], size[0], self.channel)
+            elif self._image_dim_format == dimage_dim_format.DOLPHIN_CHW:
+                shape = (coordinates.shape[0], self.channel, size[1], size[0])
+
+            dst = dolphin.darray(shape=shape,
+                                 dtype=self.dtype,
+                                 stream=self._stream)
+
+        block = dolphin.CudaBase.GET_BLOCK_X_Y(coordinates.shape[0])
+        grid = (
+            math.ceil(
+                size[0] /
+                block[0]),
+            math.ceil(
+                size[1] /
+                block[1]),
+            1)
+
+        self._cu_crop_and_resize_padding(src=self,
+                                         dst=dst,
+                                         bounding_box=coordinates,
+                                         size=size,
+                                         padding=padding,
+                                         block=block,
+                                         grid=grid,
+                                         stream=self._stream)
+
         return dst
 
     def normalize(self, normalize_type: dimage_normalize_type =

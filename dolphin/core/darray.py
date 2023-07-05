@@ -528,8 +528,8 @@ class darray:
         self._block, self._grid = dolphin.CudaBase.GET_BLOCK_GRID_1D(
             self._size)
 
-        self._strides_allocation = cuda.mem_alloc(self.ndim * 4)
-        self._shape_allocation = cuda.mem_alloc(self.ndim * 4)
+        self._strides_allocation = cuda.mem_alloc(max(1, self.ndim) * 4)
+        self._shape_allocation = cuda.mem_alloc(max(1, self.ndim) * 4)
 
         cuda.memcpy_htod_async(self._strides_allocation,
                                numpy.array(self._strides, dtype=numpy.uint32),
@@ -732,11 +732,11 @@ class darray:
         :return: numpy.ndarray of the darray
         :rtype: numpy.ndarray
         """
-        res = numpy.empty((self._allocation_size//self.dtype.itemsize,),
+        res = numpy.empty((self.size,),
                           dtype=self._dtype.numpy_dtype)
 
         cuda.memcpy_dtoh_async(res,
-                               self._allocation,
+                               int(self._allocation),
                                self._stream)
 
         temp_s = tuple([s*self._dtype.itemsize for s in self._strides])
@@ -845,7 +845,7 @@ class darray:
                              dtype=self._dtype,
                              stream=self._stream,
                              strides=new_strides,
-                             allocation=self._allocation)
+                             allocation=int(self._allocation))
 
         return res
 
@@ -961,7 +961,8 @@ not allowed in index")
             shape=tuple(new_shape),
             dtype=self.dtype,
             strides=tuple(new_strides),
-            allocation=int(self.allocation) + new_offset * self.dtype.itemsize,
+            allocation=int(int(self.allocation) + new_offset *
+                           self.dtype.itemsize),
             allocation_size=self._allocation_size - new_offset
         )
 
