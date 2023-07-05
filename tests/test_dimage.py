@@ -1294,11 +1294,13 @@ class test_dimage_crop_n_resize:
     @pytest.mark.parametrize("shape", [(40, 50, 3),
                                        (240, 250, 3)])
     @pytest.mark.parametrize("size", [(20, 20),
-                                      (100, 100)])
+                                      (100, 100),
+                                      (40, 60),
+                                      (222, 333)])
     @pytest.mark.parametrize("crop", [[[0, 0, 20, 20]],
-                                      [[10, 10, 12, 12],
-                                      [5, 5, 30, 30]],
-                                      [[20, 20, 40, 40]]])
+                                      [[10, 10, 12, 15],
+                                      [5, 5, 30, 25]],
+                                      [[20, 20, 30, 40]]])
     def test_dimage_hwc_crop_n_resize(self, dtype, shape, size, crop):
         """
         Test conversion of a dimage
@@ -1328,21 +1330,23 @@ class test_dimage_crop_n_resize:
                            interpolation=cv2.INTER_NEAREST)
             )
 
-        diff = numpy.linalg.norm(dimage_crop.to_numpy() - numpy.array(image_crop).astype(dtype=dtype.numpy_dtype))
+        diff = numpy.linalg.norm(dimage_crop.np - numpy.array(image_crop).astype(dtype=dtype.numpy_dtype))
 
         assert diff < 1e-5
-        assert dimage_crop.shape == (len(crop),)+size+(3,)
-        assert dimage_crop.shape == numpy.array(image_crop, dtype=dtype.numpy_dtype).shape
+        assert dimage_crop.shape == (len(crop),)+size[::-1]+(3,)
         assert dimage_crop.size == numpy.array(image_crop, dtype=dtype.numpy_dtype).size
+        assert dimage_crop.shape == numpy.array(image_crop, dtype=dtype.numpy_dtype).shape
 
     @pytest.mark.parametrize("shape", [(3, 40, 50),
                                        (3, 240, 250)])
     @pytest.mark.parametrize("size", [(20, 20),
-                                      (100, 100)])
+                                      (100, 100),
+                                      (40, 60),
+                                      (222, 333)])
     @pytest.mark.parametrize("crop", [[[0, 0, 20, 20]],
-                                      [[10, 10, 12, 12],
-                                      [5, 5, 30, 30]],
-                                      [[20, 20, 40, 40]]])
+                                      [[10, 10, 12, 15],
+                                      [5, 5, 30, 25]],
+                                      [[20, 20, 30, 40]]])
     def test_dimage_chw_crop_n_resize(self, dtype, shape, size, crop):
         """
         Test conversion of a dimage
@@ -1376,5 +1380,97 @@ class test_dimage_crop_n_resize:
         diff = numpy.linalg.norm(dimage_crop.to_numpy() - numpy.array(image_crop).astype(dtype=dtype.numpy_dtype).transpose(0,3,1,2))
 
         assert diff < 1e-5
-        assert dimage_crop.shape == (len(crop), 3)+size
+        assert dimage_crop.shape == (len(crop), 3)+size[::-1]
+        assert dimage_crop.size == numpy.array(image_crop, dtype=dtype.numpy_dtype).size
+
+    @pytest.mark.parametrize("shape", [(40, 50, 3),
+                                       (240, 250, 3)])
+    @pytest.mark.parametrize("size", [(20, 20),
+                                      (100, 100),
+                                      (40, 60),
+                                      (200, 300)])
+    @pytest.mark.parametrize("crop", [[[0, 0, 20, 20]],
+                                      [[10, 10, 12, 15],
+                                      [5, 5, 30, 25]],
+                                      [[20, 20, 30, 40]]])
+    def test_dimage_hwc_crop_n_resize_padding(self, dtype, shape, size, crop):
+        """
+        Test conversion of a dimage
+        """
+        if dtype.numpy_dtype not in [
+                numpy.uint8,
+                numpy.int8,
+                numpy.uint16,
+                numpy.int16,
+                numpy.int32,
+                numpy.float32,
+                numpy.float64]:
+            dtype = dp.float32
+
+        array = numpy.random.rand(*shape)*100
+        array = array.astype(dtype.numpy_dtype)
+        dimage = dp.dimage(array=array, channel_format=dp.DOLPHIN_RGB)
+        coords = dp.darray(array=numpy.array(crop).astype(numpy.uint32))
+
+        dimage_crop = dimage.crop_and_resize_padding(coordinates=coords,
+                                                     size=size)
+
+        image_crop = []
+        for coords in crop:
+            image_crop.append(
+                letterbox(array[coords[1]:coords[3], coords[0]:coords[2]],
+                          size)
+            )
+
+        diff = numpy.linalg.norm(dimage_crop.to_numpy() - numpy.array(image_crop).astype(dtype=dtype.numpy_dtype))
+
+        assert diff < 1e-5
+        assert dimage_crop.shape == (len(crop),)+size[::-1]+(3,)
+        assert dimage_crop.shape == numpy.array(image_crop, dtype=dtype.numpy_dtype).shape
+        assert dimage_crop.size == numpy.array(image_crop, dtype=dtype.numpy_dtype).size
+
+    @pytest.mark.parametrize("shape", [(3, 40, 50),
+                                       (3, 240, 250)])
+    @pytest.mark.parametrize("size", [(20, 20),
+                                      (100, 100),
+                                      (40, 60),
+                                      (200, 300)])
+    @pytest.mark.parametrize("crop", [[[0, 0, 20, 20]],
+                                      [[10, 10, 12, 15],
+                                      [5, 5, 30, 25]],
+                                      [[20, 20, 30, 40]]])
+    def test_dimage_chw_crop_n_resize_padding(self, dtype, shape, size, crop):
+        """
+        Test conversion of a dimage
+        """
+        if dtype.numpy_dtype not in [
+                numpy.uint8,
+                numpy.int8,
+                numpy.uint16,
+                numpy.int16,
+                numpy.int32,
+                numpy.float32,
+                numpy.float64]:
+            dtype = dp.float32
+
+        array = numpy.random.rand(*shape)*100
+        array = array.astype(dtype.numpy_dtype)
+        dimage = dp.dimage(array=array, channel_format=dp.DOLPHIN_RGB)
+        coords = dp.darray(array=numpy.array(crop).astype(numpy.uint32))
+        array = array.transpose(1, 2, 0)
+
+        dimage_crop = dimage.crop_and_resize_padding(coordinates=coords,
+                                                     size=size)
+
+        image_crop = []
+        for coords in crop:
+            image_crop.append(
+                letterbox(array[coords[1]:coords[3], coords[0]:coords[2]],
+                          size)
+            )
+
+        diff = numpy.linalg.norm(dimage_crop.to_numpy() - numpy.array(image_crop).astype(dtype=dtype.numpy_dtype).transpose(0,3,1,2))
+
+        assert diff < 1e-5
+        assert dimage_crop.shape == (len(crop), 3)+size[::-1]
         assert dimage_crop.size == numpy.array(image_crop, dtype=dtype.numpy_dtype).size

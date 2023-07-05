@@ -132,7 +132,8 @@ __global__ void HWC_resize_padding_{{ dtype }}(
 
             for(uint32_t k=0; k<channels; k++){
 
-                dst_img[index_transform(dst_offset + k, strides_dst, shape_dst, ndim)] = src_img[index_transform(src_offset + k, strides_src, shape_src, ndim)];
+                dst_img[index_transform(dst_offset + k, strides_dst, shape_dst, ndim)] =
+                src_img[index_transform(src_offset + k, strides_src, shape_src, ndim)];
             }
         }
 
@@ -189,9 +190,9 @@ __global__ void CHW_resize_padding_{{ dtype }}(
             uint32_t src_offset = (jIn * (input_width)  + iIn);
 
             for(uint32_t k=0; k<channels; k++){
-                dst_img[index_transform(dst_offset + total_size_out * k, strides_dst, shape_dst, ndim)] = src_img[index_transform(src_offset + total_size_in * k, strides_src, shape_src, ndim)];
+                dst_img[index_transform(dst_offset + total_size_out * k, strides_dst, shape_dst, ndim)] =
+                src_img[index_transform(src_offset + total_size_in * k, strides_src, shape_src, ndim)];
             }
         }
-
     }
 }
