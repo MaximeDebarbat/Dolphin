@@ -79,7 +79,7 @@ class CudaBase:
         return (max_threads, 1, 1), (max_blocks, 1)
 
     @staticmethod
-    def GET_BLOCK_X_Y(Z: int) -> tuple:
+    def GET_BLOCK_X_Y(Z: int) -> Tuple[int, int, int]:
         """Get the block size for a given Z.
         The block size is calculated using the following formula:
         (max(ceil(sqrt(MAX_THREADS_PER_BLOCKS/Z)),1),

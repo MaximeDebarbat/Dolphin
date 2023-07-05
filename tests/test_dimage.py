@@ -92,7 +92,6 @@ class test_dimage:
 
         diff = numpy.linalg.norm(dimage.to_numpy() - dimage_copy.to_numpy())
 
-        print(dimage_copy.image_channel_format, dimage_copy.image_dim_format)
         assert isinstance(dimage_copy, dp.dimage)
         assert dimage_copy.image_dim_format == format
         assert dimage_copy.dtype == dtype
@@ -247,7 +246,8 @@ class test_dimage_resize:
         """
         Test resize of a HW (grayscale) dimage
         """
-        array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
+        array = numpy.random.rand(*shape) * 100
+        array = array.astype(dtype.numpy_dtype)
         dimage = dp.dimage(array=array)
         shape = dimage.shape
 
@@ -264,7 +264,46 @@ class test_dimage_resize:
                 numpy.float64]:
             s_dtype = numpy.float32
 
-        cv_resize = cv2.resize(dimage.to_numpy().astype(s_dtype), new_shape, interpolation=cv2.INTER_NEAREST)
+        cv_resize = cv2.resize(dimage.np.astype(s_dtype), new_shape, interpolation=cv2.INTER_NEAREST)
+
+        diff = numpy.linalg.norm(dimage_resize.to_numpy() - cv_resize)
+
+        assert isinstance(dimage_resize, dp.dimage)
+        assert dimage_resize.width == new_shape[0]
+        assert dimage_resize.height == new_shape[1]
+        assert diff < 1e-5
+        assert dimage_resize.image_dim_format == dp.dimage_dim_format.DOLPHIN_HW
+        assert dimage_resize.image_channel_format == dp.DOLPHIN_GRAY_SCALE
+        assert dimage_resize.dtype == dtype
+
+    @pytest.mark.parametrize("shape", [(40, 50),
+                                       (400, 500)])
+    @pytest.mark.parametrize("new_shape", [(200, 200),
+                                           (400, 100),
+                                           (100, 400)])
+    def test_dimage_HW_transpose(self, dtype, shape, new_shape):
+        """
+        Test resize of a HW (grayscale) dimage but transposed
+        """
+        array = numpy.random.rand(*shape) * 100
+        array = array.astype(dtype.numpy_dtype)
+        dimage = dp.dimage(array=array).transpose(1, 0)
+        shape = dimage.shape
+
+        dimage_resize = dimage.resize(new_shape)
+
+        s_dtype = dtype.numpy_dtype
+        if dtype.numpy_dtype not in [
+                numpy.uint8,
+                numpy.int8,
+                numpy.uint16,
+                numpy.int16,
+                numpy.int32,
+                numpy.float32,
+                numpy.float64]:
+            s_dtype = numpy.float32
+
+        cv_resize = cv2.resize(dimage.np.astype(s_dtype), new_shape, interpolation=cv2.INTER_NEAREST)
 
         diff = numpy.linalg.norm(dimage_resize.to_numpy() - cv_resize)
 
@@ -314,6 +353,44 @@ class test_dimage_resize:
         assert dimage_resize.image_channel_format == dp.DOLPHIN_GRAY_SCALE
         assert dimage_resize.dtype == dtype
 
+    @pytest.mark.parametrize("shape", [(40, 50),
+                                       (400, 500)])
+    @pytest.mark.parametrize("new_shape", [(200, 200),
+                                           (400, 100),
+                                           (100, 400)])
+    def test_dimage_HW_resize_padding_transpose(self, dtype, shape, new_shape):
+        """
+        Test resize of a HW (grayscale) dimage transpose
+        """
+        array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
+        dimage = dp.dimage(array=array).transpose(1, 0)
+        shape = dimage.shape
+
+        dimage_resize, _, _ = dimage.resize_padding(new_shape)
+
+        s_dtype = dtype.numpy_dtype
+        if dtype.numpy_dtype not in [
+                numpy.uint8,
+                numpy.int8,
+                numpy.uint16,
+                numpy.int16,
+                numpy.int32,
+                numpy.float32,
+                numpy.float64]:
+            s_dtype = numpy.float32
+
+        cv_resize = letterbox(dimage.to_numpy().astype(s_dtype), new_shape)
+
+        diff = numpy.linalg.norm(dimage_resize.to_numpy() - cv_resize)
+
+        assert isinstance(dimage_resize, dp.dimage)
+        assert dimage_resize.width == new_shape[0]
+        assert dimage_resize.height == new_shape[1]
+        assert diff < 1e-5
+        assert dimage_resize.image_dim_format == dp.dimage_dim_format.DOLPHIN_HW
+        assert dimage_resize.image_channel_format == dp.DOLPHIN_GRAY_SCALE
+        assert dimage_resize.dtype == dtype
+
 
     @pytest.mark.parametrize("shape", [(400, 500, 3),
                                        (40, 50, 3),
@@ -329,6 +406,47 @@ class test_dimage_resize:
         """
         array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
         dimage = dp.dimage(array=array, channel_format=format)
+        shape = dimage.shape
+
+        dimage_resize = dimage.resize(new_shape)
+
+        s_dtype = dtype.numpy_dtype
+        if dtype.numpy_dtype not in [
+                numpy.uint8,
+                numpy.int8,
+                numpy.uint16,
+                numpy.int16,
+                numpy.int32,
+                numpy.float32,
+                numpy.float64]:
+            s_dtype = numpy.float32
+
+        cv_resize = cv2.resize(dimage.to_numpy().astype(s_dtype), new_shape, interpolation=cv2.INTER_NEAREST)
+
+        diff = numpy.linalg.norm(dimage_resize.to_numpy() - cv_resize)
+
+        assert isinstance(dimage_resize, dp.dimage)
+        assert dimage_resize.width == new_shape[0]
+        assert dimage_resize.height == new_shape[1]
+        assert diff < 1e-5
+        assert dimage_resize.image_dim_format == dp.dimage_dim_format.DOLPHIN_HWC
+        assert dimage_resize.image_channel_format == format
+        assert dimage_resize.dtype == dtype
+
+    @pytest.mark.parametrize("shape", [(3, 400, 500),
+                                       (3, 40, 50),
+                                       (3, 200, 200)])
+    @pytest.mark.parametrize("new_shape", [(200, 200),
+                                           (400, 100),
+                                           (100, 400)])
+    @pytest.mark.parametrize("format", [dp.DOLPHIN_RGB,
+                                        dp.DOLPHIN_BGR])
+    def test_dimage_HWC_transpose(self, dtype, shape, new_shape, format):
+        """
+        Test the transpose of a dimage
+        """
+        array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
+        dimage = dp.dimage(array=array, channel_format=format).transpose(2, 1, 0)
         shape = dimage.shape
 
         dimage_resize = dimage.resize(new_shape)
@@ -405,6 +523,46 @@ class test_dimage_resize:
                                            (100, 400)])
     @pytest.mark.parametrize("format", [dp.DOLPHIN_RGB,
                                         dp.DOLPHIN_BGR])
+    def test_dimage_HWC_resize_padding_transpose(self, dtype, shape, new_shape, format):
+        """
+        Test the transpose of a dimage
+        """
+        array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
+        dimage = dp.dimage(array=array, channel_format=format).transpose(2, 1, 0)
+        shape = dimage.shape
+        dimage_resize, _, _ = dimage.resize_padding(new_shape)
+
+        s_dtype = dtype.numpy_dtype
+        if dtype.numpy_dtype not in [
+                numpy.uint8,
+                numpy.int8,
+                numpy.uint16,
+                numpy.int16,
+                numpy.int32,
+                numpy.float32,
+                numpy.float64]:
+            s_dtype = numpy.float32
+
+        cv_resize = letterbox(dimage.to_numpy().astype(s_dtype), new_shape)
+
+        diff = numpy.linalg.norm(dimage_resize.to_numpy() - cv_resize)
+
+        assert isinstance(dimage_resize, dp.dimage)
+        assert dimage_resize.width == new_shape[0]
+        assert dimage_resize.height == new_shape[1]
+        assert diff < 1e-5
+        assert dimage_resize.image_dim_format == dp.dimage_dim_format.DOLPHIN_HWC
+        assert dimage_resize.image_channel_format == format
+        assert dimage_resize.dtype == dtype
+
+    @pytest.mark.parametrize("shape", [(3, 400, 500),
+                                       (3, 40, 50),
+                                       (3, 200, 200)])
+    @pytest.mark.parametrize("new_shape", [(200, 200),
+                                           (400, 100),
+                                           (100, 400)])
+    @pytest.mark.parametrize("format", [dp.DOLPHIN_RGB,
+                                        dp.DOLPHIN_BGR])
     def test_dimage_CHW(self, dtype, shape, new_shape, format):
         """
         Test the transpose of a dimage
@@ -426,7 +584,48 @@ class test_dimage_resize:
                 numpy.float64]:
             s_dtype = numpy.float32
 
-        cv_resize = cv2.resize(dimage.to_numpy().transpose(1, 2, 0).astype(s_dtype), new_shape, interpolation=cv2.INTER_NEAREST)
+        cv_resize = cv2.resize(dimage.np.transpose(1, 2, 0).astype(s_dtype), new_shape, interpolation=cv2.INTER_NEAREST)
+
+        diff = numpy.linalg.norm(dimage_resize.to_numpy() - cv_resize.transpose(2, 0, 1))
+
+        assert isinstance(dimage_resize, dp.dimage)
+        assert dimage_resize.width == new_shape[0]
+        assert dimage_resize.height == new_shape[1]
+        assert diff < 1e-5
+        assert dimage_resize.image_dim_format == dp.dimage_dim_format.DOLPHIN_CHW
+        assert dimage_resize.image_channel_format == format
+        assert dimage_resize.dtype == dtype
+
+    @pytest.mark.parametrize("shape", [(400, 500, 3),
+                                       (40, 50, 3),
+                                       (200, 200, 3)])
+    @pytest.mark.parametrize("new_shape", [(200, 200),
+                                           (400, 100),
+                                           (100, 400)])
+    @pytest.mark.parametrize("format", [dp.DOLPHIN_RGB,
+                                        dp.DOLPHIN_BGR])
+    def test_dimage_CHW_transpose(self, dtype, shape, new_shape, format):
+        """
+        Test the transpose of a dimage
+        """
+        array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
+        dimage = dp.dimage(array=array, channel_format=format).transpose(2,1,0)
+        shape = dimage.shape
+
+        dimage_resize = dimage.resize(new_shape)
+
+        s_dtype = dtype.numpy_dtype
+        if dtype.numpy_dtype not in [
+                numpy.uint8,
+                numpy.int8,
+                numpy.uint16,
+                numpy.int16,
+                numpy.int32,
+                numpy.float32,
+                numpy.float64]:
+            s_dtype = numpy.float32
+
+        cv_resize = cv2.resize(dimage.np.transpose(1, 2, 0).astype(s_dtype), new_shape, interpolation=cv2.INTER_NEAREST)
 
         diff = numpy.linalg.norm(dimage_resize.to_numpy() - cv_resize.transpose(2, 0, 1))
 
@@ -478,6 +677,48 @@ class test_dimage_resize:
         assert dimage_resize.image_dim_format == dp.dimage_dim_format.DOLPHIN_CHW
         assert dimage_resize.image_channel_format == format
         assert dimage_resize.dtype == dtype
+
+    @pytest.mark.parametrize("shape", [(400, 500, 3),
+                                       (40, 50, 3),
+                                       (200, 200, 3)])
+    @pytest.mark.parametrize("new_shape", [(200, 200),
+                                           (400, 100),
+                                           (100, 400)])
+    @pytest.mark.parametrize("format", [dp.DOLPHIN_RGB,
+                                        dp.DOLPHIN_BGR])
+    def test_dimage_CHW_resize_padding_transpose(self, dtype, shape, new_shape, format):
+        """
+        Test the transpose of a dimage
+        """
+        array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
+        dimage = dp.dimage(array=array, channel_format=format).transpose(2, 1, 0)
+        shape = dimage.shape
+
+        dimage_resize, _, _ = dimage.resize_padding(new_shape)
+
+        s_dtype = dtype.numpy_dtype
+        if dtype.numpy_dtype not in [
+                numpy.uint8,
+                numpy.int8,
+                numpy.uint16,
+                numpy.int16,
+                numpy.int32,
+                numpy.float32,
+                numpy.float64]:
+            s_dtype = numpy.float32
+
+        cv_resize = letterbox(dimage.to_numpy().transpose(1, 2, 0).astype(s_dtype), new_shape)
+
+        diff = numpy.linalg.norm(dimage_resize.to_numpy() - cv_resize.transpose(2, 0, 1))
+
+        assert isinstance(dimage_resize, dp.dimage)
+        assert dimage_resize.width == new_shape[0]
+        assert dimage_resize.height == new_shape[1]
+        assert diff < 1e-5
+        assert dimage_resize.image_dim_format == dp.dimage_dim_format.DOLPHIN_CHW
+        assert dimage_resize.image_channel_format == format
+        assert dimage_resize.dtype == dtype
+
 
 @pytest.mark.parametrize("dtype", [dp.dtype.float32,
                                    dp.dtype.float64,
@@ -730,6 +971,27 @@ class test_dimage_cvtcolor:
 
     @pytest.mark.parametrize("shape", [(3, 40, 50),
                                        (3, 240, 250)])
+    def test_dimage_cvtcolor_hwc_bgr2gray_transpose(self, dtype, shape):
+        """
+        Test conversion of a dimage
+        """
+        array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
+        dimage = dp.dimage(array=array, channel_format=dp.DOLPHIN_BGR).transpose(2, 1, 0)
+        result = numpy.zeros((dimage.shape[0], dimage.shape[1]), dtype=dtype.numpy_dtype)
+
+        dimage_cvt = dimage.cvtColor(dp.DOLPHIN_GRAY_SCALE)
+
+        result = dimage.to_numpy()[:, :, 0]*0.114 + dimage.to_numpy()[:, :, 1]*0.587 + dimage.to_numpy()[:, :, 2]*0.299
+
+        diff = numpy.linalg.norm(dimage_cvt.to_numpy() - result.astype(dtype=numpy.float32))
+
+        assert isinstance(dimage_cvt, dp.dimage)
+        assert diff < 1e-4, f"diff: {diff} | {dimage_cvt.to_numpy()[0][0]} | {result[0][0]}"
+        assert dimage_cvt.image_dim_format == dp.dimage_dim_format.DOLPHIN_HW
+        assert dimage_cvt.image_channel_format == dp.DOLPHIN_GRAY_SCALE
+
+    @pytest.mark.parametrize("shape", [(3, 40, 50),
+                                       (3, 240, 250)])
     def test_dimage_cvtcolor_chw_bgr2gray(self, dtype, shape):
         """
         Test conversion of a dimage
@@ -751,12 +1013,54 @@ class test_dimage_cvtcolor:
 
     @pytest.mark.parametrize("shape", [(40, 50, 3),
                                        (240, 250, 3)])
+    def test_dimage_cvtcolor_chw_bgr2gray_transpose(self, dtype, shape):
+        """
+        Test conversion of a dimage
+        """
+        array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
+        dimage = dp.dimage(array=array, channel_format=dp.DOLPHIN_BGR).transpose(2, 1, 0)
+        result = numpy.zeros((dimage.shape[1], dimage.shape[2]), dtype=dtype.numpy_dtype)
+
+        dimage_cvt = dimage.cvtColor(dp.DOLPHIN_GRAY_SCALE)
+
+        result = dimage.to_numpy()[0, :, :]*0.114 + dimage.to_numpy()[1, :, :]*0.587 + dimage.to_numpy()[2, :, :]*0.299
+
+        diff = numpy.linalg.norm(dimage_cvt.to_numpy() - result.astype(dtype=numpy.float32))
+
+        assert isinstance(dimage_cvt, dp.dimage)
+        assert diff < 1e-4, f"diff: {diff} | {dimage_cvt.to_numpy()[0][0]} | {result[0][0]}"
+        assert dimage_cvt.image_dim_format == dp.dimage_dim_format.DOLPHIN_HW
+        assert dimage_cvt.image_channel_format == dp.DOLPHIN_GRAY_SCALE
+
+    @pytest.mark.parametrize("shape", [(40, 50, 3),
+                                       (240, 250, 3)])
     def test_dimage_cvtcolor_hwc_rgb2gray(self, dtype, shape):
         """
         Test conversion of a dimage
         """
         array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
         dimage = dp.dimage(array=array, channel_format=dp.DOLPHIN_RGB)
+        result = numpy.zeros((dimage.shape[0], dimage.shape[1]), dtype=dtype.numpy_dtype)
+
+        dimage_cvt = dimage.cvtColor(dp.DOLPHIN_GRAY_SCALE)
+
+        result = dimage.to_numpy()[:, :, 0]*0.299 + dimage.to_numpy()[:, :, 1]*0.587 + dimage.to_numpy()[:, :, 2]*0.114
+
+        diff = numpy.linalg.norm(dimage_cvt.to_numpy() - result.astype(dtype=numpy.float32))
+
+        assert isinstance(dimage_cvt, dp.dimage)
+        assert diff < 1e-4, f"diff: {diff} | {dimage_cvt.to_numpy()[0][0]} | {result[0][0]}"
+        assert dimage_cvt.image_dim_format == dp.dimage_dim_format.DOLPHIN_HW
+        assert dimage_cvt.image_channel_format == dp.DOLPHIN_GRAY_SCALE
+
+    @pytest.mark.parametrize("shape", [(3, 40, 50),
+                                       (3, 240, 250)])
+    def test_dimage_cvtcolor_hwc_rgb2gray(self, dtype, shape):
+        """
+        Test conversion of a dimage
+        """
+        array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
+        dimage = dp.dimage(array=array, channel_format=dp.DOLPHIN_RGB).transpose(2, 1, 0)
         result = numpy.zeros((dimage.shape[0], dimage.shape[1]), dtype=dtype.numpy_dtype)
 
         dimage_cvt = dimage.cvtColor(dp.DOLPHIN_GRAY_SCALE)
@@ -816,6 +1120,29 @@ class test_dimage_cvtcolor:
 
     @pytest.mark.parametrize("shape", [(3, 40, 50),
                                        (3, 240, 250)])
+    def test_dimage_cvtcolor_hwc_bgr2rgb_transpose(self, dtype, shape):
+        """
+        Test conversion of a dimage
+        """
+        array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
+        dimage = dp.dimage(array=array, channel_format=dp.DOLPHIN_BGR).transpose(2, 1, 0)
+        result = numpy.zeros((dimage.shape[0], dimage.shape[1], dimage.shape[2]), dtype=dtype.numpy_dtype)
+
+        dimage_cvt = dimage.cvtColor(dp.DOLPHIN_RGB)
+
+        result[:, :, 0] = dimage.to_numpy()[:, :, 2]
+        result[:, :, 1] = dimage.to_numpy()[:, :, 1]
+        result[:, :, 2] = dimage.to_numpy()[:, :, 0]
+
+        diff = numpy.linalg.norm(dimage_cvt.to_numpy() - result.astype(dtype=numpy.float32))
+
+        assert isinstance(dimage_cvt, dp.dimage)
+        assert diff < 1e-4, f"diff: {diff} | {dimage_cvt.to_numpy()[0][0]} | {result[0][0]}"
+        assert dimage_cvt.image_dim_format == dp.dimage_dim_format.DOLPHIN_HWC
+        assert dimage_cvt.image_channel_format == dp.DOLPHIN_RGB
+
+    @pytest.mark.parametrize("shape", [(3, 40, 50),
+                                       (3, 240, 250)])
     def test_dimage_cvtcolor_chw_bgr2rgb(self, dtype, shape):
         """
         Test conversion of a dimage
@@ -839,12 +1166,58 @@ class test_dimage_cvtcolor:
 
     @pytest.mark.parametrize("shape", [(40, 50, 3),
                                        (240, 250, 3)])
+    def test_dimage_cvtcolor_chw_bgr2rgb_transpose(self, dtype, shape):
+        """
+        Test conversion of a dimage
+        """
+        array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
+        dimage = dp.dimage(array=array, channel_format=dp.DOLPHIN_BGR).transpose(2, 1, 0)
+        result = numpy.zeros((dimage.shape[0], dimage.shape[1], dimage.shape[2]), dtype=dtype.numpy_dtype)
+
+        dimage_cvt = dimage.cvtColor(dp.DOLPHIN_RGB)
+
+        result[0, :, :] = dimage.to_numpy()[2, :, :]
+        result[1, :, :] = dimage.to_numpy()[1, :, :]
+        result[2, :, :] = dimage.to_numpy()[0, :, :]
+
+        diff = numpy.linalg.norm(dimage_cvt.to_numpy() - result.astype(dtype=numpy.float32))
+
+        assert isinstance(dimage_cvt, dp.dimage)
+        assert diff < 1e-4, f"diff: {diff} | {dimage_cvt.to_numpy()[0][0]} | {result[0][0]}"
+        assert dimage_cvt.image_dim_format == dp.dimage_dim_format.DOLPHIN_CHW
+        assert dimage_cvt.image_channel_format == dp.DOLPHIN_RGB
+
+    @pytest.mark.parametrize("shape", [(40, 50, 3),
+                                       (240, 250, 3)])
     def test_dimage_cvtcolor_hwc_rgb2bgr(self, dtype, shape):
         """
         Test conversion of a dimage
         """
         array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
         dimage = dp.dimage(array=array, channel_format=dp.DOLPHIN_RGB)
+        result = numpy.zeros((dimage.shape[0], dimage.shape[1], dimage.shape[2]), dtype=dtype.numpy_dtype)
+
+        dimage_cvt = dimage.cvtColor(dp.DOLPHIN_BGR)
+
+        result[:, :, 0] = dimage.to_numpy()[:, :, 2]
+        result[:, :, 1] = dimage.to_numpy()[:, :, 1]
+        result[:, :, 2] = dimage.to_numpy()[:, :, 0]
+
+        diff = numpy.linalg.norm(dimage_cvt.to_numpy() - result.astype(dtype=numpy.float32))
+
+        assert isinstance(dimage_cvt, dp.dimage)
+        assert diff < 1e-4, f"diff: {diff} | {dimage_cvt.to_numpy()[0][0]} | {result[0][0]}"
+        assert dimage_cvt.image_dim_format == dp.dimage_dim_format.DOLPHIN_HWC
+        assert dimage_cvt.image_channel_format == dp.DOLPHIN_BGR
+
+    @pytest.mark.parametrize("shape", [(3, 40, 50),
+                                       (3, 240, 250)])
+    def test_dimage_cvtcolor_hwc_rgb2bgr(self, dtype, shape):
+        """
+        Test conversion of a dimage
+        """
+        array = numpy.random.rand(*shape).astype(dtype.numpy_dtype)
+        dimage = dp.dimage(array=array, channel_format=dp.DOLPHIN_RGB).transpose(2, 1, 0)
         result = numpy.zeros((dimage.shape[0], dimage.shape[1], dimage.shape[2]), dtype=dtype.numpy_dtype)
 
         dimage_cvt = dimage.cvtColor(dp.DOLPHIN_BGR)
@@ -906,3 +1279,198 @@ class test_dimage_cvtcolor:
         assert diff < 1e-4, f"diff: {diff} | \n {array} \n {dimage.to_numpy()} \n {result}"
         assert dimage.image_dim_format == dp.dimage_dim_format.DOLPHIN_CHW
         assert dimage.image_channel_format == dp.DOLPHIN_RGB
+
+
+@pytest.mark.parametrize("dtype", [dp.dtype.float32,
+                                   dp.dtype.float64,
+                                   dp.dtype.int32,
+                                   dp.dtype.int16,
+                                   dp.dtype.int8,
+                                   dp.dtype.uint32,
+                                   dp.dtype.uint16,
+                                   dp.dtype.uint8])
+class test_dimage_crop_n_resize:
+
+    @pytest.mark.parametrize("shape", [(40, 50, 3),
+                                       (240, 250, 3)])
+    @pytest.mark.parametrize("size", [(20, 20),
+                                      (100, 100),
+                                      (40, 60),
+                                      (222, 333)])
+    @pytest.mark.parametrize("crop", [[[0, 0, 20, 20]],
+                                      [[10, 10, 12, 15],
+                                      [5, 5, 30, 25]],
+                                      [[20, 20, 30, 40]]])
+    def test_dimage_hwc_crop_n_resize(self, dtype, shape, size, crop):
+        """
+        Test conversion of a dimage
+        """
+        if dtype.numpy_dtype not in [
+                numpy.uint8,
+                numpy.int8,
+                numpy.uint16,
+                numpy.int16,
+                numpy.int32,
+                numpy.float32,
+                numpy.float64]:
+            dtype = dp.float32
+
+        array = numpy.random.rand(*shape)*100
+        array = array.astype(dtype.numpy_dtype)
+        dimage = dp.dimage(array=array, channel_format=dp.DOLPHIN_RGB)
+        coords = dp.darray(array=numpy.array(crop).astype(numpy.uint32))
+
+        dimage_crop = dimage.crop_and_resize(coordinates=coords, size=size)
+
+        image_crop = []
+        for coords in crop:
+            image_crop.append(
+                cv2.resize(array[coords[1]:coords[3], coords[0]:coords[2]],
+                           size,
+                           interpolation=cv2.INTER_NEAREST)
+            )
+
+        diff = numpy.linalg.norm(dimage_crop.np - numpy.array(image_crop).astype(dtype=dtype.numpy_dtype))
+
+        assert diff < 1e-5
+        assert dimage_crop.shape == (len(crop),)+size[::-1]+(3,)
+        assert dimage_crop.size == numpy.array(image_crop, dtype=dtype.numpy_dtype).size
+        assert dimage_crop.shape == numpy.array(image_crop, dtype=dtype.numpy_dtype).shape
+
+    @pytest.mark.parametrize("shape", [(3, 40, 50),
+                                       (3, 240, 250)])
+    @pytest.mark.parametrize("size", [(20, 20),
+                                      (100, 100),
+                                      (40, 60),
+                                      (222, 333)])
+    @pytest.mark.parametrize("crop", [[[0, 0, 20, 20]],
+                                      [[10, 10, 12, 15],
+                                      [5, 5, 30, 25]],
+                                      [[20, 20, 30, 40]]])
+    def test_dimage_chw_crop_n_resize(self, dtype, shape, size, crop):
+        """
+        Test conversion of a dimage
+        """
+        if dtype.numpy_dtype not in [
+                numpy.uint8,
+                numpy.int8,
+                numpy.uint16,
+                numpy.int16,
+                numpy.int32,
+                numpy.float32,
+                numpy.float64]:
+            dtype = dp.float32
+
+        array = numpy.random.rand(*shape)*100
+        array = array.astype(dtype.numpy_dtype)
+        dimage = dp.dimage(array=array, channel_format=dp.DOLPHIN_RGB)
+        coords = dp.darray(array=numpy.array(crop).astype(numpy.uint32))
+        array = array.transpose(1, 2, 0)
+
+        dimage_crop = dimage.crop_and_resize(coordinates=coords, size=size)
+
+        image_crop = []
+        for coords in crop:
+            image_crop.append(
+                cv2.resize(array[coords[1]:coords[3], coords[0]:coords[2]],
+                           size,
+                           interpolation=cv2.INTER_NEAREST)
+            )
+
+        diff = numpy.linalg.norm(dimage_crop.to_numpy() - numpy.array(image_crop).astype(dtype=dtype.numpy_dtype).transpose(0,3,1,2))
+
+        assert diff < 1e-5
+        assert dimage_crop.shape == (len(crop), 3)+size[::-1]
+        assert dimage_crop.size == numpy.array(image_crop, dtype=dtype.numpy_dtype).size
+
+    @pytest.mark.parametrize("shape", [(40, 50, 3),
+                                       (240, 250, 3)])
+    @pytest.mark.parametrize("size", [(20, 20),
+                                      (100, 100),
+                                      (40, 60),
+                                      (200, 300)])
+    @pytest.mark.parametrize("crop", [[[0, 0, 20, 20]],
+                                      [[10, 10, 12, 15],
+                                      [5, 5, 30, 25]],
+                                      [[20, 20, 30, 40]]])
+    def test_dimage_hwc_crop_n_resize_padding(self, dtype, shape, size, crop):
+        """
+        Test conversion of a dimage
+        """
+        if dtype.numpy_dtype not in [
+                numpy.uint8,
+                numpy.int8,
+                numpy.uint16,
+                numpy.int16,
+                numpy.int32,
+                numpy.float32,
+                numpy.float64]:
+            dtype = dp.float32
+
+        array = numpy.random.rand(*shape)*100
+        array = array.astype(dtype.numpy_dtype)
+        dimage = dp.dimage(array=array, channel_format=dp.DOLPHIN_RGB)
+        coords = dp.darray(array=numpy.array(crop).astype(numpy.uint32))
+
+        dimage_crop = dimage.crop_and_resize_padding(coordinates=coords,
+                                                     size=size)
+
+        image_crop = []
+        for coords in crop:
+            image_crop.append(
+                letterbox(array[coords[1]:coords[3], coords[0]:coords[2]],
+                          size)
+            )
+
+        diff = numpy.linalg.norm(dimage_crop.to_numpy() - numpy.array(image_crop).astype(dtype=dtype.numpy_dtype))
+
+        assert diff < 1e-5
+        assert dimage_crop.shape == (len(crop),)+size[::-1]+(3,)
+        assert dimage_crop.shape == numpy.array(image_crop, dtype=dtype.numpy_dtype).shape
+        assert dimage_crop.size == numpy.array(image_crop, dtype=dtype.numpy_dtype).size
+
+    @pytest.mark.parametrize("shape", [(3, 40, 50),
+                                       (3, 240, 250)])
+    @pytest.mark.parametrize("size", [(20, 20),
+                                      (100, 100),
+                                      (40, 60),
+                                      (200, 300)])
+    @pytest.mark.parametrize("crop", [[[0, 0, 20, 20]],
+                                      [[10, 10, 12, 15],
+                                      [5, 5, 30, 25]],
+                                      [[20, 20, 30, 40]]])
+    def test_dimage_chw_crop_n_resize_padding(self, dtype, shape, size, crop):
+        """
+        Test conversion of a dimage
+        """
+        if dtype.numpy_dtype not in [
+                numpy.uint8,
+                numpy.int8,
+                numpy.uint16,
+                numpy.int16,
+                numpy.int32,
+                numpy.float32,
+                numpy.float64]:
+            dtype = dp.float32
+
+        array = numpy.random.rand(*shape)*100
+        array = array.astype(dtype.numpy_dtype)
+        dimage = dp.dimage(array=array, channel_format=dp.DOLPHIN_RGB)
+        coords = dp.darray(array=numpy.array(crop).astype(numpy.uint32))
+        array = array.transpose(1, 2, 0)
+
+        dimage_crop = dimage.crop_and_resize_padding(coordinates=coords,
+                                                     size=size)
+
+        image_crop = []
+        for coords in crop:
+            image_crop.append(
+                letterbox(array[coords[1]:coords[3], coords[0]:coords[2]],
+                          size)
+            )
+
+        diff = numpy.linalg.norm(dimage_crop.to_numpy() - numpy.array(image_crop).astype(dtype=dtype.numpy_dtype).transpose(0,3,1,2))
+
+        assert diff < 1e-5
+        assert dimage_crop.shape == (len(crop), 3)+size[::-1]
+        assert dimage_crop.size == numpy.array(image_crop, dtype=dtype.numpy_dtype).size

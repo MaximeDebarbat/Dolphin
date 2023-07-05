@@ -24,6 +24,7 @@ class CuResizeCompiler(CompilerBase):
             source += Template(self._cuda_source).render(
                 dtype=dtype.cuda_dtype,
                 )
+        source = self.append_utils(source)
         return source
 
 
@@ -60,5 +61,23 @@ class CuCvtColorCompiler(CompilerBase):
             source += Template(self._cuda_source).render(
                 dtype=dtype.cuda_dtype
                 )
+        source = self.append_utils(source)
+        return source
 
+
+class CuCropAndResizeCompiler(CompilerBase):
+    __CU_FILENAME: str = "crop_and_resize.cu"
+
+    def __init__(self):
+        super().__init__(self.__CU_FILENAME)
+
+        self.compiled_source = self.try_load_cubin()
+
+    def generate_source(self):
+        source: str = ""
+        for dtype in dolphin.dtype:
+            source += Template(self._cuda_source).render(
+                dtype=dtype.cuda_dtype
+                )
+        source = self.append_utils(source)
         return source

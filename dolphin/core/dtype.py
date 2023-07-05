@@ -88,7 +88,7 @@ class dtype(Enum):  # pylint: disable=invalid-name
         for d in dtype:
             if d.numpy_dtype == numpy_dtype:
                 return d
-        raise ValueError("Invalid numpy data type")
+        raise ValueError(f"Invalid numpy data type : {numpy_dtype}")
 
     def __str__(self) -> str:
         """Triggered when casting into str::

@@ -2,10 +2,10 @@
 #include <stdint.h>
 
 __device__ __forceinline__ uint32_t index_transform(const uint32_t index,
-                                                      const uint32_t* __restrict__ strides,
-                                                      const uint32_t* __restrict__ shape,
-                                                      const uint32_t ndim
-                                                     ){
+                                                    const uint32_t* __restrict__ strides,
+                                                    const uint32_t* __restrict__ shape,
+                                                    const uint32_t ndim
+                                                    ){
 
     uint32_t idx = index;
     uint32_t res = 0;

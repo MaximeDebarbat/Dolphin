@@ -20,6 +20,7 @@ __global__ void discontiguous_copy_{{ dtype }}(
 
         uint32_t index_dst = index_transform(i, strides_dst, shape_dst, ndim_dst);
         uint32_t index_src = index_transform(i, strides_src, shape_src, ndim_src);
+
         dst[index_dst] = src[index_src];
     }
 
