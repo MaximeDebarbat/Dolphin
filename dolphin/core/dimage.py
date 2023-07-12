@@ -1740,3 +1740,83 @@ def cvtColor(src: dimage,
     :type dst: dimage
     """
     return src.cvtColor(color_format=color_format, dst=dst)
+
+
+def crop_and_resize(src: dimage,
+                    coordinates: dolphin.darray,
+                    size: Tuple[int, int],
+                    dst: dolphin.darray = None) -> dolphin.darray:
+    """
+    This function is well performing for cropping and resizing images.
+    The use case would be to process a batch of images which would be
+    the crops of a bigger image. The coordinates of the crops would,
+    for instance, be the output of a detection model.
+
+    In terms of usability, the coordinates are expected to be in the
+    following format: [[x1, y1, x2, y2], ...] where x1, y1, x2, y2 are
+    the absolute coordinates of the top left and bottom right corners
+    of the crop in the original image.
+
+    Coordinates would thus be a :class:`dolphin.darray` of shape
+    (n, 4) where n is the number of crops, n >= 1.
+
+    Also, for faster execution, the destination darray is expected to
+    be preallocated and passed as an argument to the function.
+
+    :param src: Source image
+    :type src: dimage
+    :param coordinates: darray of coordinates
+    :type coordinates: dolphin.darray
+    :param size: Tuple of the desired shape (width, height)
+    :type size: Tuple[int, int]
+    :param dst: Destination darray for faster execution, defaults to None
+    :type dst: dolphin.darray, optional
+    :return: darray of cropped and resized images
+    :rtype: dolphin.darray
+    """
+
+    return src.crop_and_resize(coordinates=coordinates,
+                               size=size,
+                               dst=dst)
+
+
+def crop_and_resize_padding(src: dimage,
+                            coordinates: dolphin.darray,
+                            size: Tuple[int, int],
+                            padding: Union[int, float] = 127,
+                            dst: dolphin.darray = None) -> dolphin.darray:
+
+    """
+    This function is well performing for cropping and resizing images
+    using padded resize.
+    The use case would be to process a batch of images which would be
+    the crops of a bigger image. The coordinates of the crops would,
+    for instance, be the output of a detection model.
+
+    In terms of usability, the coordinates are expected to be in the
+    following format: [[x1, y1, x2, y2], ...] where x1, y1, x2, y2 are
+    the absolute coordinates of the top left and bottom right corners
+    of the crop in the original image.
+
+    Coordinates would thus be a :class:`dolphin.darray` of shape
+    (n, 4) where n is the number of crops, n >= 1.
+
+    Also, for faster execution, the destination darray is expected to
+    be preallocated and passed as an argument to the function.
+
+    :param src: Source image
+    :type src: dimage
+    :param coordinates: darray of coordinates
+    :type coordinates: dolphin.darray
+    :param size: Tuple of the desired shape (width, height)
+    :type size: Tuple[int, int]
+    :param dst: Destination darray for faster execution, defaults to None
+    :type dst: dolphin.darray, optional
+    :return: darray of cropped and resized images
+    :rtype: dolphin.darray
+    """
+
+    return src.crop_and_resize_padding(coordinates=coordinates,
+                                       size=size,
+                                       padding=padding,
+                                       dst=dst)
