@@ -484,6 +484,11 @@ class darray:
     _cu_fill = CuFill()
     _cu_discontiguous_copy = DiscontiguousCopy()
 
+    __slots__ = ['_stream', '_dtype', '_shape', '_size', '_nbytes',
+                 '_strides', '_allocation', '_allocation_size',
+                 '_shape_allocation', '_strides_allocation', '_block',
+                 '_grid']
+
     def __init__(self,
                  shape: Tuple[int, ...] = None,
                  dtype: dolphin.dtype = dolphin.dtype.float32,

@@ -25,6 +25,9 @@ class CudaTrtBuffers:
     as an argument.
     """
 
+    __slots__ = ["_inputs", "_outputs", "_input_order", "_output_order",
+                 "_stream"]
+
     def __init__(self, stream: cuda.Stream = None):
         """
         Constructor of the class.

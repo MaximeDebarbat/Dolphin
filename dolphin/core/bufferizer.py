@@ -57,6 +57,11 @@ class Bufferizer:
     :type buffer_full_hook: callable, optional
     """
 
+    __slots__ = ["_shape", "_dtype", "_buffer_len", "_itemsize", "_nbytes",
+                 "_n_elements", "_allocation", "_stream", "_flush_hook",
+                 "_allocate_hook", "_append_one_hook", "_append_multiple_hook",
+                 "_buffer_full_hook"]
+
     def __init__(self,
                  shape: tuple,
                  buffer_size: int,
