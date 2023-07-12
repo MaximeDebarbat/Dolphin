@@ -663,6 +663,8 @@ class dimage(dolphin.darray):
     _cu_crop_and_resize = CuCropAndResize()
     _cu_crop_and_resize_padding = CuCropAndResizePadding()
 
+    __slots__ = ['_image_channel_format', '_image_dim_format']
+
     def __init__(self,
                  shape: Tuple[int, ...] = None,
                  dtype: dolphin.dtype = dolphin.dtype.uint8,
