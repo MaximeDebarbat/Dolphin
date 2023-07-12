@@ -69,7 +69,9 @@ from .core.dimage import (dimage,
                           resize,
                           resize_padding,
                           cvtColor,
-                          normalize)
+                          normalize,
+                          crop_and_resize,
+                          crop_and_resize_padding)
 from .core.bufferizer import Bufferizer
 from .core.trtbuffer import CudaTrtBuffers
 from .TrtWrapper.Engine import Engine
