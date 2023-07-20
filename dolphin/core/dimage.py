@@ -1140,7 +1140,10 @@ shapes with resize shape.")
             math.ceil(
                 size[1] /
                 block[1]),
-            1)
+            math.ceil(
+                coordinates.shape[0] /
+                block[2])
+            )
 
         self._cu_crop_and_resize(src=self,
                                  dst=dst,
@@ -1241,7 +1244,10 @@ shapes with resize shape.")
             math.ceil(
                 size[1] /
                 block[1]),
-            1)
+            math.ceil(
+                coordinates.shape[0] /
+                block[2])
+            )
 
         self._cu_crop_and_resize_padding(src=self,
                                          dst=dst,
