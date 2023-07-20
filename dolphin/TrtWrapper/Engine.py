@@ -253,7 +253,7 @@ shape: {shape}, dtype: {dtype}")
               batched_input: bool = False,
               force_infer: bool = False,
               stream: cuda.Stream = None) -> Union[
-                  Dict[str, dolphin.Bufferizer],
+                  Dict[str, dolphin.darray],
                   None]:
         """
         Method to call to perform inference on the engine. This method
