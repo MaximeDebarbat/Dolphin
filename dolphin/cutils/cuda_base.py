@@ -34,6 +34,18 @@ class CudaBase:
     max_grid_dim_z: int = pycuda.autoinit.device.get_attribute(
             pycuda.driver.device_attribute.MAX_GRID_DIM_Z)
 
+    #: Maximum number of threads per block x on dim
+    max_block_dim_x: int = pycuda.autoinit.device.get_attribute(
+            pycuda.driver.device_attribute.MAX_BLOCK_DIM_X)
+
+    #: Maximum number of threads per block y on dim
+    max_block_dim_y: int = pycuda.autoinit.device.get_attribute(
+            pycuda.driver.device_attribute.MAX_BLOCK_DIM_Y)
+
+    #: Maximum number of threads per block z on dim
+    max_block_dim_z: int = pycuda.autoinit.device.get_attribute(
+            pycuda.driver.device_attribute.MAX_BLOCK_DIM_Z)
+
     #: Warp size
     warp_size: int = pycuda.tools.DeviceData(device).warp_size
 
@@ -96,8 +108,13 @@ class CudaBase:
         :rtype: tuple
         """
 
-        _s = int(np.sqrt(CudaBase.max_threads_per_block / int(Z)))
-        return (_s, _s, Z)
+        if Z < CudaBase.max_block_dim_z:
+            _s = int(np.sqrt(CudaBase.max_threads_per_block / int(Z)))
+            return (_s, _s, Z)
+        else:
+            z = CudaBase.max_block_dim_z
+            _s = int(np.sqrt(CudaBase.max_threads_per_block / int(z)))
+            return (_s, _s, z)
 
     @staticmethod
     def GET_GRID_SIZE(size: tuple, block: tuple) -> Tuple[int, int]:
