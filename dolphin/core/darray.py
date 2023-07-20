@@ -268,7 +268,7 @@ class ScalDiv(dolphin.ScalDivCompiler):
         for dtype in dolphin.dtype:
             self._func[dtype.cuda_dtype] = self.compiled_source.get_function(
                 self.__CU_FUNC_NAME + dtype.cuda_dtype).prepare(
-                    "PPPPPP" + numpy.dtype(dtype.numpy_dtype).char + "II")
+                    "PPPPPPfII")
 
     def __call__(self,
                  x_array: 'darray',
@@ -289,7 +289,7 @@ class ScalDiv(dolphin.ScalDivCompiler):
             x_array.strides_allocation,
             z_array.shape_allocation,
             z_array.strides_allocation,
-            x_array.dtype.numpy_dtype(a_scalar),
+            a_scalar,
             x_array.ndim,
             numpy.uint32(size))
 
