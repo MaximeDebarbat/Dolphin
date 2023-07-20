@@ -7,7 +7,7 @@ __global__ void scal_div_{{ dtype }}(const {{ dtype }}* __restrict__ x,
                                    const uint32_t* __restrict__ strides_x,
                                    const uint32_t* __restrict__ shape_z,
                                    const uint32_t* __restrict__ strides_z,
-                                   const {{ dtype }} a,
+                                   const float a,
                                    const uint32_t ndim,
                                    const uint32_t n){
 
