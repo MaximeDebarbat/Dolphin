@@ -159,7 +159,7 @@ class CudaTrtBuffers:
         :type data: dolphin.darray
         """
 
-        self._inputs[name].append_multiple_input(data)
+        self._inputs[name].append_multiple(data)
 
     @property
     def input_shape(self) -> Dict[str, tuple]:
